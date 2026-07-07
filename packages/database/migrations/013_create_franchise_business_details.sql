@@ -3,7 +3,7 @@ BEGIN;
 CREATE TABLE franchise_business_details (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
-  franchise_uid VARCHAR(255) NOT NULL,
+  tenant_uid VARCHAR(255) NOT NULL,
   business_name VARCHAR(255) NOT NULL,
   gst_number VARCHAR(20) NOT NULL,
   pan_number VARCHAR(10) NOT NULL,
@@ -25,11 +25,11 @@ CREATE TABLE franchise_business_details (
   CONSTRAINT uq_franchise_business_details_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_franchise_business_details_franchise_uid ON franchise_business_details(franchise_uid);
+CREATE INDEX idx_franchise_business_details_tenant_uid ON franchise_business_details(tenant_uid);
 
 COMMENT ON COLUMN franchise_business_details.id IS 'Auto-incremented primary key';
 COMMENT ON COLUMN franchise_business_details.uid IS 'Unique public identifier (UUID)';
-COMMENT ON COLUMN franchise_business_details.franchise_uid IS 'Reference to the tenant UID (franchise). No FK constraint — maintained at application level';
+COMMENT ON COLUMN franchise_business_details.tenant_uid IS 'Reference to the tenant UID (franchise). No FK constraint — maintained at application level';
 COMMENT ON COLUMN franchise_business_details.business_name IS 'Registered name of the franchise business';
 COMMENT ON COLUMN franchise_business_details.gst_number IS 'GST registration number (mandatory)';
 COMMENT ON COLUMN franchise_business_details.pan_number IS 'PAN card number (mandatory)';

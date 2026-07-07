@@ -3,7 +3,7 @@ BEGIN;
 CREATE TABLE franchise_owner_details (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
-  franchise_uid VARCHAR(255) NOT NULL,
+  tenant_uid VARCHAR(255) NOT NULL,
   full_name VARCHAR(255) NOT NULL,
   date_of_birth DATE,
   profile_photo VARCHAR(500),
@@ -22,11 +22,11 @@ CREATE TABLE franchise_owner_details (
   CONSTRAINT uq_franchise_owner_details_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_franchise_owner_details_franchise_uid ON franchise_owner_details(franchise_uid);
+CREATE INDEX idx_franchise_owner_details_tenant_uid ON franchise_owner_details(tenant_uid);
 
 COMMENT ON COLUMN franchise_owner_details.id IS 'Auto-incremented primary key';
 COMMENT ON COLUMN franchise_owner_details.uid IS 'Unique public identifier (UUID)';
-COMMENT ON COLUMN franchise_owner_details.franchise_uid IS 'Reference to the tenant UID (franchise). No FK constraint — maintained at application level';
+COMMENT ON COLUMN franchise_owner_details.tenant_uid IS 'Reference to the tenant UID (franchise). No FK constraint — maintained at application level';
 COMMENT ON COLUMN franchise_owner_details.full_name IS 'Full name of the franchise owner';
 COMMENT ON COLUMN franchise_owner_details.date_of_birth IS 'Date of birth of the franchise owner';
 COMMENT ON COLUMN franchise_owner_details.profile_photo IS 'URL to the profile photo stored in cloud storage';

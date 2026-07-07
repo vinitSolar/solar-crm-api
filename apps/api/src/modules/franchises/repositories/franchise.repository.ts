@@ -26,7 +26,7 @@ const TENANT_COLUMNS = `
  */
 const OWNER_COLUMNS = `
     id, uid,
-    franchise_uid AS "franchiseUid",
+    tenant_uid AS "tenantUid",
     full_name AS "fullName",
     date_of_birth AS "dateOfBirth",
     profile_photo AS "profilePhoto",
@@ -45,7 +45,7 @@ const OWNER_COLUMNS = `
  */
 const BUSINESS_COLUMNS = `
     id, uid,
-    franchise_uid AS "franchiseUid",
+    tenant_uid AS "tenantUid",
     business_name AS "businessName",
     gst_number AS "gstNumber",
     pan_number AS "panNumber",
@@ -100,17 +100,17 @@ export class FranchiseRepository {
      */
     async createOwnerDetails(
         client: PoolClient,
-        franchiseUid: string,
+        tenantUid: string,
         data: { fullName: string; dateOfBirth?: string; profilePhoto?: string; mobileNumber: string; alternateNumber?: string; email?: string; residentialAddress?: string },
         createdBy: string,
     ): Promise<IFranchiseOwnerDetails> {
         const uid = uuidv4();
         const result = await client.query(
             `INSERT INTO franchise_owner_details
-                (uid, franchise_uid, full_name, date_of_birth, profile_photo, mobile_number, alternate_number, email, residential_address, created_by)
+                (uid, tenant_uid, full_name, date_of_birth, profile_photo, mobile_number, alternate_number, email, residential_address, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              RETURNING ${OWNER_COLUMNS}`,
-            [uid, franchiseUid, data.fullName, data.dateOfBirth ?? null, data.profilePhoto ?? null, data.mobileNumber, data.alternateNumber ?? null, data.email ?? null, data.residentialAddress ?? null, createdBy],
+            [uid, tenantUid, data.fullName, data.dateOfBirth ?? null, data.profilePhoto ?? null, data.mobileNumber, data.alternateNumber ?? null, data.email ?? null, data.residentialAddress ?? null, createdBy],
         );
         return result.rows[0] as IFranchiseOwnerDetails;
     }
@@ -120,17 +120,17 @@ export class FranchiseRepository {
      */
     async createBusinessDetails(
         client: PoolClient,
-        franchiseUid: string,
+        tenantUid: string,
         data: { businessName: string; gstNumber: string; panNumber: string; cinNumber?: string; msmeRegistrationNumber?: string; tradeLicenseNumber?: string; businessAddress?: string; city?: string; state?: string; pinCode?: string },
         createdBy: string,
     ): Promise<IFranchiseBusinessDetails> {
         const uid = uuidv4();
         const result = await client.query(
             `INSERT INTO franchise_business_details
-                (uid, franchise_uid, business_name, gst_number, pan_number, cin_number, msme_registration_number, trade_license_number, business_address, city, state, pin_code, created_by)
+                (uid, tenant_uid, business_name, gst_number, pan_number, cin_number, msme_registration_number, trade_license_number, business_address, city, state, pin_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
              RETURNING ${BUSINESS_COLUMNS}`,
-            [uid, franchiseUid, data.businessName, data.gstNumber, data.panNumber, data.cinNumber ?? null, data.msmeRegistrationNumber ?? null, data.tradeLicenseNumber ?? null, data.businessAddress ?? null, data.city ?? null, data.state ?? null, data.pinCode ?? null, createdBy],
+            [uid, tenantUid, data.businessName, data.gstNumber, data.panNumber, data.cinNumber ?? null, data.msmeRegistrationNumber ?? null, data.tradeLicenseNumber ?? null, data.businessAddress ?? null, data.city ?? null, data.state ?? null, data.pinCode ?? null, createdBy],
         );
         return result.rows[0] as IFranchiseBusinessDetails;
     }
@@ -175,10 +175,10 @@ export class FranchiseRepository {
     /**
      * Gets owner details by franchise UID.
      */
-    async getOwnerDetailsByFranchiseUid(franchiseUid: string): Promise<IFranchiseOwnerDetails | null> {
+    async getOwnerDetailsByTenantUid(tenantUid: string): Promise<IFranchiseOwnerDetails | null> {
         const result = await this.pool.query(
-            `SELECT ${OWNER_COLUMNS} FROM franchise_owner_details WHERE franchise_uid = $1 AND is_deleted = 0`,
-            [franchiseUid],
+            `SELECT ${OWNER_COLUMNS} FROM franchise_owner_details WHERE tenant_uid = $1 AND is_deleted = 0`,
+            [tenantUid],
         );
         return result.rows.length > 0 ? (result.rows[0] as IFranchiseOwnerDetails) : null;
     }
@@ -186,10 +186,10 @@ export class FranchiseRepository {
     /**
      * Gets business details by franchise UID.
      */
-    async getBusinessDetailsByFranchiseUid(franchiseUid: string): Promise<IFranchiseBusinessDetails | null> {
+    async getBusinessDetailsByTenantUid(tenantUid: string): Promise<IFranchiseBusinessDetails | null> {
         const result = await this.pool.query(
-            `SELECT ${BUSINESS_COLUMNS} FROM franchise_business_details WHERE franchise_uid = $1 AND is_deleted = 0`,
-            [franchiseUid],
+            `SELECT ${BUSINESS_COLUMNS} FROM franchise_business_details WHERE tenant_uid = $1 AND is_deleted = 0`,
+            [tenantUid],
         );
         return result.rows.length > 0 ? (result.rows[0] as IFranchiseBusinessDetails) : null;
     }
@@ -304,7 +304,7 @@ export class FranchiseRepository {
      */
     async updateOwnerDetails(
         client: PoolClient,
-        franchiseUid: string,
+        tenantUid: string,
         data: { fullName?: string; dateOfBirth?: string; profilePhoto?: string; mobileNumber?: string; alternateNumber?: string; email?: string; residentialAddress?: string },
         updatedBy: string,
     ): Promise<IFranchiseOwnerDetails | null> {
@@ -320,17 +320,17 @@ export class FranchiseRepository {
         if (data.email !== undefined) { updates.push(`email = $${index++}`); values.push(data.email); }
         if (data.residentialAddress !== undefined) { updates.push(`residential_address = $${index++}`); values.push(data.residentialAddress); }
 
-        if (updates.length === 0) return this.getOwnerDetailsByFranchiseUid(franchiseUid);
+        if (updates.length === 0) return this.getOwnerDetailsByTenantUid(tenantUid);
 
         updates.push(`updated_by = $${index++}`);
         values.push(updatedBy);
         updates.push(`updated_at = CURRENT_TIMESTAMP`);
 
-        values.push(franchiseUid);
+        values.push(tenantUid);
 
         const result = await client.query(
             `UPDATE franchise_owner_details SET ${updates.join(", ")}
-             WHERE franchise_uid = $${index} AND is_deleted = 0
+             WHERE tenant_uid = $${index} AND is_deleted = 0
              RETURNING ${OWNER_COLUMNS}`,
             values,
         );
@@ -343,7 +343,7 @@ export class FranchiseRepository {
      */
     async updateBusinessDetails(
         client: PoolClient,
-        franchiseUid: string,
+        tenantUid: string,
         data: { businessName?: string; gstNumber?: string; panNumber?: string; cinNumber?: string; msmeRegistrationNumber?: string; tradeLicenseNumber?: string; businessAddress?: string; city?: string; state?: string; pinCode?: string },
         updatedBy: string,
     ): Promise<IFranchiseBusinessDetails | null> {
@@ -362,17 +362,17 @@ export class FranchiseRepository {
         if (data.state !== undefined) { updates.push(`state = $${index++}`); values.push(data.state); }
         if (data.pinCode !== undefined) { updates.push(`pin_code = $${index++}`); values.push(data.pinCode); }
 
-        if (updates.length === 0) return this.getBusinessDetailsByFranchiseUid(franchiseUid);
+        if (updates.length === 0) return this.getBusinessDetailsByTenantUid(tenantUid);
 
         updates.push(`updated_by = $${index++}`);
         values.push(updatedBy);
         updates.push(`updated_at = CURRENT_TIMESTAMP`);
 
-        values.push(franchiseUid);
+        values.push(tenantUid);
 
         const result = await client.query(
             `UPDATE franchise_business_details SET ${updates.join(", ")}
-             WHERE franchise_uid = $${index} AND is_deleted = 0
+             WHERE tenant_uid = $${index} AND is_deleted = 0
              RETURNING ${BUSINESS_COLUMNS}`,
             values,
         );
@@ -396,13 +396,13 @@ export class FranchiseRepository {
 
         await client.query(
             `UPDATE franchise_owner_details SET is_deleted = 1, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE franchise_uid = $2 AND is_deleted = 0`,
+             WHERE tenant_uid = $2 AND is_deleted = 0`,
             [deletedBy, uid],
         );
 
         await client.query(
             `UPDATE franchise_business_details SET is_deleted = 1, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE franchise_uid = $2 AND is_deleted = 0`,
+             WHERE tenant_uid = $2 AND is_deleted = 0`,
             [deletedBy, uid],
         );
 
@@ -423,13 +423,13 @@ export class FranchiseRepository {
 
         await client.query(
             `UPDATE franchise_owner_details SET is_deleted = 0, deleted_by = NULL, updated_by = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE franchise_uid = $2 AND is_deleted = 1`,
+             WHERE tenant_uid = $2 AND is_deleted = 1`,
             [updatedBy, uid],
         );
 
         await client.query(
             `UPDATE franchise_business_details SET is_deleted = 0, deleted_by = NULL, updated_by = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE franchise_uid = $2 AND is_deleted = 1`,
+             WHERE tenant_uid = $2 AND is_deleted = 1`,
             [updatedBy, uid],
         );
 

@@ -27,7 +27,7 @@ export interface ITenant {
 export interface IFranchiseOwnerDetails {
     id: number;
     uid: string;
-    franchiseUid: string;
+    tenantUid: string;
     fullName: string;
     dateOfBirth: string | null;
     profilePhoto: string | null;
@@ -50,7 +50,7 @@ export interface IFranchiseOwnerDetails {
 export interface IFranchiseBusinessDetails {
     id: number;
     uid: string;
-    franchiseUid: string;
+    tenantUid: string;
     businessName: string;
     gstNumber: string;
     panNumber: string;
@@ -141,7 +141,7 @@ export interface IUpdateFranchiseRequest {
  * Response shape after successfully creating a franchise.
  */
 export interface ICreateFranchiseResponse {
-    franchiseUid: string;
+    tenantUid: string;
     franchiseName: string;
     franchiseCode: string;
     onboardingStatus: number;

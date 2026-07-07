@@ -10,7 +10,7 @@ export function toCreateFranchiseDTO(
     credentials?: { adminEmail?: string; adminPassword?: string }
 ): ICreateFranchiseResponse {
     return {
-        franchiseUid: tenant.uid,
+        tenantUid: tenant.uid,
         franchiseName: tenant.name,
         franchiseCode: tenant.code,
         onboardingStatus: tenant.onboardingStatus,

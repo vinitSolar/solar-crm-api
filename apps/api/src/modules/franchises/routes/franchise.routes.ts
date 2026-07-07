@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { Router } from "express";
+import multer from "multer";
 import { FranchiseController } from "../controllers/franchise.controller.js";
 import { FranchiseService } from "../services/franchise.service.js";
 import { FranchiseRepository } from "../repositories/franchise.repository.js";
@@ -18,17 +19,31 @@ import type { IAuthenticatedRequest } from "../../auth/interfaces/auth.interface
 import pool from "@packages/connection.js";
 import { RoleRepository } from "../../roles/repositories/role.repository.js";
 import { UserRepository } from "../../users/repositories/user.repository.js";
+import { LeadSourceRepository } from "../../leads/repositories/lead-source.repository.js";
+import { LeadStatusRepository } from "../../leads/repositories/lead-status.repository.js";
 import { FranchiseOnboardingService } from "../services/franchise-onboarding.service.js";
 
 function createFranchiseRouter(): Router {
     const router = Router();
+    const upload = multer({
+        storage: multer.memoryStorage(),
+        limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    });
+
 
     // Dependency injection
     const franchiseRepository = new FranchiseRepository(pool);
     const roleRepository = new RoleRepository(pool);
     const userRepository = new UserRepository(pool);
+    const leadSourceRepository = new LeadSourceRepository(pool);
+    const leadStatusRepository = new LeadStatusRepository(pool);
     
-    const franchiseOnboardingService = new FranchiseOnboardingService(roleRepository, userRepository);
+    const franchiseOnboardingService = new FranchiseOnboardingService(
+        roleRepository, 
+        userRepository,
+        leadSourceRepository,
+        leadStatusRepository
+    );
     const franchiseService = new FranchiseService(franchiseRepository, franchiseOnboardingService, pool);
     const franchiseController = new FranchiseController(franchiseService);
 
@@ -486,6 +501,47 @@ function createFranchiseRouter(): Router {
         "/:uid/restore",
         validateFranchiseRequest(restoreFranchiseSchema),
         franchiseController.restoreFranchise,
+    );
+
+    /**
+     * @swagger
+     * /franchises/{uid}/logo:
+     *   post:
+     *     tags: [Franchises]
+     *     summary: Upload a logo for a franchise
+     *     description: Uploads a logo file (e.g., PNG, JPG) to Local/S3 storage and updates the tenant record. Max size 5MB.
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         multipart/form-data:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               logo:
+     *                 type: string
+     *                 format: binary
+     *     responses:
+     *       200:
+     *         description: Logo uploaded successfully
+     *       400:
+     *         description: Bad Request (no file or size exceeded)
+     *       404:
+     *         description: Franchise not found
+     */
+    router.post(
+        "/:uid/logo",
+        authenticate,
+        upload.single("logo"),
+        franchiseController.uploadLogo,
     );
 
     return router;

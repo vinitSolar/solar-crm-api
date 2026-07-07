@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcrypt";
 import type { RoleRepository } from "../../roles/repositories/role.repository.js";
 import type { UserRepository } from "../../users/repositories/user.repository.js";
+import type { LeadSourceRepository } from "../../leads/repositories/lead-source.repository.js";
+import type { LeadStatusRepository } from "../../leads/repositories/lead-status.repository.js";
 import type { IFranchiseOwnerDetails } from "../interfaces/franchise.interface.js";
 import { logger } from "@packages/logger/index.js";
 
@@ -10,10 +12,19 @@ const SALT_ROUNDS = 10;
 export class FranchiseOnboardingService {
     private readonly roleRepository: RoleRepository;
     private readonly userRepository: UserRepository;
+    private readonly leadSourceRepository: LeadSourceRepository;
+    private readonly leadStatusRepository: LeadStatusRepository;
 
-    constructor(roleRepository: RoleRepository, userRepository: UserRepository) {
+    constructor(
+        roleRepository: RoleRepository, 
+        userRepository: UserRepository,
+        leadSourceRepository: LeadSourceRepository,
+        leadStatusRepository: LeadStatusRepository
+    ) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
+        this.leadSourceRepository = leadSourceRepository;
+        this.leadStatusRepository = leadStatusRepository;
     }
 
     /**
@@ -96,6 +107,32 @@ export class FranchiseOnboardingService {
             // Note: In a real system, we might trigger an email here containing the 'plainPassword' 
             // so the franchise owner can log in.
             
+            // 5. Create default Lead Sources
+            const defaultLeadSources = [
+                { name: "Other", sortOrder: 1, isDefault: 1 },
+            ];
+
+            for (const source of defaultLeadSources) {
+                await this.leadSourceRepository.create(tenantUid, source, createdBy);
+            }
+
+            // 6. Create default Lead Statuses
+            const defaultLeadStatuses = [
+                { name: "New", sortOrder: 1, isDefault: 1, isClosed: 0 },
+                { name: "Contacted", sortOrder: 2, isDefault: 0, isClosed: 0 },
+                { name: "Follow Up", sortOrder: 3, isDefault: 0, isClosed: 0 },
+                { name: "Quotation Sent", sortOrder: 4, isDefault: 0, isClosed: 0 },
+                { name: "Negotiation", sortOrder: 5, isDefault: 0, isClosed: 0 },
+                { name: "Won", sortOrder: 6, isDefault: 0, isClosed: 1 },
+                { name: "Lost", sortOrder: 7, isDefault: 0, isClosed: 1 },
+            ];
+
+            for (const status of defaultLeadStatuses) {
+                await this.leadStatusRepository.create(tenantUid, status, createdBy);
+            }
+
+            logger.info("Successfully created default lead sources and statuses for franchise", { tenantUid });
+
             return { adminPassword: plainPassword, adminEmail: email };
 
         } catch (error) {

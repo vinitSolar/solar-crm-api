@@ -4,6 +4,7 @@ import { roleRoutes } from "../modules/roles/index.js";
 import { userRoutes } from "../modules/users/index.js";
 import { franchiseRoutes } from "../modules/franchises/index.js";
 import { menuRoutes } from "../modules/menus/index.js";
+import { leadRoutes, leadSourceRoutes, leadStatusRoutes } from "../modules/leads/index.js";
 
 const apiRouter = Router();
 
@@ -12,5 +13,8 @@ apiRouter.use("/roles", roleRoutes);
 apiRouter.use("/users", userRoutes);
 apiRouter.use("/franchises", franchiseRoutes);
 apiRouter.use("/menus", menuRoutes);
+apiRouter.use("/leads", leadRoutes);
+apiRouter.use("/lead-sources", leadSourceRoutes);
+apiRouter.use("/lead-statuses", leadStatusRoutes);
 
 export default apiRouter;

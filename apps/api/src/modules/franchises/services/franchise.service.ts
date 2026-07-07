@@ -36,6 +36,29 @@ export class FranchiseService {
         this.pool = pool;
     }
 
+    async updateLogo(uid: string, logoUrl: string, updatedBy: string): Promise<string> {
+        logger.info("FranchiseService.updateLogo", { uid, logoUrl });
+
+        const existingTenant = await this.franchiseRepository.getFranchiseByUid(uid);
+        if (!existingTenant) {
+            throw new CustomError(FRANCHISE_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const client = await this.pool.connect();
+        try {
+            await client.query("BEGIN");
+            await this.franchiseRepository.updateTenant(client, uid, { logo: logoUrl }, updatedBy);
+            await client.query("COMMIT");
+            return logoUrl;
+        } catch (error) {
+            await client.query("ROLLBACK");
+            logger.error("FranchiseService.updateLogo failed", { error });
+            throw new CustomError("Failed to update franchise logo", 500);
+        } finally {
+            client.release();
+        }
+    }
+
     // ─── Create ─────────────────────────────────────────────────────
 
     async createFranchise(data: ICreateFranchiseRequest, createdBy: string): Promise<ICreateFranchiseResponse> {

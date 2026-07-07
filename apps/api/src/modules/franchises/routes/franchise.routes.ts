@@ -306,7 +306,7 @@ function createFranchiseRouter(): Router {
      *                     franchise:
      *                       type: object
      *                       properties:
-     *                         franchiseUid:
+     *                         tenantUid:
      *                           type: string
      *                         franchiseName:
      *                           type: string

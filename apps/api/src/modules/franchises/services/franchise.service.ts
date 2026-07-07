@@ -50,16 +50,16 @@ export class FranchiseService {
             await client.query("BEGIN");
 
             const tenant = await this.franchiseRepository.createTenant(client, data.franchise, createdBy);
-            logger.info("FranchiseService.createFranchise — tenant created", { franchiseUid: tenant.uid });
+            logger.info("FranchiseService.createFranchise — tenant created", { tenantUid: tenant.uid });
 
             const ownerDetails = await this.franchiseRepository.createOwnerDetails(client, tenant.uid, data.owner, createdBy);
-            logger.info("FranchiseService.createFranchise — owner details created", { franchiseUid: tenant.uid });
+            logger.info("FranchiseService.createFranchise — owner details created", { tenantUid: tenant.uid });
 
             await this.franchiseRepository.createBusinessDetails(client, tenant.uid, data.business, createdBy);
-            logger.info("FranchiseService.createFranchise — business details created", { franchiseUid: tenant.uid });
+            logger.info("FranchiseService.createFranchise — business details created", { tenantUid: tenant.uid });
 
             await client.query("COMMIT");
-            logger.info("FranchiseService.createFranchise — transaction committed", { franchiseUid: tenant.uid });
+            logger.info("FranchiseService.createFranchise — transaction committed", { tenantUid: tenant.uid });
 
             // Post-creation onboarding: Setup default roles and admin user
             // We run this outside the main franchise creation transaction so a failure here
@@ -117,8 +117,8 @@ export class FranchiseService {
             throw new CustomError(FRANCHISE_MESSAGES.NOT_FOUND, 404);
         }
 
-        const owner = await this.franchiseRepository.getOwnerDetailsByFranchiseUid(uid);
-        const business = await this.franchiseRepository.getBusinessDetailsByFranchiseUid(uid);
+        const owner = await this.franchiseRepository.getOwnerDetailsByTenantUid(uid);
+        const business = await this.franchiseRepository.getBusinessDetailsByTenantUid(uid);
 
         return {
             franchise: toFranchiseSafe(tenant),
@@ -157,10 +157,10 @@ export class FranchiseService {
             }
 
             await client.query("COMMIT");
-            logger.info("FranchiseService.updateFranchise — transaction committed", { franchiseUid: uid });
+            logger.info("FranchiseService.updateFranchise — transaction committed", { tenantUid: uid });
 
-            const owner = await this.franchiseRepository.getOwnerDetailsByFranchiseUid(uid);
-            const business = await this.franchiseRepository.getBusinessDetailsByFranchiseUid(uid);
+            const owner = await this.franchiseRepository.getOwnerDetailsByTenantUid(uid);
+            const business = await this.franchiseRepository.getBusinessDetailsByTenantUid(uid);
 
             return {
                 franchise: toFranchiseSafe(updatedTenant),
@@ -199,7 +199,7 @@ export class FranchiseService {
             }
 
             await client.query("COMMIT");
-            logger.info("FranchiseService.deleteFranchise — transaction committed", { franchiseUid: uid });
+            logger.info("FranchiseService.deleteFranchise — transaction committed", { tenantUid: uid });
         } catch (error) {
             await client.query("ROLLBACK");
             logger.error("FranchiseService.deleteFranchise — transaction rolled back", { error });
@@ -225,7 +225,7 @@ export class FranchiseService {
             }
 
             await client.query("COMMIT");
-            logger.info("FranchiseService.restoreFranchise — transaction committed", { franchiseUid: uid });
+            logger.info("FranchiseService.restoreFranchise — transaction committed", { tenantUid: uid });
         } catch (error) {
             await client.query("ROLLBACK");
             logger.error("FranchiseService.restoreFranchise — transaction rolled back", { error });

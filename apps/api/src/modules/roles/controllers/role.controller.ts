@@ -53,7 +53,7 @@ export class RoleController {
             res.status(200).json({
                 success: true,
                 message: ROLE_MESSAGES.FETCHED_ALL_SUCCESS,
-                data: { roles },
+                data: roles,
             });
         } catch (error) {
             next(error);

@@ -22,6 +22,10 @@ export const env = {
         NAME: config.APP_NAME,
         URL: config.APP_URL,
     },
+    SECURITY: {
+        PASSWORD_CHARSET: config.PASSWORD_CHARSET,
+        PASSWORD_LENGTH: config.PASSWORD_LENGTH,
+    },
     DB: {
         HOST: config.DB_HOST,
         PORT: config.DB_PORT,

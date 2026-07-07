@@ -50,12 +50,13 @@ export const envSchema = z.object({
     MAIL_PASSWORD: z.string().min(1, "MAIL_PASSWORD is required"),
     MAIL_FROM: z.string().email("MAIL_FROM must be a valid email"),
 
-    // Storage (Cloudflare R2)
-    R2_ACCOUNT_ID: z.string().min(1, "R2_ACCOUNT_ID is required"),
-    R2_ACCESS_KEY_ID: z.string().min(1, "R2_ACCESS_KEY_ID is required"),
-    R2_SECRET_ACCESS_KEY: z.string().min(1, "R2_SECRET_ACCESS_KEY is required"),
-    R2_BUCKET: z.string().min(1, "R2_BUCKET is required"),
-    R2_PUBLIC_URL: z.string().url("R2_PUBLIC_URL must be a valid URL"),
+    // Storage (Cloudflare R2 / Local)
+    STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),
+    R2_ACCOUNT_ID: z.string().optional(),
+    R2_ACCESS_KEY_ID: z.string().optional(),
+    R2_SECRET_ACCESS_KEY: z.string().optional(),
+    R2_BUCKET: z.string().optional(),
+    R2_PUBLIC_URL: z.string().url("R2_PUBLIC_URL must be a valid URL").optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

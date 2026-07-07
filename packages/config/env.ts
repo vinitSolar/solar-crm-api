@@ -59,6 +59,7 @@ export const env = {
         FROM: config.MAIL_FROM,
     },
     STORAGE: {
+        PROVIDER: config.STORAGE_PROVIDER,
         ACCOUNT_ID: config.R2_ACCOUNT_ID,
         ACCESS_KEY_ID: config.R2_ACCESS_KEY_ID,
         SECRET_ACCESS_KEY: config.R2_SECRET_ACCESS_KEY,

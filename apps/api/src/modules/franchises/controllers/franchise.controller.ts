@@ -156,4 +156,45 @@ export class FranchiseController {
             next(error);
         }
     };
+
+    /**
+     * Upload franchise logo.
+     */
+    public uploadLogo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const uid = req.params.uid as string;
+            const updatedBy = authReq.user?.uid || "system"; // Assumes auth middleware populates req.user
+
+            if (!req.file) {
+                res.status(400).json({
+                    success: false,
+                    message: "No logo file provided",
+                    errors: [{ message: "File is required", path: "file" }],
+                });
+                return;
+            }
+
+            const file = req.file;
+            const { storageService } = await import("@packages/storage/index.js");
+
+            // Fetch franchise to get the code
+            const franchiseData = await this.franchiseService.getFranchiseByUid(uid);
+            const code = franchiseData.franchise.code;
+
+            // Upload the file
+            const logoUrl = await storageService.uploadFile(file.buffer, file.originalname, file.mimetype, `franchises/${code}_${uid}/logos`);
+
+            // Update the franchise
+            await this.franchiseService.updateLogo(uid, logoUrl, updatedBy);
+
+            res.status(200).json({
+                success: true,
+                message: "Logo uploaded successfully",
+                data: { logo: logoUrl },
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

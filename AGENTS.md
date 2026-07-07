@@ -435,6 +435,7 @@ Pagination API Rule:
 - Pass `page`, `limit`, and `search` inside the JSON request body.
 - Returns the standard paginated response structure (`{ success, message, data: [...], meta: { total, page, limit, totalPages } }`).
 - For non-paginated lists (like dropdown data), use a dedicated GET /all endpoint (e.g. `/api/v1/customers/all`).
+- When returning lists from `/all` endpoints, the array must be returned directly inside the `data` field (e.g., `"data": [...]`), without nesting it inside an object (e.g., NOT `"data": { "customers": [...] }`).
 
 Soft Delete API Rule:
 - For resources supporting soft delete, `/list` and `/all` endpoints must support an optional `status` filter (`active`, `deleted`, `all`).

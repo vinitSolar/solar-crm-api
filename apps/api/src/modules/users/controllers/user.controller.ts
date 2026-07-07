@@ -54,7 +54,7 @@ export class UserController {
             res.status(200).json({
                 success: true,
                 message: USER_MESSAGES.FETCHED_ALL_SUCCESS,
-                data: { users },
+                data: users,
             });
         } catch (error) {
             next(error);

@@ -14,6 +14,10 @@ export const envSchema = z.object({
     APP_NAME: z.string().min(1, "APP_NAME is required"),
     APP_URL: z.string().url("APP_URL must be a valid URL"),
 
+    // Security
+    PASSWORD_CHARSET: z.string().default("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"),
+    PASSWORD_LENGTH: z.coerce.number().int().positive().default(12),
+
     // PostgreSQL
     DB_HOST: z.string().min(1, "DB_HOST is required"),
     DB_PORT: z.coerce.number().int().positive().default(5432),

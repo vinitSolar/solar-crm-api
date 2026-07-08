@@ -22,6 +22,7 @@ import { UserRepository } from "../../users/repositories/user.repository.js";
 import { LeadSourceRepository } from "../../leads/repositories/lead-source.repository.js";
 import { LeadStatusRepository } from "../../leads/repositories/lead-status.repository.js";
 import { FranchiseOnboardingService } from "../services/franchise-onboarding.service.js";
+import { SurveyDocumentTypeRepository } from "../../survey-documents/repositories/survey-document-type.repository.js";
 
 function createFranchiseRouter(): Router {
     const router = Router();
@@ -37,12 +38,14 @@ function createFranchiseRouter(): Router {
     const userRepository = new UserRepository(pool);
     const leadSourceRepository = new LeadSourceRepository(pool);
     const leadStatusRepository = new LeadStatusRepository(pool);
+    const surveyDocumentTypeRepository = new SurveyDocumentTypeRepository(pool);
     
     const franchiseOnboardingService = new FranchiseOnboardingService(
         roleRepository, 
         userRepository,
         leadSourceRepository,
-        leadStatusRepository
+        leadStatusRepository,
+        surveyDocumentTypeRepository
     );
     const franchiseService = new FranchiseService(franchiseRepository, franchiseOnboardingService, pool);
     const franchiseController = new FranchiseController(franchiseService);

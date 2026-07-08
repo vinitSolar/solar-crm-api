@@ -2,27 +2,52 @@ import { Router } from "express";
 import { SiteSurveyController } from "../controllers/site-survey.controller.js";
 import { SiteSurveyService } from "../services/site-survey.service.js";
 import { SiteSurveyRepository } from "../repositories/site-survey.repository.js";
+import { SiteSurveyDetailsRepository } from "../repositories/site-survey-details.repository.js";
+import { SurveyDocumentRepository } from "../../survey-documents/repositories/survey-document.repository.js";
+import { SurveyDocumentTypeRepository } from "../../survey-documents/repositories/survey-document-type.repository.js";
+import { SurveyDocumentService } from "../../survey-documents/services/survey-document.service.js";
+import { SurveyDocumentController } from "../../survey-documents/controllers/survey-document.controller.js";
 import { LeadRepository } from "../../leads/repositories/lead.repository.js";
 import { UserRepository } from "../../users/repositories/user.repository.js";
 import {
     createSiteSurveySchema,
     updateSiteSurveySchema,
+    saveDetailsSchema,
+    updateDetailsSchema,
     getByUidSchema,
     paginationSchema,
     validateSiteSurveyRequest,
 } from "../validators/site-survey.validator.js";
+import { 
+    uploadDocumentSchema, 
+    getSurveyDocumentsSchema, 
+    deleteDocumentSchema,
+    validateSurveyDocumentRequest 
+} from "../../survey-documents/validators/survey-documents.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import multer from "multer";
 
 function createSiteSurveyRouter(): Router {
     const router = Router();
 
     const repository = new SiteSurveyRepository(pool);
+    const detailsRepository = new SiteSurveyDetailsRepository(pool);
     const leadRepository = new LeadRepository(pool);
     const userRepository = new UserRepository(pool);
     
-    const service = new SiteSurveyService(repository, leadRepository, userRepository);
+    const service = new SiteSurveyService(repository, detailsRepository, leadRepository, userRepository);
     const controller = new SiteSurveyController(service);
+
+    const documentRepository = new SurveyDocumentRepository(pool);
+    const documentTypeRepository = new SurveyDocumentTypeRepository(pool);
+    const documentService = new SurveyDocumentService(documentRepository, documentTypeRepository, repository, pool);
+    const documentController = new SurveyDocumentController(documentService);
+
+    const upload = multer({
+        storage: multer.memoryStorage(),
+        limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit for survey docs
+    });
 
     router.use(authenticate);
 
@@ -256,6 +281,228 @@ function createSiteSurveyRouter(): Router {
         "/:uid/restore",
         validateSiteSurveyRequest(getByUidSchema),
         controller.restoreSiteSurvey,
+    );
+
+    /**
+     * @swagger
+     * /site-surveys/{uid}/details:
+     *   post:
+     *     tags: [Site Surveys]
+     *     summary: Save technical specifications for a site survey
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - roofAreaSqft
+     *               - shading
+     *               - connectionType
+     *               - sanctionedLoadKw
+     *             properties:
+     *               roofAreaSqft:
+     *                 type: number
+     *               shading:
+     *                 type: integer
+     *                 enum: [0, 1, 2, 3]
+     *               connectionType:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               sanctionedLoadKw:
+     *                 type: number
+     *               recommendedKw:
+     *                 type: number
+     *               notes:
+     *                 type: string
+     *     responses:
+     *       201:
+     *         description: Technical specifications saved successfully
+     */
+    router.post(
+        "/:uid/details",
+        validateSiteSurveyRequest(saveDetailsSchema),
+        controller.saveSurveyDetails,
+    );
+
+    /**
+     * @swagger
+     * /site-surveys/{uid}/details:
+     *   put:
+     *     tags: [Site Surveys]
+     *     summary: Update technical specifications for a site survey
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               roofAreaSqft:
+     *                 type: number
+     *               shading:
+     *                 type: integer
+     *                 enum: [0, 1, 2, 3]
+     *               connectionType:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               sanctionedLoadKw:
+     *                 type: number
+     *               recommendedKw:
+     *                 type: number
+     *               notes:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Technical specifications updated successfully
+     */
+    router.put(
+        "/:uid/details",
+        validateSiteSurveyRequest(updateDetailsSchema),
+        controller.updateSurveyDetails,
+    );
+
+    /**
+     * @swagger
+     * /site-surveys/{uid}/documents:
+     *   post:
+     *     tags: [Site Surveys]
+     *     summary: Upload documents for a site survey
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         multipart/form-data:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               document_type_uid:
+     *                 type: string
+     *                 format: uuid
+     *               remarks:
+     *                 type: string
+     *               documents:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *                   format: binary
+     *     responses:
+     *       201:
+     *         description: Documents uploaded successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     $ref: '#/components/schemas/SiteSurveyDocumentSafe'
+     */
+    router.post(
+        "/:uid/documents",
+        upload.array("documents", 10),
+        validateSurveyDocumentRequest(uploadDocumentSchema),
+        documentController.uploadDocuments,
+    );
+
+    /**
+     * @swagger
+     * /site-surveys/{uid}/documents:
+     *   get:
+     *     tags: [Site Surveys]
+     *     summary: Get all documents for a site survey
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     responses:
+     *       200:
+     *         description: Fetched successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     $ref: '#/components/schemas/SiteSurveyDocumentSafe'
+     */
+    router.get(
+        "/:uid/documents",
+        validateSurveyDocumentRequest(getSurveyDocumentsSchema),
+        documentController.getDocumentsBySurveyUid,
+    );
+
+    /**
+     * @swagger
+     * /site-surveys/{uid}/documents/{document_uid}:
+     *   delete:
+     *     tags: [Site Surveys]
+     *     summary: Delete a survey document (soft delete)
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *       - in: path
+     *         name: document_uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     responses:
+     *       200:
+     *         description: Deleted successfully
+     */
+    router.delete(
+        "/:uid/documents/:document_uid",
+        validateSurveyDocumentRequest(deleteDocumentSchema),
+        documentController.deleteDocument,
     );
 
     return router;

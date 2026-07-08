@@ -132,4 +132,40 @@ export class SiteSurveyController {
             next(error);
         }
     };
+
+    saveSurveyDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const uid = req.params.uid as string;
+
+            const survey = await this.service.saveSurveyDetails(tenantUid, uid, req.body, userUid);
+            res.status(201).json({
+                success: true,
+                message: SITE_SURVEY_MESSAGES.DETAILS_SAVED,
+                data: survey,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    updateSurveyDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const uid = req.params.uid as string;
+
+            const survey = await this.service.updateSurveyDetails(tenantUid, uid, req.body, userUid);
+            res.status(200).json({
+                success: true,
+                message: SITE_SURVEY_MESSAGES.DETAILS_UPDATED,
+                data: survey,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

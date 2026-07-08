@@ -57,6 +57,30 @@ function createLeadRouter(): Router {
      *     responses:
      *       200:
      *         description: Leads fetched successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     $ref: '#/components/schemas/LeadSafe'
+     *                 meta:
+     *                   type: object
+     *                   properties:
+     *                     total:
+     *                       type: integer
+     *                     page:
+     *                       type: integer
+     *                     limit:
+     *                       type: integer
+     *                     totalPages:
+     *                       type: integer
      *       401:
      *         description: Unauthorized
      */
@@ -85,6 +109,19 @@ function createLeadRouter(): Router {
      *     responses:
      *       200:
      *         description: Leads fetched successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     $ref: '#/components/schemas/LeadSafe'
      *       401:
      *         description: Unauthorized
      */
@@ -112,6 +149,17 @@ function createLeadRouter(): Router {
      *     responses:
      *       200:
      *         description: Lead fetched successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   $ref: '#/components/schemas/LeadSafe'
      *       404:
      *         description: Lead not found
      *       401:
@@ -165,15 +213,13 @@ function createLeadRouter(): Router {
      *                 type: string
      *               monthlyBillAmount:
      *                 type: number
-     *               requiredKw:
+     *               systemSize:
      *                 type: number
      *               followUpDate:
      *                 type: string
      *                 format: date-time
      *                 example: "2026-07-07T12:00:00Z"
      *               leadSourceUid:
-     *                 type: string
-     *               statusUid:
      *                 type: string
      *               assignedTo:
      *                 type: string
@@ -182,6 +228,17 @@ function createLeadRouter(): Router {
      *     responses:
      *       201:
      *         description: Lead created successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   $ref: '#/components/schemas/LeadSafe'
      *       400:
      *         description: Validation error
      *       401:
@@ -236,7 +293,7 @@ function createLeadRouter(): Router {
      *                 type: string
      *               monthlyBillAmount:
      *                 type: number
-     *               requiredKw:
+     *               systemSize:
      *                 type: number
      *               followUpDate:
      *                 type: string
@@ -253,6 +310,17 @@ function createLeadRouter(): Router {
      *     responses:
      *       200:
      *         description: Lead updated successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   $ref: '#/components/schemas/LeadSafe'
      *       400:
      *         description: Validation error
      *       404:

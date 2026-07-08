@@ -5,3 +5,4 @@ build/
 logs/
 coverage/
 .DS_Store
+public/

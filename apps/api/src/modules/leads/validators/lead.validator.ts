@@ -57,7 +57,7 @@ export const createLeadSchema = z.object({
         city: z.string({ message: "City is required" }).min(2, "City is required"),
         pinCode: z.string({ message: "Pin code is required" }).min(1, "Pin code is required"),
         monthlyBillAmount: z.number().optional(),
-        systemSize: z.number({ message: "System size is required" }).min(1, "System size is required"),
+        systemSize: z.number({ message: "System size is required" }).min(0, "System size must be a positive number"),
         followUpDate: z.string().optional(), // accept ISO string
         leadSourceUid: z.string({ message: "Lead source is required" }).uuid("Invalid lead source UID format").optional(),
         assignedTo: z.string().uuid("Invalid user UID format").optional(),

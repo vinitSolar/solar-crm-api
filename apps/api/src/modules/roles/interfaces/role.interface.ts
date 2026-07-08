@@ -4,6 +4,8 @@ export interface IRole {
     tenant_uid: string;
     name: string;
     description: string | null;
+    can_site_survey: number;
+    can_installation: number;
     is_system: number;
     is_active: number;
     is_deleted: number;
@@ -18,6 +20,8 @@ export interface IRoleSafe {
     uid: string;
     name: string;
     description: string | null;
+    canSiteSurvey: number;
+    canInstallation: number;
     isSystem: number;
     isActive: number;
     isDeleted: number;
@@ -27,11 +31,15 @@ export interface IRoleSafe {
 export interface ICreateRoleRequest {
     name: string;
     description?: string;
+    canSiteSurvey?: number;
+    canInstallation?: number;
 }
 
 export interface IUpdateRoleRequest {
     name?: string;
     description?: string;
+    canSiteSurvey?: number;
+    canInstallation?: number;
     isActive?: number;
 }
 

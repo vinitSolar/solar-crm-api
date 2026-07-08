@@ -45,6 +45,30 @@ function createRoleRouter(): Router {
      *     responses:
      *       200:
      *         description: Roles fetched successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     type: object
+     *                     properties:
+     *                       uid:
+     *                         type: string
+     *                       name:
+     *                         type: string
+     *                       description:
+     *                         type: string
+     *                       canSiteSurvey:
+     *                         type: integer
+     *                       canInstallation:
+     *                         type: integer
      *       401:
      *         description: Unauthorized
      */
@@ -75,6 +99,30 @@ function createRoleRouter(): Router {
      *     responses:
      *       200:
      *         description: Roles fetched successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     type: object
+     *                     properties:
+     *                       uid:
+     *                         type: string
+     *                       name:
+     *                         type: string
+     *                       description:
+     *                         type: string
+     *                       canSiteSurvey:
+     *                         type: integer
+     *                       canInstallation:
+     *                         type: integer
      *       401:
      *         description: Unauthorized
      */
@@ -104,6 +152,31 @@ function createRoleRouter(): Router {
      *     responses:
      *       200:
      *         description: Role fetched successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     role:
+     *                       type: object
+     *                       properties:
+     *                         uid:
+     *                           type: string
+     *                         name:
+     *                           type: string
+     *                         description:
+     *                           type: string
+     *                         canSiteSurvey:
+     *                           type: integer
+     *                         canInstallation:
+     *                           type: integer
      *       401:
      *         description: Unauthorized
      *       404:
@@ -139,6 +212,14 @@ function createRoleRouter(): Router {
      *               description:
      *                 type: string
      *                 example: "Administrator role"
+     *               canSiteSurvey:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *                 example: 0
+     *               canInstallation:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *                 example: 0
      *     responses:
      *       201:
      *         description: Role created successfully
@@ -183,6 +264,14 @@ function createRoleRouter(): Router {
      *               description:
      *                 type: string
      *                 example: "Updated description"
+     *               canSiteSurvey:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *                 example: 0
+     *               canInstallation:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *                 example: 0
      *               isActive:
      *                 type: integer
      *                 enum: [0, 1]

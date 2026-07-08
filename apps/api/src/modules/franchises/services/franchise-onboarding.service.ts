@@ -46,7 +46,7 @@ export class FranchiseOnboardingService {
         try {
             // 1. Define default roles
             const defaultRoles = [
-                { name: "Franchise Owner(Admin)", description: "Full access to franchise operations" },
+                { name: "Franchise Owner(Admin)", description: "Full access to franchise operations", canSiteSurvey: 1, canInstallation: 1 },
                 { name: "Sales Executive", description: "Manage leads, quotations, and sales pipeline" },
                 { name: "Survey Engineer", description: "Conduct site surveys and upload reports" },
                 { name: "Backoffice", description: "Manage backoffice administrative tasks" },

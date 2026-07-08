@@ -41,6 +41,8 @@ export interface IPaginationQuery {
     limit: number;
     search?: string;
     status?: "active" | "deleted" | "all";
+    canSiteSurvey?: number;
+    canInstallation?: number;
 }
 
 export interface IUserListResponse {

@@ -5,6 +5,8 @@ export const toRoleSafe = (role: IRole): IRoleSafe => {
         uid: role.uid,
         name: role.name,
         description: role.description,
+        canSiteSurvey: role.can_site_survey,
+        canInstallation: role.can_installation,
         isSystem: role.is_system,
         isActive: role.is_active,
         isDeleted: role.is_deleted,

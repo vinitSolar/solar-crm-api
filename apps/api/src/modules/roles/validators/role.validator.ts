@@ -14,6 +14,8 @@ export const createRoleSchema = z.object({
     body: z.object({
         name: z.string().min(2, ROLE_MESSAGES.NAME_MIN_LENGTH).max(100, ROLE_MESSAGES.NAME_MAX_LENGTH),
         description: z.string().max(500, ROLE_MESSAGES.DESCRIPTION_MAX_LENGTH).optional(),
+        canSiteSurvey: z.number().int().min(0).max(1).optional(),
+        canInstallation: z.number().int().min(0).max(1).optional(),
     })
 });
 
@@ -24,6 +26,8 @@ export const updateRoleSchema = z.object({
     body: z.object({
         name: z.string().min(2, ROLE_MESSAGES.NAME_MIN_LENGTH).max(100, ROLE_MESSAGES.NAME_MAX_LENGTH).optional(),
         description: z.string().max(500, ROLE_MESSAGES.DESCRIPTION_MAX_LENGTH).optional(),
+        canSiteSurvey: z.number().int().min(0).max(1).optional(),
+        canInstallation: z.number().int().min(0).max(1).optional(),
         isActive: z.number().int().min(0).max(1).optional(),
     }).refine(data => Object.keys(data).length > 0, {
         message: ROLE_MESSAGES.UPDATE_NO_FIELDS,

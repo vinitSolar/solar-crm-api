@@ -42,6 +42,12 @@ function createUserRouter(): Router {
      *                 type: string
      *                 enum: [active, deleted, all]
      *                 example: active
+     *               canSiteSurvey:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               canInstallation:
+     *                 type: integer
+     *                 enum: [0, 1]
      *     responses:
      *       200:
      *         description: Users fetched successfully
@@ -58,27 +64,35 @@ function createUserRouter(): Router {
     /**
      * @swagger
      * /users/all:
-     *   get:
+     *   post:
      *     tags: [Users]
      *     summary: Get all users (without pagination)
      *     description: Retrieves a list of all users for the authenticated tenant, useful for dropdowns.
      *     security:
      *       - bearerAuth: []
-     *     parameters:
-     *       - in: query
-     *         name: status
-     *         required: false
-     *         schema:
-     *           type: string
-     *           enum: [active, deleted, all]
-     *         description: Filter users by status
+     *     requestBody:
+     *       required: false
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               status:
+     *                 type: string
+     *                 enum: [active, deleted, all]
+     *               canSiteSurvey:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               canInstallation:
+     *                 type: integer
+     *                 enum: [0, 1]
      *     responses:
      *       200:
      *         description: Users fetched successfully
      *       401:
      *         description: Unauthorized
      */
-    router.get(
+    router.post(
         "/all",
         authenticate,
         validateUserRequest(getAllUsersSchema),

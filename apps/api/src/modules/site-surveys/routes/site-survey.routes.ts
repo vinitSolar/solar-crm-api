@@ -2,11 +2,14 @@ import { Router } from "express";
 import { SiteSurveyController } from "../controllers/site-survey.controller.js";
 import { SiteSurveyService } from "../services/site-survey.service.js";
 import { SiteSurveyRepository } from "../repositories/site-survey.repository.js";
+import { SiteSurveyDetailsRepository } from "../repositories/site-survey-details.repository.js";
 import { LeadRepository } from "../../leads/repositories/lead.repository.js";
 import { UserRepository } from "../../users/repositories/user.repository.js";
 import {
     createSiteSurveySchema,
     updateSiteSurveySchema,
+    saveDetailsSchema,
+    updateDetailsSchema,
     getByUidSchema,
     paginationSchema,
     validateSiteSurveyRequest,
@@ -18,10 +21,11 @@ function createSiteSurveyRouter(): Router {
     const router = Router();
 
     const repository = new SiteSurveyRepository(pool);
+    const detailsRepository = new SiteSurveyDetailsRepository(pool);
     const leadRepository = new LeadRepository(pool);
     const userRepository = new UserRepository(pool);
     
-    const service = new SiteSurveyService(repository, leadRepository, userRepository);
+    const service = new SiteSurveyService(repository, detailsRepository, leadRepository, userRepository);
     const controller = new SiteSurveyController(service);
 
     router.use(authenticate);
@@ -256,6 +260,103 @@ function createSiteSurveyRouter(): Router {
         "/:uid/restore",
         validateSiteSurveyRequest(getByUidSchema),
         controller.restoreSiteSurvey,
+    );
+
+    /**
+     * @swagger
+     * /site-surveys/{uid}/details:
+     *   post:
+     *     tags: [Site Surveys]
+     *     summary: Save technical specifications for a site survey
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - roofAreaSqft
+     *               - shading
+     *               - connectionType
+     *               - sanctionedLoadKw
+     *             properties:
+     *               roofAreaSqft:
+     *                 type: number
+     *               shading:
+     *                 type: integer
+     *                 enum: [0, 1, 2, 3]
+     *               connectionType:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               sanctionedLoadKw:
+     *                 type: number
+     *               recommendedKw:
+     *                 type: number
+     *               notes:
+     *                 type: string
+     *     responses:
+     *       201:
+     *         description: Technical specifications saved successfully
+     */
+    router.post(
+        "/:uid/details",
+        validateSiteSurveyRequest(saveDetailsSchema),
+        controller.saveSurveyDetails,
+    );
+
+    /**
+     * @swagger
+     * /site-surveys/{uid}/details:
+     *   put:
+     *     tags: [Site Surveys]
+     *     summary: Update technical specifications for a site survey
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               roofAreaSqft:
+     *                 type: number
+     *               shading:
+     *                 type: integer
+     *                 enum: [0, 1, 2, 3]
+     *               connectionType:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               sanctionedLoadKw:
+     *                 type: number
+     *               recommendedKw:
+     *                 type: number
+     *               notes:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Technical specifications updated successfully
+     */
+    router.put(
+        "/:uid/details",
+        validateSiteSurveyRequest(updateDetailsSchema),
+        controller.updateSurveyDetails,
     );
 
     return router;

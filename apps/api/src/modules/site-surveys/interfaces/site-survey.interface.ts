@@ -1,3 +1,5 @@
+import type { ISiteSurveyDetailsSafe } from "./site-survey-details.interface.js";
+
 export interface ISiteSurvey {
     id: string;
     uid: string;
@@ -41,6 +43,7 @@ export interface ISiteSurveySafe {
     scheduledAt: Date;
     status: number;
     remarks: string | null;
+    details?: ISiteSurveyDetailsSafe | undefined;
     isActive: number;
     isDeleted: number;
     createdAt: Date;

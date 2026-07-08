@@ -27,6 +27,34 @@ export const updateSiteSurveySchema = z.object({
     }).strict(),
 });
 
+export const saveDetailsSchema = z.object({
+    params: z.object({
+        uid: z.string().uuid(SITE_SURVEY_VALIDATION_MESSAGES.UID_INVALID),
+    }),
+    body: z.object({
+        roofAreaSqft: z.number({ message: SITE_SURVEY_VALIDATION_MESSAGES.ROOF_AREA_REQUIRED }).positive(SITE_SURVEY_VALIDATION_MESSAGES.ROOF_AREA_INVALID),
+        shading: z.number({ message: SITE_SURVEY_VALIDATION_MESSAGES.SHADING_REQUIRED }).int().min(0).max(3),
+        connectionType: z.number({ message: SITE_SURVEY_VALIDATION_MESSAGES.CONNECTION_TYPE_REQUIRED }).int().min(0).max(1),
+        sanctionedLoadKw: z.number({ message: SITE_SURVEY_VALIDATION_MESSAGES.SANCTIONED_LOAD_REQUIRED }).positive(SITE_SURVEY_VALIDATION_MESSAGES.SANCTIONED_LOAD_INVALID),
+        recommendedKw: z.number().positive().optional(),
+        notes: z.string().optional(),
+    }).strict(),
+});
+
+export const updateDetailsSchema = z.object({
+    params: z.object({
+        uid: z.string().uuid(SITE_SURVEY_VALIDATION_MESSAGES.UID_INVALID),
+    }),
+    body: z.object({
+        roofAreaSqft: z.number().positive(SITE_SURVEY_VALIDATION_MESSAGES.ROOF_AREA_INVALID).optional(),
+        shading: z.number().int().min(0).max(3).optional(),
+        connectionType: z.number().int().min(0).max(1).optional(),
+        sanctionedLoadKw: z.number().positive(SITE_SURVEY_VALIDATION_MESSAGES.SANCTIONED_LOAD_INVALID).optional(),
+        recommendedKw: z.number().positive().optional(),
+        notes: z.string().optional(),
+    }).strict(),
+});
+
 export const getByUidSchema = z.object({
     params: z.object({
         uid: z.string().uuid(SITE_SURVEY_VALIDATION_MESSAGES.UID_INVALID),

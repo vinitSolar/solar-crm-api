@@ -14,6 +14,13 @@ export const SITE_SURVEY_MESSAGES = {
     INVALID_STATUS: "Invalid site survey status.",
     INACTIVE_LEAD: "Cannot schedule survey for an inactive or deleted lead.",
     VALIDATION_FAILED: "Validation failed",
+    DETAILS_ALREADY_EXIST: "Technical specifications already exist for this survey.",
+    UNAUTHORIZED_USER: "You are not authorized to execute this survey.",
+    INVALID_SURVEY_STATUS: "Survey must be scheduled or rescheduled to add technical specifications.",
+    SURVEY_COMPLETED: "Technical specifications cannot be updated as the survey is already completed.",
+    DETAILS_NOT_FOUND: "Technical specifications not found.",
+    DETAILS_SAVED: "Technical specifications saved successfully.",
+    DETAILS_UPDATED: "Technical specifications updated successfully.",
 };
 
 export const SITE_SURVEY_VALIDATION_MESSAGES = {
@@ -24,4 +31,10 @@ export const SITE_SURVEY_VALIDATION_MESSAGES = {
     SCHEDULED_AT_REQUIRED: "Scheduled At is required",
     SCHEDULED_AT_INVALID: "Invalid date format for scheduledAt",
     UID_INVALID: "Invalid UID format",
+    ROOF_AREA_REQUIRED: "Roof area is required",
+    ROOF_AREA_INVALID: "Roof area must be a positive number",
+    SHADING_REQUIRED: "Shading is required",
+    CONNECTION_TYPE_REQUIRED: "Connection type is required",
+    SANCTIONED_LOAD_REQUIRED: "Sanctioned load is required",
+    SANCTIONED_LOAD_INVALID: "Sanctioned load must be a positive number",
 };

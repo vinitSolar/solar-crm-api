@@ -28,8 +28,8 @@ export class UserService {
         };
     }
 
-    async getAllUsersByTenant(tenantUid: string, status?: "active" | "deleted" | "all"): Promise<UserDTO[]> {
-        const users = await this.userRepository.getAllUsers(tenantUid, status);
+    async getAllUsersByTenant(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number): Promise<UserDTO[]> {
+        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation);
         return users.map(toUserDTO);
     }
 

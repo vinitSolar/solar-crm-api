@@ -26,7 +26,22 @@ export class UserRepository {
             whereClause += ` AND (u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`;
         }
 
-        const countResult = await this.pool.query(`SELECT COUNT(*) FROM users u WHERE ${whereClause}`, params);
+        if (query.canSiteSurvey !== undefined) {
+            params.push(query.canSiteSurvey);
+            whereClause += ` AND r.can_site_survey = $${params.length}`;
+        }
+
+        if (query.canInstallation !== undefined) {
+            params.push(query.canInstallation);
+            whereClause += ` AND r.can_installation = $${params.length}`;
+        }
+
+        const countResult = await this.pool.query(`
+            SELECT COUNT(*) 
+            FROM users u 
+            LEFT JOIN roles r ON u.role_uid = r.uid 
+            WHERE ${whereClause}
+        `, params);
         const total = parseInt(countResult.rows[0].count, 10);
 
         params.push(query.limit, offset);
@@ -48,7 +63,7 @@ export class UserRepository {
         return { users: result.rows, total };
     }
 
-    async getAllUsers(tenantUid: string, status?: "active" | "deleted" | "all"): Promise<IUser[]> {
+    async getAllUsers(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number): Promise<IUser[]> {
         const params: any[] = [tenantUid];
         let whereClause = "u.tenant_uid = $1";
 
@@ -56,6 +71,16 @@ export class UserRepository {
             whereClause += " AND u.is_deleted = 0";
         } else if (status === "deleted") {
             whereClause += " AND u.is_deleted = 1";
+        }
+
+        if (canSiteSurvey !== undefined) {
+            params.push(canSiteSurvey);
+            whereClause += ` AND r.can_site_survey = $${params.length}`;
+        }
+
+        if (canInstallation !== undefined) {
+            params.push(canInstallation);
+            whereClause += ` AND r.can_installation = $${params.length}`;
         }
 
         const result = await this.pool.query(

@@ -29,6 +29,12 @@ export class UserController {
             if (status) {
                 query.status = status;
             }
+            if (req.body.canSiteSurvey !== undefined) {
+                query.canSiteSurvey = req.body.canSiteSurvey as number;
+            }
+            if (req.body.canInstallation !== undefined) {
+                query.canInstallation = req.body.canInstallation as number;
+            }
 
             const paginatedResponse = await this.userService.getUsersByTenant(authReq.tenantUid, query);
 
@@ -46,10 +52,12 @@ export class UserController {
     getAllUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const status = req.query.status as "active" | "deleted" | "all" | undefined;
+            const status = req.body.status as "active" | "deleted" | "all" | undefined;
+            const canSiteSurvey = req.body.canSiteSurvey !== undefined ? Number(req.body.canSiteSurvey) : undefined;
+            const canInstallation = req.body.canInstallation !== undefined ? Number(req.body.canInstallation) : undefined;
             logger.info("UserController.getAllUsers", { tenantUid: authReq.tenantUid, status });
 
-            const users = await this.userService.getAllUsersByTenant(authReq.tenantUid, status);
+            const users = await this.userService.getAllUsersByTenant(authReq.tenantUid, status, canSiteSurvey, canInstallation);
 
             res.status(200).json({
                 success: true,

@@ -8,6 +8,8 @@ export const getPaginatedUsersSchema = z.object({
         limit: z.number().int().min(1).max(100).optional(),
         search: z.string().optional(),
         status: z.enum(["active", "deleted", "all"]).optional(),
+        canSiteSurvey: z.number().int().min(0).max(1).optional(),
+        canInstallation: z.number().int().min(0).max(1).optional(),
     })
 });
 
@@ -56,8 +58,10 @@ export const restoreUserSchema = z.object({
 });
 
 export const getAllUsersSchema = z.object({
-    query: z.object({
+    body: z.object({
         status: z.enum(["active", "deleted", "all"]).optional(),
+        canSiteSurvey: z.number().int().min(0).max(1).optional(),
+        canInstallation: z.number().int().min(0).max(1).optional(),
     })
 });
 

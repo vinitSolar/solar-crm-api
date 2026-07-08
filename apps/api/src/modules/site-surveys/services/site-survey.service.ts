@@ -1,24 +1,29 @@
+import type { SiteSurveyDetailsRepository } from "../repositories/site-survey-details.repository.js";
 import type { SiteSurveyRepository } from "../repositories/site-survey.repository.js";
 import type { LeadRepository } from "../../leads/repositories/lead.repository.js";
 // Assume UserRepository is available in users module
 import type { UserRepository } from "../../users/repositories/user.repository.js";
 import type { ICreateSiteSurvey, IUpdateSiteSurvey, ISiteSurveySafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/site-survey.interface.js";
-import { toSiteSurveySafe } from "../dto/site-survey.dto.js";
+import type { ISaveSiteSurveyDetails, IUpdateSiteSurveyDetails, ISiteSurveyDetailsSafe } from "../interfaces/site-survey-details.interface.js";
+import { toSiteSurveySafe, toSiteSurveyDetailsSafe } from "../dto/site-survey.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { SITE_SURVEY_MESSAGES } from "../constants/site-survey.constants.js";
 import { logger } from "@packages/logger/index.js";
 
 export class SiteSurveyService {
     private readonly repository: SiteSurveyRepository;
+    private readonly detailsRepository: SiteSurveyDetailsRepository;
     private readonly leadRepository: LeadRepository;
     private readonly userRepository: UserRepository;
 
     constructor(
         repository: SiteSurveyRepository,
+        detailsRepository: SiteSurveyDetailsRepository,
         leadRepository: LeadRepository,
         userRepository: UserRepository
     ) {
         this.repository = repository;
+        this.detailsRepository = detailsRepository;
         this.leadRepository = leadRepository;
         this.userRepository = userRepository;
     }
@@ -56,7 +61,11 @@ export class SiteSurveyService {
         if (!survey) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
         }
-        return toSiteSurveySafe(survey);
+
+        const details = await this.detailsRepository.getBySiteSurveyUid(tenantUid, uid);
+        const detailsSafe = details ? toSiteSurveyDetailsSafe(details) : undefined;
+
+        return toSiteSurveySafe(survey, detailsSafe);
     }
 
     async getSiteSurveysPaginated(tenantUid: string, query: IPaginationQuery): Promise<IPaginatedResponse<ISiteSurveySafe>> {
@@ -78,7 +87,7 @@ export class SiteSurveyService {
         );
 
         return {
-            data: result.rows.map(toSiteSurveySafe),
+            data: result.rows.map(survey => toSiteSurveySafe(survey)),
             meta: {
                 total: result.total,
                 page,
@@ -90,7 +99,7 @@ export class SiteSurveyService {
 
     async getAllSiteSurveys(tenantUid: string, status: "active" | "deleted" | "all" = "active"): Promise<ISiteSurveySafe[]> {
         const surveys = await this.repository.getAll(tenantUid, status);
-        return surveys.map(toSiteSurveySafe);
+        return surveys.map(survey => toSiteSurveySafe(survey));
     }
 
     async updateSiteSurvey(tenantUid: string, uid: string, data: IUpdateSiteSurvey, updatedBy: string): Promise<ISiteSurveySafe> {
@@ -135,6 +144,65 @@ export class SiteSurveyService {
         const success = await this.repository.restore(tenantUid, uid, updatedBy);
         if (!success) {
             throw new CustomError(SITE_SURVEY_MESSAGES.RESTORE_FAILED, 500);
+        }
+    }
+
+    async saveSurveyDetails(tenantUid: string, uid: string, data: ISaveSiteSurveyDetails, userUid: string): Promise<ISiteSurveySafe> {
+        const survey = await this.repository.getByUid(tenantUid, uid);
+        if (!survey) {
+            throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
+        }
+
+        if (survey.assignedTo !== userUid) {
+            throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
+        }
+
+        if (survey.status !== 0 && survey.status !== 3) {
+            throw new CustomError(SITE_SURVEY_MESSAGES.INVALID_SURVEY_STATUS, 400);
+        }
+
+        const existingDetails = await this.detailsRepository.getBySiteSurveyUid(tenantUid, uid);
+        if (existingDetails) {
+            throw new CustomError(SITE_SURVEY_MESSAGES.DETAILS_ALREADY_EXIST, 400);
+        }
+
+        try {
+            const details = await this.detailsRepository.create(tenantUid, uid, data, userUid);
+            // Update survey status to Completed (1)
+            const updatedSurvey = await this.repository.update(tenantUid, uid, { status: 1 }, userUid);
+            return toSiteSurveySafe(updatedSurvey, toSiteSurveyDetailsSafe(details));
+        } catch (error) {
+            logger.error("SiteSurveyService.saveSurveyDetails error", { error });
+            throw new CustomError(SITE_SURVEY_MESSAGES.UPDATE_FAILED, 500);
+        }
+    }
+
+    async updateSurveyDetails(tenantUid: string, uid: string, data: IUpdateSiteSurveyDetails, userUid: string): Promise<ISiteSurveySafe> {
+        const survey = await this.repository.getByUid(tenantUid, uid);
+        if (!survey) {
+            throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
+        }
+
+        if (survey.assignedTo !== userUid) {
+            throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
+        }
+
+        if (survey.status === 1) {
+            // Once completed, regular users cannot update. Assume admins might reopen it by setting status back to 0 or 3.
+            throw new CustomError(SITE_SURVEY_MESSAGES.SURVEY_COMPLETED, 400);
+        }
+
+        const existingDetails = await this.detailsRepository.getBySiteSurveyUid(tenantUid, uid);
+        if (!existingDetails) {
+            throw new CustomError(SITE_SURVEY_MESSAGES.DETAILS_NOT_FOUND, 404);
+        }
+
+        try {
+            const details = await this.detailsRepository.update(tenantUid, uid, data, userUid);
+            return toSiteSurveySafe(survey, toSiteSurveyDetailsSafe(details));
+        } catch (error) {
+            logger.error("SiteSurveyService.updateSurveyDetails error", { error });
+            throw new CustomError(SITE_SURVEY_MESSAGES.UPDATE_FAILED, 500);
         }
     }
 }

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import pool from '../packages/connection.ts';
+import pool from '../packages/connection.js';
 
 async function check() {
   const tenants = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'tenants'");

@@ -4,6 +4,8 @@ import type { RoleRepository } from "../../roles/repositories/role.repository.js
 import type { UserRepository } from "../../users/repositories/user.repository.js";
 import type { LeadSourceRepository } from "../../leads/repositories/lead-source.repository.js";
 import type { LeadStatusRepository } from "../../leads/repositories/lead-status.repository.js";
+import type { SurveyDocumentTypeRepository } from "../../survey-documents/repositories/survey-document-type.repository.js";
+import { SurveyDocumentTypeService } from "../../survey-documents/services/survey-document-type.service.js";
 import type { IFranchiseOwnerDetails } from "../interfaces/franchise.interface.js";
 import { logger } from "@packages/logger/index.js";
 
@@ -14,17 +16,20 @@ export class FranchiseOnboardingService {
     private readonly userRepository: UserRepository;
     private readonly leadSourceRepository: LeadSourceRepository;
     private readonly leadStatusRepository: LeadStatusRepository;
+    private readonly surveyDocumentTypeService: SurveyDocumentTypeService;
 
     constructor(
         roleRepository: RoleRepository, 
         userRepository: UserRepository,
         leadSourceRepository: LeadSourceRepository,
-        leadStatusRepository: LeadStatusRepository
+        leadStatusRepository: LeadStatusRepository,
+        surveyDocumentTypeRepository: SurveyDocumentTypeRepository
     ) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.leadSourceRepository = leadSourceRepository;
         this.leadStatusRepository = leadStatusRepository;
+        this.surveyDocumentTypeService = new SurveyDocumentTypeService(surveyDocumentTypeRepository);
     }
 
     /**
@@ -132,6 +137,10 @@ export class FranchiseOnboardingService {
             }
 
             logger.info("Successfully created default lead sources and statuses for franchise", { tenantUid });
+
+            // 7. Create Default Survey Document Types
+            await this.surveyDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
+            logger.info("Successfully created default survey document types for franchise", { tenantUid });
 
             return { adminPassword: plainPassword, adminEmail: email };
 

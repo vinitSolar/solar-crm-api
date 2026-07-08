@@ -322,6 +322,14 @@ function createSiteSurveyRouter(): Router {
      *                 type: number
      *               recommendedKw:
      *                 type: number
+     *               needsStructureExtension:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               needsOptimizer:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               optimizerCount:
+     *                 type: integer
      *               notes:
      *                 type: string
      *     responses:
@@ -368,6 +376,14 @@ function createSiteSurveyRouter(): Router {
      *                 type: number
      *               recommendedKw:
      *                 type: number
+     *               needsStructureExtension:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               needsOptimizer:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               optimizerCount:
+     *                 type: integer
      *               notes:
      *                 type: string
      *     responses:

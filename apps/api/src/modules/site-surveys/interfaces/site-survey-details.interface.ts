@@ -8,6 +8,9 @@ export interface ISiteSurveyDetails {
     connectionType: number;
     sanctionedLoadKw: number;
     recommendedKw: number | null;
+    needsStructureExtension: number;
+    needsOptimizer: number;
+    optimizerCount: number | null;
     notes: string | null;
     isActive: number;
     isDeleted: number;
@@ -24,6 +27,9 @@ export interface ISaveSiteSurveyDetails {
     connectionType: number;
     sanctionedLoadKw: number;
     recommendedKw?: number;
+    needsStructureExtension?: number;
+    needsOptimizer?: number;
+    optimizerCount?: number;
     notes?: string;
 }
 
@@ -33,6 +39,9 @@ export interface IUpdateSiteSurveyDetails {
     connectionType?: number;
     sanctionedLoadKw?: number;
     recommendedKw?: number;
+    needsStructureExtension?: number;
+    needsOptimizer?: number;
+    optimizerCount?: number;
     notes?: string;
 }
 
@@ -44,6 +53,9 @@ export interface ISiteSurveyDetailsSafe {
     connectionType: number;
     sanctionedLoadKw: number;
     recommendedKw: number | null;
+    needsStructureExtension: number;
+    needsOptimizer: number;
+    optimizerCount: number | null;
     notes: string | null;
     isActive: number;
     isDeleted: number;

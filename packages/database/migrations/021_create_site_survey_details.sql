@@ -12,6 +12,9 @@ CREATE TABLE site_survey_details (
   connection_type SMALLINT NOT NULL, -- 0=Single Phase, 1=Three Phase
   sanctioned_load_kw DECIMAL(10, 2) NOT NULL,
   recommended_kw DECIMAL(10, 2),
+  needs_structure_extension SMALLINT DEFAULT 0, -- 0=No, 1=Yes
+  needs_optimizer SMALLINT DEFAULT 0, -- 0=No, 1=Yes
+  optimizer_count INTEGER,
   notes TEXT,
   
   -- Base Fields

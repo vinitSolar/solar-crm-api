@@ -37,6 +37,9 @@ export const saveDetailsSchema = z.object({
         connectionType: z.number({ message: SITE_SURVEY_VALIDATION_MESSAGES.CONNECTION_TYPE_REQUIRED }).int().min(0).max(1),
         sanctionedLoadKw: z.number({ message: SITE_SURVEY_VALIDATION_MESSAGES.SANCTIONED_LOAD_REQUIRED }).positive(SITE_SURVEY_VALIDATION_MESSAGES.SANCTIONED_LOAD_INVALID),
         recommendedKw: z.number().positive().optional(),
+        needsStructureExtension: z.number().int().min(0).max(1).optional(),
+        needsOptimizer: z.number().int().min(0).max(1).optional(),
+        optimizerCount: z.number().int().min(0).optional(),
         notes: z.string().optional(),
     }).strict(),
 });
@@ -51,6 +54,9 @@ export const updateDetailsSchema = z.object({
         connectionType: z.number().int().min(0).max(1).optional(),
         sanctionedLoadKw: z.number().positive(SITE_SURVEY_VALIDATION_MESSAGES.SANCTIONED_LOAD_INVALID).optional(),
         recommendedKw: z.number().positive().optional(),
+        needsStructureExtension: z.number().int().min(0).max(1).optional(),
+        needsOptimizer: z.number().int().min(0).max(1).optional(),
+        optimizerCount: z.number().int().min(0).optional(),
         notes: z.string().optional(),
     }).strict(),
 });

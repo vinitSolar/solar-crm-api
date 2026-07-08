@@ -56,6 +56,13 @@ export class RoleService {
             throw new Error(ROLE_MESSAGES.ALREADY_EXISTS);
         }
 
+        // If it's the first role created for the tenant, grant canSiteSurvey and canInstallation
+        const tenantRoles = await this.roleRepository.getAllRolesByTenant(tenantUid, "all");
+        if (tenantRoles.length === 0) {
+            data.canSiteSurvey = 1;
+            data.canInstallation = 1;
+        }
+
         const uid = uuidv4();
         const role = await this.roleRepository.createRole(uid, tenantUid, data, createdBy);
 

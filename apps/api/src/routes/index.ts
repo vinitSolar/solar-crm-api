@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { authRoutes } from "../modules/auth/index.js";
 import { roleRoutes } from "../modules/roles/index.js";
+import { rolePermissionRoutes } from "../modules/role-permissions/index.js";
 import { userRoutes } from "../modules/users/index.js";
+import { userPermissionRoutes } from "../modules/user-permissions/index.js";
 import { franchiseRoutes } from "../modules/franchises/index.js";
 import { menuRoutes } from "../modules/menus/index.js";
 import { leadRoutes, leadSourceRoutes, leadStatusRoutes } from "../modules/leads/index.js";
@@ -12,7 +14,9 @@ const apiRouter = Router();
 
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/roles", roleRoutes);
+apiRouter.use("/roles", rolePermissionRoutes);
 apiRouter.use("/users", userRoutes);
+apiRouter.use("/users", userPermissionRoutes);
 apiRouter.use("/franchises", franchiseRoutes);
 apiRouter.use("/menus", menuRoutes);
 apiRouter.use("/leads", leadRoutes);

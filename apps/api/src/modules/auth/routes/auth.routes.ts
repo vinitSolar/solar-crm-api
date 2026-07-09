@@ -241,6 +241,95 @@ function createAuthRouter(): Router {
         authController.me,
     );
 
+    /**
+     * @swagger
+     * /auth/permissions:
+     *   get:
+     *     tags: [Authentication]
+     *     summary: Get user permissions
+     *     description: Returns the authenticated user's menu, feature permissions and role capabilities. Requires a valid access token.
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Permissions fetched successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 message:
+     *                   type: string
+     *                   example: Permissions fetched successfully
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     menus:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           menu_uid:
+     *                             type: string
+     *                           name:
+     *                             type: string
+     *                           code:
+     *                             type: string
+     *                           route:
+     *                             type: string
+     *                           can_view:
+     *                             type: number
+     *                             example: 1
+     *                           can_create:
+     *                             type: number
+     *                             example: 1
+     *                           can_edit:
+     *                             type: number
+     *                             example: 1
+     *                           can_delete:
+     *                             type: number
+     *                             example: 0
+     *                     features:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           feature_uid:
+     *                             type: string
+     *                           menu_uid:
+     *                             type: string
+     *                           name:
+     *                             type: string
+     *                           code:
+     *                             type: string
+     *                           is_enabled:
+     *                             type: number
+     *                             example: 1
+     *                     role:
+     *                       type: object
+     *                       properties:
+     *                         can_site_survey:
+     *                           type: number
+     *                           example: 1
+     *                         can_installation:
+     *                           type: number
+     *                           example: 0
+     *       401:
+     *         description: Authentication required
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/ErrorResponse'
+     */
+    router.get(
+        "/permissions",
+        authenticate,
+        authController.permissions,
+    );
+
     return router;
 }
 

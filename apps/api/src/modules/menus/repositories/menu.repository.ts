@@ -73,6 +73,12 @@ export class MenuRepository {
         return result.rows[0] || null;
     }
 
+    async findByUids(uids: string[]): Promise<IMenu[]> {
+        if (!uids || uids.length === 0) return [];
+        const result = await this.pool.query(`SELECT * FROM menus WHERE uid = ANY($1)`, [uids]);
+        return result.rows;
+    }
+
     async findByCode(code: string): Promise<IMenu | null> {
         const result = await this.pool.query(`SELECT * FROM menus WHERE code = $1`, [code]);
         return result.rows[0] || null;

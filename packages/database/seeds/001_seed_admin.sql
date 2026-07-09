@@ -67,4 +67,15 @@ VALUES (
 )
 ON CONFLICT (email) DO NOTHING;
 
+-- =============================================
+-- 4. Default Menus
+-- =============================================
+INSERT INTO menus (uid, name, code, route, icon, sort_order, is_active)
+VALUES 
+    (gen_random_uuid()::VARCHAR, 'Dashboard', 'DASHBOARD', '/dashboard', 'LayoutDashboard', 1, 1),
+    (gen_random_uuid()::VARCHAR, 'Leads', 'LEADS', '/leads', 'Users', 2, 1),
+    (gen_random_uuid()::VARCHAR, 'Surveys', 'SURVEYS', '/surveys', 'ClipboardList', 3, 1),
+    (gen_random_uuid()::VARCHAR, 'Quotations', 'QUOTATIONS', '/quotations', 'FileText', 4, 1)
+ON CONFLICT (code) DO NOTHING;
+
 COMMIT;

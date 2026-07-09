@@ -9,7 +9,11 @@ import { menuRoutes } from "../modules/menus/index.js";
 import { leadRoutes, leadSourceRoutes, leadStatusRoutes } from "../modules/leads/index.js";
 import { siteSurveyRoutes } from "../modules/site-surveys/index.js";
 import { surveyDocumentTypeRoutes } from "../modules/survey-documents/index.js";
-
+import { productCategoryRoutes } from "../modules/product-categories/index.js";
+import { productBrandRoutes } from "../modules/product-brands/index.js";
+import { productUnitRoutes } from "../modules/product-units/index.js";
+import { productRoutes } from "../modules/products/index.js";
+import { stateSubsidyRuleRoutes } from "../modules/state-subsidy-rules/index.js";
 const apiRouter = Router();
 
 apiRouter.use("/auth", authRoutes);
@@ -24,5 +28,10 @@ apiRouter.use("/lead-sources", leadSourceRoutes);
 apiRouter.use("/lead-statuses", leadStatusRoutes);
 apiRouter.use("/site-surveys", siteSurveyRoutes);
 apiRouter.use("/survey-document-types", surveyDocumentTypeRoutes);
+apiRouter.use("/product-categories", productCategoryRoutes);
+apiRouter.use("/product-brands", productBrandRoutes);
+apiRouter.use("/product-units", productUnitRoutes);
+apiRouter.use("/products", productRoutes);
+apiRouter.use("/state-subsidy-rules", stateSubsidyRuleRoutes);
 
 export default apiRouter;

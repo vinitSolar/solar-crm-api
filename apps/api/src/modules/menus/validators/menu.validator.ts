@@ -7,7 +7,7 @@ export const createMenuSchema = z.object({
     code: z.string().min(1, "Code is required").max(100, "Code cannot exceed 100 characters"),
     route: z.string().max(255, "Route cannot exceed 255 characters").optional(),
     icon: z.string().max(255, "Icon cannot exceed 255 characters").optional(),
-    parentUid: z.string().uuid("Invalid Parent UID").optional(),
+    parentUid: z.union([z.string().uuid("Invalid Parent UID"), z.literal(""), z.null()]).optional().transform(val => val === "" ? null : val),
     sortOrder: z.number().int("Sort order must be an integer").optional(),
 });
 
@@ -16,7 +16,7 @@ export const updateMenuSchema = z.object({
     code: z.string().min(1, "Code cannot be empty").max(100, "Code cannot exceed 100 characters").optional(),
     route: z.string().max(255, "Route cannot exceed 255 characters").optional(),
     icon: z.string().max(255, "Icon cannot exceed 255 characters").optional(),
-    parentUid: z.string().uuid("Invalid Parent UID").optional().nullable(),
+    parentUid: z.union([z.string().uuid("Invalid Parent UID"), z.literal(""), z.null()]).optional().transform(val => val === "" ? null : val),
     sortOrder: z.number().int("Sort order must be an integer").optional().nullable(),
     isActive: z.number().int().min(0).max(1).optional(),
 });

@@ -5,6 +5,8 @@ import type { UserRepository } from "../../users/repositories/user.repository.js
 import type { LeadSourceRepository } from "../../leads/repositories/lead-source.repository.js";
 import type { LeadStatusRepository } from "../../leads/repositories/lead-status.repository.js";
 import type { SurveyDocumentTypeRepository } from "../../survey-documents/repositories/survey-document-type.repository.js";
+import type { MenuRepository } from "../../menus/repositories/menu.repository.js";
+import type { RolePermissionRepository } from "../../role-permissions/repositories/role-permission.repository.js";
 import { SurveyDocumentTypeService } from "../../survey-documents/services/survey-document-type.service.js";
 import type { IFranchiseOwnerDetails } from "../interfaces/franchise.interface.js";
 import { logger } from "@packages/logger/index.js";
@@ -17,19 +19,25 @@ export class FranchiseOnboardingService {
     private readonly leadSourceRepository: LeadSourceRepository;
     private readonly leadStatusRepository: LeadStatusRepository;
     private readonly surveyDocumentTypeService: SurveyDocumentTypeService;
+    private readonly menuRepository: MenuRepository;
+    private readonly rolePermissionRepository: RolePermissionRepository;
 
     constructor(
         roleRepository: RoleRepository, 
         userRepository: UserRepository,
         leadSourceRepository: LeadSourceRepository,
         leadStatusRepository: LeadStatusRepository,
-        surveyDocumentTypeRepository: SurveyDocumentTypeRepository
+        surveyDocumentTypeRepository: SurveyDocumentTypeRepository,
+        menuRepository: MenuRepository,
+        rolePermissionRepository: RolePermissionRepository
     ) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.leadSourceRepository = leadSourceRepository;
         this.leadStatusRepository = leadStatusRepository;
         this.surveyDocumentTypeService = new SurveyDocumentTypeService(surveyDocumentTypeRepository);
+        this.menuRepository = menuRepository;
+        this.rolePermissionRepository = rolePermissionRepository;
     }
 
     /**
@@ -112,6 +120,24 @@ export class FranchiseOnboardingService {
             // Note: In a real system, we might trigger an email here containing the 'plainPassword' 
             // so the franchise owner can log in.
             
+            // 4.5 Assign all menu permissions to Admin Role
+            const allMenus = await this.menuRepository.findAll("active");
+            if (allMenus.length > 0) {
+                const adminPermissions = allMenus.map((menu) => ({
+                    menuUid: menu.uid,
+                    canView: 1,
+                    canCreate: 1,
+                    canEdit: 1,
+                    canDelete: 1,
+                }));
+                await this.rolePermissionRepository.upsertMenuPermissions(
+                    adminRoleUid as string,
+                    tenantUid,
+                    adminPermissions
+                );
+                logger.info(`Assigned ${adminPermissions.length} menu permissions to Admin role`, { adminRoleUid, tenantUid });
+            }
+
             // 5. Create default Lead Sources
             const defaultLeadSources = [
                 { name: "Other", sortOrder: 1, isDefault: 1 },

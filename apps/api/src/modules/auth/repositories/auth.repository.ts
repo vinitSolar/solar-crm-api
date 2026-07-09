@@ -190,4 +190,86 @@ export class AuthRepository {
 
         await this.pool.query(query, [refreshToken]);
     }
+
+    /**
+     * Get aggregated permissions for a user and their role.
+     * Evaluates User Permission -> Role Permission -> Default (0)
+     */
+    async getPermissions(userUid: string, roleUid: string, tenantUid: string) {
+        logger.debug("AuthRepository.getPermissions", { userUid, roleUid, tenantUid });
+
+        const menusQuery = `
+            SELECT 
+                m.uid AS menu_uid,
+                m.name,
+                m.code,
+                m.route,
+                COALESCE(ump.can_view, rmp.can_view, 0) AS can_view,
+                COALESCE(ump.can_create, rmp.can_create, 0) AS can_create,
+                COALESCE(ump.can_edit, rmp.can_edit, 0) AS can_edit,
+                COALESCE(ump.can_delete, rmp.can_delete, 0) AS can_delete
+            FROM menus m
+            LEFT JOIN role_menu_permissions rmp 
+                ON m.uid = rmp.menu_uid AND rmp.role_uid = $1 AND rmp.tenant_uid = $3
+            LEFT JOIN user_menu_permissions ump 
+                ON m.uid = ump.menu_uid AND ump.user_uid = $2 AND ump.tenant_uid = $3
+            WHERE m.is_active = 1 AND m.deleted_at IS NULL
+            ORDER BY m.sort_order ASC
+        `;
+
+        const featuresQuery = `
+            SELECT 
+                f.uid AS feature_uid,
+                f.menu_uid,
+                f.name,
+                f.code,
+                COALESCE(ufp.is_enabled, rfp.is_enabled, 0) AS is_enabled
+            FROM features f
+            LEFT JOIN role_feature_permissions rfp 
+                ON f.uid = rfp.feature_uid AND rfp.role_uid = $1 AND rfp.tenant_uid = $3
+            LEFT JOIN user_feature_permissions ufp 
+                ON f.uid = ufp.feature_uid AND ufp.user_uid = $2 AND ufp.tenant_uid = $3
+            WHERE f.is_active = 1
+        `;
+
+        const roleQuery = `
+            SELECT 
+                can_site_survey, 
+                can_installation
+            FROM roles
+            WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0
+        `;
+
+        const [menusResult, featuresResult, roleResult] = await Promise.all([
+            this.pool.query(menusQuery, [roleUid, userUid, tenantUid]),
+            this.pool.query(featuresQuery, [roleUid, userUid, tenantUid]),
+            this.pool.query(roleQuery, [roleUid, tenantUid])
+        ]);
+
+        return {
+            menus: menusResult.rows.map((row) => ({
+                menu_uid: row.menu_uid,
+                name: row.name,
+                code: row.code,
+                route: row.route,
+                canView: row.can_view,
+                canCreate: row.can_create,
+                canEdit: row.can_edit,
+                canDelete: row.can_delete,
+            })),
+            features: featuresResult.rows.map((row) => ({
+                feature_uid: row.feature_uid,
+                menu_uid: row.menu_uid,
+                name: row.name,
+                code: row.code,
+                isEnabled: row.is_enabled,
+            })),
+            role: roleResult.rows.length > 0 
+                ? { 
+                    canSiteSurvey: roleResult.rows[0].can_site_survey, 
+                    canInstallation: roleResult.rows[0].can_installation 
+                  }
+                : { canSiteSurvey: 0, canInstallation: 0 }
+        };
+    }
 }

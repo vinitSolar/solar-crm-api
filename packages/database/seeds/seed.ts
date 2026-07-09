@@ -9,10 +9,34 @@ export async function seed(pool: Pool) {
     const client = await pool.connect();
 
     try {
+        // 1. Seed Default Menus
+        const menusCheck = await client.query("SELECT COUNT(*) FROM menus");
+        if (parseInt(menusCheck.rows[0].count) === 0) {
+            logger.info("🌱 Seeding default menus...");
+            await client.query("BEGIN");
+            const defaultMenus = [
+                { name: "Dashboard", code: "DASHBOARD", route: "/dashboard", icon: "LayoutDashboard", sortOrder: 1 },
+                { name: "Leads", code: "LEADS", route: "/leads", icon: "Users", sortOrder: 2 },
+                { name: "Surveys", code: "SURVEYS", route: "/surveys", icon: "ClipboardList", sortOrder: 3 },
+                { name: "Quotations", code: "QUOTATIONS", route: "/quotations", icon: "FileText", sortOrder: 4 },
+            ];
+
+            for (const menu of defaultMenus) {
+                await client.query(
+                    `INSERT INTO menus (uid, name, code, route, icon, sort_order, is_active)
+                     VALUES ($1, $2, $3, $4, $5, $6, 1)
+                     ON CONFLICT (code) DO NOTHING`,
+                    [uuidv4(), menu.name, menu.code, menu.route, menu.icon, menu.sortOrder]
+                );
+            }
+            await client.query("COMMIT");
+            logger.info(`✅ Default menus seeded: ${defaultMenus.map(m => m.name).join(", ")}`);
+        }
+
         // Check if admin user already exists to avoid unnecessary hashing
         const checkRes = await client.query("SELECT 1 FROM users WHERE email = $1", ["admin@sunselect.com"]);
         if (checkRes.rowCount && checkRes.rowCount > 0) {
-            logger.info("🎉 Database already seeded.");
+            logger.info("🎉 Database already seeded with admin user.");
             return;
         }
 
@@ -23,11 +47,11 @@ export async function seed(pool: Pool) {
         const roleUid = uuidv4();
         const userUid = uuidv4();
 
-        logger.info("🌱 Starting database seed...");
+        logger.info("🌱 Starting admin user seed...");
 
         await client.query("BEGIN");
 
-        // 1. Tenant: Head Office
+        // 2. Tenant: Head Office
         await client.query(
             `INSERT INTO tenants (uid, code, name, type, email, timezone, is_active, is_deleted, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -46,7 +70,7 @@ export async function seed(pool: Pool) {
         );
         logger.info(`✅ Tenant: SunSelect Solar India (Head Office) — ${tenantUid}`);
 
-        // 2. Role: Master
+        // 3. Role: Master
         await client.query(
             `INSERT INTO roles (uid, tenant_uid, name, description, is_system, is_active, is_deleted, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -64,7 +88,7 @@ export async function seed(pool: Pool) {
         );
         logger.info(`✅ Role: Master (System Role) — ${roleUid}`);
 
-        // 3. User: Admin
+        // 4. User: Admin
         await client.query(
             `INSERT INTO users (uid, tenant_uid, role_uid, first_name, last_name, email, password, is_active, is_deleted, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -83,6 +107,27 @@ export async function seed(pool: Pool) {
             ]
         );
         logger.info(`✅ User: admin@sunselect.com (Admin@123) — ${userUid}`);
+
+        // 5. Grant full access to Master role
+        const allMenusRes = await client.query("SELECT uid FROM menus");
+        for (const menuRow of allMenusRes.rows) {
+            await client.query(
+                `INSERT INTO role_menu_permissions (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete)
+                 VALUES ($1, $2, $3, 1, 1, 1, 1)`,
+                [tenantUid, roleUid, menuRow.uid]
+            );
+        }
+        logger.info(`✅ Granted full menu access to Master role.`);
+
+        // 6. Grant full user-specific access to Admin user
+        for (const menuRow of allMenusRes.rows) {
+            await client.query(
+                `INSERT INTO user_menu_permissions (tenant_uid, user_uid, menu_uid, can_view, can_create, can_edit, can_delete)
+                 VALUES ($1, $2, $3, 1, 1, 1, 1)`,
+                [tenantUid, userUid, menuRow.uid]
+            );
+        }
+        logger.info(`✅ Granted full user-specific menu access to Admin user.`);
 
         await client.query("COMMIT");
 

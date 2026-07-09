@@ -8,6 +8,7 @@ import { AUTH_MESSAGES, USER_STATUS } from "../constants/auth.constants.js";
 import { logger } from "@packages/logger/index.js";
 import { env } from "@packages/config/env.js";
 import { v4 as uuidv4 } from "uuid";
+import { CustomError } from "../../../middlewares/error.middleware.js";
 
 /**
  * Authentication Service.
@@ -46,31 +47,31 @@ export class AuthService {
 
         if (!user) {
             logger.warn("Login failed: user not found", { email: dto.email });
-            throw new Error(AUTH_MESSAGES.LOGIN_FAILED);
+            throw new CustomError(AUTH_MESSAGES.LOGIN_FAILED, 401);
         }
 
         // Step 2: Verify account is active
         if (user.is_active === USER_STATUS.INACTIVE) {
             logger.warn("Login failed: user inactive", { userUid: user.uid });
-            throw new Error(AUTH_MESSAGES.USER_INACTIVE);
+            throw new CustomError(AUTH_MESSAGES.USER_INACTIVE, 401);
         }
 
         if (user.is_active === USER_STATUS.LOCKED) {
             logger.warn("Login failed: user locked", { userUid: user.uid });
-            throw new Error(AUTH_MESSAGES.USER_LOCKED);
+            throw new CustomError(AUTH_MESSAGES.USER_LOCKED, 401);
         }
 
         // Step 3: Compare password hash
         if (!user.password) {
             logger.warn("Login failed: no password set", { userUid: user.uid });
-            throw new Error(AUTH_MESSAGES.LOGIN_FAILED);
+            throw new CustomError(AUTH_MESSAGES.LOGIN_FAILED, 401);
         }
 
         const isPasswordValid = await comparePassword(dto.password, user.password);
 
         if (!isPasswordValid) {
             logger.warn("Login failed: invalid password", { email: dto.email });
-            throw new Error(AUTH_MESSAGES.LOGIN_FAILED);
+            throw new CustomError(AUTH_MESSAGES.LOGIN_FAILED, 401);
         }
 
         // Step 4: Generate session ID and token pair
@@ -112,7 +113,7 @@ export class AuthService {
 
         if (!payload) {
             logger.warn("Refresh token verification failed");
-            throw new Error(AUTH_MESSAGES.REFRESH_FAILED);
+            throw new CustomError(AUTH_MESSAGES.REFRESH_FAILED, 401);
         }
 
         // Step 2: Check if session exists in database and is not expired
@@ -120,7 +121,7 @@ export class AuthService {
 
         if (!session || session.user_uid !== payload.userUid || session.expires_at < new Date()) {
             logger.warn("Refresh failed: session invalid or expired");
-            throw new Error(AUTH_MESSAGES.SESSION_INVALID);
+            throw new CustomError(AUTH_MESSAGES.SESSION_INVALID, 401);
         }
 
         // Step 3: Find the user
@@ -128,13 +129,13 @@ export class AuthService {
 
         if (!user) {
             logger.warn("Refresh failed: user not found", { userUid: payload.userUid });
-            throw new Error(AUTH_MESSAGES.USER_NOT_FOUND);
+            throw new CustomError(AUTH_MESSAGES.USER_NOT_FOUND, 401);
         }
 
         // Step 4: Verify user is still active
         if (user.is_active !== USER_STATUS.ACTIVE) {
             logger.warn("Refresh failed: user not active", { userUid: user.uid });
-            throw new Error(AUTH_MESSAGES.USER_INACTIVE);
+            throw new CustomError(AUTH_MESSAGES.USER_INACTIVE, 401);
         }
 
         // Step 5: Generate session ID and new token pair
@@ -188,5 +189,18 @@ export class AuthService {
         }
         
         return date;
+    }
+
+    /**
+     * Retrieves aggregated permissions for a user and their role.
+     *
+     * @param userUid - The user's UID.
+     * @param roleUid - The user's role UID.
+     * @param tenantUid - The tenant's UID.
+     * @returns Aggregated permissions.
+     */
+    async getPermissions(userUid: string, roleUid: string, tenantUid: string) {
+        logger.info("AuthService.getPermissions", { userUid, roleUid, tenantUid });
+        return await this.authRepository.getPermissions(userUid, roleUid, tenantUid);
     }
 }

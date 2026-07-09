@@ -33,6 +33,58 @@ export async function seed(pool: Pool) {
             logger.info(`✅ Default menus seeded: ${defaultMenus.map(m => m.name).join(", ")}`);
         }
 
+        // Seed Product Categories
+        const categoriesCheck = await client.query("SELECT COUNT(*) FROM product_categories");
+        if (parseInt(categoriesCheck.rows[0].count) === 0) {
+            logger.info("🌱 Seeding product categories...");
+            await client.query("BEGIN");
+            const defaultCategories = [
+                { name: "Solar Panels", description: "Photovoltaic solar panels", sortOrder: 1 },
+                { name: "Inverters", description: "Solar inverters", sortOrder: 2 },
+                { name: "Batteries", description: "Energy storage batteries", sortOrder: 3 },
+                { name: "Mounting Structures", description: "Structures for mounting solar panels", sortOrder: 4 },
+                { name: "Cables & Wires", description: "Electrical cables and wires", sortOrder: 5 },
+                { name: "Accessories", description: "Other solar accessories", sortOrder: 6 },
+            ];
+
+            for (const category of defaultCategories) {
+                await client.query(
+                    `INSERT INTO product_categories (uid, name, description, sort_order, is_active)
+                     VALUES ($1, $2, $3, $4, 1)
+                     ON CONFLICT (name) DO NOTHING`,
+                    [uuidv4(), category.name, category.description, category.sortOrder]
+                );
+            }
+            await client.query("COMMIT");
+            logger.info(`✅ Product categories seeded: ${defaultCategories.map(c => c.name).join(", ")}`);
+        }
+
+        // Seed Product Units
+        const unitsCheck = await client.query("SELECT COUNT(*) FROM product_units");
+        if (parseInt(unitsCheck.rows[0].count) === 0) {
+            logger.info("🌱 Seeding product units...");
+            await client.query("BEGIN");
+            const defaultUnits = [
+                { name: "Pieces", shortName: "pcs", description: "Individual pieces", sortOrder: 1 },
+                { name: "Watts", shortName: "W", description: "Power in Watts", sortOrder: 2 },
+                { name: "Kilowatts", shortName: "kW", description: "Power in Kilowatts", sortOrder: 3 },
+                { name: "Meters", shortName: "m", description: "Length in meters", sortOrder: 4 },
+                { name: "Rolls", shortName: "roll", description: "Items in rolls", sortOrder: 5 },
+                { name: "Sets", shortName: "set", description: "Items in sets", sortOrder: 6 },
+            ];
+
+            for (const unit of defaultUnits) {
+                await client.query(
+                    `INSERT INTO product_units (uid, name, short_name, description, sort_order, is_active)
+                     VALUES ($1, $2, $3, $4, $5, 1)
+                     ON CONFLICT (name) DO NOTHING`,
+                    [uuidv4(), unit.name, unit.shortName, unit.description, unit.sortOrder]
+                );
+            }
+            await client.query("COMMIT");
+            logger.info(`✅ Product units seeded: ${defaultUnits.map(u => u.name).join(", ")}`);
+        }
+
         // Check if admin user already exists to avoid unnecessary hashing
         const checkRes = await client.query("SELECT 1 FROM users WHERE email = $1", ["admin@sunselect.com"]);
         if (checkRes.rowCount && checkRes.rowCount > 0) {

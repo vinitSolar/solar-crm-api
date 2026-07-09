@@ -32,6 +32,7 @@ const swaggerOptions: Options = {
             { name: "Site Surveys", description: "Site survey management" },
             { name: "Survey Document Types", description: "Survey document type management" },
             { name: "Franchises", description: "Franchise onboarding" },
+            { name: "StateSubsidyRules", description: "State Subsidy Rule Management APIs" },
         ],
         components: {
             securitySchemes: {

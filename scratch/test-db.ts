@@ -1,19 +1,23 @@
-import "@packages/config/index.js";
-import pool from "../packages/connection.js";
+import pool from "@packages/connection.js";
 
 async function run() {
     try {
-        await pool.query(`
-            ALTER TABLE site_survey_details
-            ADD COLUMN needs_structure_extension SMALLINT DEFAULT 0,
-            ADD COLUMN needs_optimizer SMALLINT DEFAULT 0,
-            ADD COLUMN optimizer_count INTEGER;
-        `);
-        console.log("Columns added successfully");
+        const res = await pool.query("SELECT * FROM role_menu_permissions ORDER BY id DESC LIMIT 5");
+        console.log("role_menu_permissions:", JSON.stringify(res.rows, null, 2));
+
+        const roleRes = await pool.query("SELECT * FROM roles WHERE name = 'Franchise Owner(Admin)' ORDER BY created_at DESC LIMIT 1");
+        console.log("admin role:", JSON.stringify(roleRes.rows, null, 2));
+
+        if (roleRes.rows.length > 0) {
+            const roleUid = roleRes.rows[0].uid;
+            const permRes = await pool.query("SELECT * FROM role_menu_permissions WHERE role_uid = $1", [roleUid]);
+            console.log(`permissions for role ${roleUid}:`, JSON.stringify(permRes.rows, null, 2));
+        }
+
     } catch (e) {
         console.error(e);
     } finally {
-        process.exit(0);
+        await pool.end();
     }
 }
 run();

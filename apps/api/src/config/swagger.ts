@@ -19,6 +19,21 @@ const swaggerOptions: Options = {
                 description: `${env.APP.NODE_ENV} server`,
             },
         ],
+        tags: [
+            { name: "Authentication", description: "Auth endpoints (login, logout, refresh, me, permissions)" },
+            { name: "Roles", description: "Role CRUD operations" },
+            { name: "Role Permissions", description: "Manage menu permissions assigned to roles" },
+            { name: "User Permissions", description: "Manage menu permissions explicitly overridden for users" },
+            { name: "Users", description: "User management" },
+            { name: "Menus", description: "Menu management" },
+            { name: "Leads", description: "Lead management" },
+            { name: "Lead Sources", description: "Lead source management" },
+            { name: "Lead Statuses", description: "Lead status management" },
+            { name: "Site Surveys", description: "Site survey management" },
+            { name: "Survey Document Types", description: "Survey document type management" },
+            { name: "Franchises", description: "Franchise onboarding" },
+            { name: "StateSubsidyRules", description: "State Subsidy Rule Management APIs" },
+        ],
         components: {
             securitySchemes: {
                 bearerAuth: {
@@ -143,6 +158,30 @@ const swaggerOptions: Options = {
                         isActive: { type: "integer", enum: [0, 1] },
                         isDeleted: { type: "integer", enum: [0, 1] },
                         createdAt: { type: "string", format: "date-time" },
+                    },
+                },
+                RoleMenuPermissionSafe: {
+                    type: "object",
+                    properties: {
+                        menuUid: { type: "string" },
+                        menuName: { type: "string" },
+                        menuCode: { type: "string" },
+                        canView: { type: "integer", enum: [0, 1] },
+                        canCreate: { type: "integer", enum: [0, 1] },
+                        canEdit: { type: "integer", enum: [0, 1] },
+                        canDelete: { type: "integer", enum: [0, 1] },
+                    },
+                },
+                UserMenuPermissionSafe: {
+                    type: "object",
+                    properties: {
+                        menuUid: { type: "string" },
+                        menuName: { type: "string", nullable: true },
+                        menuCode: { type: "string", nullable: true },
+                        canView: { type: "integer", enum: [0, 1] },
+                        canCreate: { type: "integer", enum: [0, 1] },
+                        canEdit: { type: "integer", enum: [0, 1] },
+                        canDelete: { type: "integer", enum: [0, 1] },
                     },
                 },
             },

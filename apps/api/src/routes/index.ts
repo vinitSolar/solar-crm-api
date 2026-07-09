@@ -1,18 +1,26 @@
 import { Router } from "express";
 import { authRoutes } from "../modules/auth/index.js";
 import { roleRoutes } from "../modules/roles/index.js";
+import { rolePermissionRoutes } from "../modules/role-permissions/index.js";
 import { userRoutes } from "../modules/users/index.js";
+import { userPermissionRoutes } from "../modules/user-permissions/index.js";
 import { franchiseRoutes } from "../modules/franchises/index.js";
 import { menuRoutes } from "../modules/menus/index.js";
 import { leadRoutes, leadSourceRoutes, leadStatusRoutes } from "../modules/leads/index.js";
 import { siteSurveyRoutes } from "../modules/site-surveys/index.js";
 import { surveyDocumentTypeRoutes } from "../modules/survey-documents/index.js";
-
+import { productCategoryRoutes } from "../modules/product-categories/index.js";
+import { productBrandRoutes } from "../modules/product-brands/index.js";
+import { productUnitRoutes } from "../modules/product-units/index.js";
+import { productRoutes } from "../modules/products/index.js";
+import { stateSubsidyRuleRoutes } from "../modules/state-subsidy-rules/index.js";
 const apiRouter = Router();
 
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/roles", roleRoutes);
+apiRouter.use("/roles", rolePermissionRoutes);
 apiRouter.use("/users", userRoutes);
+apiRouter.use("/users", userPermissionRoutes);
 apiRouter.use("/franchises", franchiseRoutes);
 apiRouter.use("/menus", menuRoutes);
 apiRouter.use("/leads", leadRoutes);
@@ -20,5 +28,10 @@ apiRouter.use("/lead-sources", leadSourceRoutes);
 apiRouter.use("/lead-statuses", leadStatusRoutes);
 apiRouter.use("/site-surveys", siteSurveyRoutes);
 apiRouter.use("/survey-document-types", surveyDocumentTypeRoutes);
+apiRouter.use("/product-categories", productCategoryRoutes);
+apiRouter.use("/product-brands", productBrandRoutes);
+apiRouter.use("/product-units", productUnitRoutes);
+apiRouter.use("/products", productRoutes);
+apiRouter.use("/state-subsidy-rules", stateSubsidyRuleRoutes);
 
 export default apiRouter;

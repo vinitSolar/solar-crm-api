@@ -127,4 +127,34 @@ export class AuthController {
             next(error);
         }
     };
+
+    /**
+     * GET /auth/permissions
+     *
+     * Returns the authenticated user's menu permissions, feature permissions,
+     * and role capabilities.
+     * Requires the `authenticate` middleware to run first.
+     */
+    permissions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+
+            logger.info("AuthController.permissions", { userUid: authReq.user.uid });
+
+            const result = await this.authService.getPermissions(
+                authReq.user.uid,
+                authReq.roleUid,
+                authReq.tenantUid
+            );
+
+
+            res.status(200).json({
+                success: true,
+                message: "Permissions fetched successfully",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

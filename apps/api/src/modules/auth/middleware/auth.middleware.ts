@@ -85,8 +85,8 @@ export async function authenticate(
         // Attach authenticated user context to request
         const authReq = req as IAuthenticatedRequest;
         authReq.user = sanitizeUser(user);
-        authReq.tenantUid = payload.tenantUid;
-        authReq.roleUid = payload.roleUid;
+        authReq.tenantUid = user.tenant_uid;
+        authReq.roleUid = user.role_uid;
 
         next();
     } catch (error) {

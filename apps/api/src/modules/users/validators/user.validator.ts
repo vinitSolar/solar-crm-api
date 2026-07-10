@@ -18,7 +18,7 @@ export const createUserSchema = z.object({
         roleUid: z.string().uuid(USER_MESSAGES.INVALID_ROLE_UID),
         firstName: z.string().min(2, USER_MESSAGES.FIRST_NAME_MIN_LENGTH).max(100, USER_MESSAGES.FIRST_NAME_MAX_LENGTH),
         lastName: z.string().min(2, USER_MESSAGES.LAST_NAME_MIN_LENGTH).max(100, USER_MESSAGES.LAST_NAME_MAX_LENGTH),
-        email: z.string().email(USER_MESSAGES.INVALID_EMAIL),
+        email: z.string().email(USER_MESSAGES.INVALID_EMAIL).trim().toLowerCase(),
         password: z.string().min(8, USER_MESSAGES.PASSWORD_MIN_LENGTH),
     })
 });
@@ -31,7 +31,7 @@ export const updateUserSchema = z.object({
         roleUid: z.string().uuid(USER_MESSAGES.INVALID_ROLE_UID).optional(),
         firstName: z.string().min(2, USER_MESSAGES.FIRST_NAME_MIN_LENGTH).max(100, USER_MESSAGES.FIRST_NAME_MAX_LENGTH).optional(),
         lastName: z.string().min(2, USER_MESSAGES.LAST_NAME_MIN_LENGTH).max(100, USER_MESSAGES.LAST_NAME_MAX_LENGTH).optional(),
-        email: z.string().email(USER_MESSAGES.INVALID_EMAIL).optional(),
+        email: z.string().email(USER_MESSAGES.INVALID_EMAIL).trim().toLowerCase().optional(),
         password: z.string().min(8, USER_MESSAGES.PASSWORD_MIN_LENGTH).optional(),
         isActive: z.number().int().min(0).max(2).optional(),
     }).refine(data => Object.keys(data).length > 0, {

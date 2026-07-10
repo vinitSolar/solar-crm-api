@@ -36,7 +36,7 @@ export class AuthRepository {
                    is_active, is_deleted, created_at, updated_at,
                    created_by, updated_by, deleted_by
             FROM users
-            WHERE email = $1
+            WHERE LOWER(email) = LOWER($1)
               AND is_deleted = 0
         `;
 
@@ -233,9 +233,7 @@ export class AuthRepository {
         `;
 
         const roleQuery = `
-            SELECT 
-                can_site_survey, 
-                can_installation
+            SELECT *
             FROM roles
             WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0
         `;
@@ -246,17 +244,24 @@ export class AuthRepository {
             this.pool.query(roleQuery, [roleUid, tenantUid])
         ]);
 
+        const menus = menusResult.rows.map((row) => ({
+            menu_uid: row.menu_uid,
+            name: row.name,
+            code: row.code,
+            route: row.route,
+            canView: row.can_view,
+            canCreate: row.can_create,
+            canEdit: row.can_edit,
+            canDelete: row.can_delete,
+        }));
+
+        const allMenuAccess = menus.length > 0 && menus.every(
+            (menu) => menu.canView === 1 && menu.canCreate === 1 && menu.canEdit === 1 && menu.canDelete === 1
+        );
+
         return {
-            menus: menusResult.rows.map((row) => ({
-                menu_uid: row.menu_uid,
-                name: row.name,
-                code: row.code,
-                route: row.route,
-                canView: row.can_view,
-                canCreate: row.can_create,
-                canEdit: row.can_edit,
-                canDelete: row.can_delete,
-            })),
+            allMenuAccess,
+            menus,
             features: featuresResult.rows.map((row) => ({
                 feature_uid: row.feature_uid,
                 menu_uid: row.menu_uid,
@@ -265,11 +270,19 @@ export class AuthRepository {
                 isEnabled: row.is_enabled,
             })),
             role: roleResult.rows.length > 0 
-                ? { 
+                ? {
+                    uid: roleResult.rows[0].uid,
+                    tenantUid: roleResult.rows[0].tenant_uid,
+                    name: roleResult.rows[0].name,
+                    description: roleResult.rows[0].description,
+                    isSystem: roleResult.rows[0].is_system,
+                    isActive: roleResult.rows[0].is_active,
                     canSiteSurvey: roleResult.rows[0].can_site_survey, 
-                    canInstallation: roleResult.rows[0].can_installation 
+                    canInstallation: roleResult.rows[0].can_installation,
+                    createdAt: roleResult.rows[0].created_at,
+                    updatedAt: roleResult.rows[0].updated_at
                   }
-                : { canSiteSurvey: 0, canInstallation: 0 }
+                : null
         };
     }
 }

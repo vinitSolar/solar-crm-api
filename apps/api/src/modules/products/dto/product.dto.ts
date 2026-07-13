@@ -13,10 +13,13 @@ export interface IProductSafe {
     capacityUnit: string | null;
     warranty: string | null;
     description: string | null;
+    modelNumber: string | null;
+    images: string[];
     isActive: boolean;
     isDeleted: boolean;
     createdAt: Date;
     updatedAt: Date;
+    brandName?: string | undefined;
 }
 
 export const toProductSafe = (product: IProduct): IProductSafe => {
@@ -33,10 +36,13 @@ export const toProductSafe = (product: IProduct): IProductSafe => {
         capacityUnit: product.capacityUnit,
         warranty: product.warranty,
         description: product.description,
+        modelNumber: product.modelNumber,
+        images: product.images || [],
         isActive: product.isActive === 1,
         isDeleted: product.isDeleted === 1,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
+        brandName: product.brandName,
     };
 };
 
@@ -47,6 +53,7 @@ export interface IProductDropdown {
     pricePerUnit: number;
     gstPercentage: number;
     unitUid: string;
+    modelNumber: string | null;
 }
 
 export const toProductDropdown = (product: IProduct): IProductDropdown => {
@@ -57,5 +64,8 @@ export const toProductDropdown = (product: IProduct): IProductDropdown => {
         pricePerUnit: Number(product.pricePerUnit),
         gstPercentage: Number(product.gstPercentage),
         unitUid: product.unitUid,
+        modelNumber: product.modelNumber,
     };
 };
+
+

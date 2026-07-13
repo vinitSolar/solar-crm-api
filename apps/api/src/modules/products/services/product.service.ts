@@ -8,6 +8,8 @@ import { toProductSafe, toProductDropdown, type IProductSafe, type IProductDropd
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { PRODUCT_MESSAGES } from "../constants/product.constants.js";
 import pool from "@packages/connection.js";
+import { storageService } from "@packages/storage/index.js";
+import { logger } from "@packages/logger/index.js";
 
 export class ProductService {
     private readonly repository: ProductRepository;
@@ -22,7 +24,9 @@ export class ProductService {
         this.unitRepo = new ProductUnitRepository(pool);
     }
 
-    async createProduct(data: ICreateProductRequest, userUid: string): Promise<IProductSafe> {
+    async createProduct(data: ICreateProductRequest, files: Express.Multer.File[], userUid: string): Promise<IProductSafe> {
+        logger.info("ProductService.createProduct", { name: data.name, code: data.productCode, filesCount: files.length });
+
         const [existingName, existingCode] = await Promise.all([
             this.repository.findByName(data.name),
             this.repository.findByCode(data.productCode)
@@ -42,6 +46,18 @@ export class ProductService {
         if (!brand) throw new CustomError(PRODUCT_MESSAGES.BRAND_NOT_FOUND, 400);
         if (!unit) throw new CustomError(PRODUCT_MESSAGES.UNIT_NOT_FOUND, 400);
 
+        // Upload images
+        const uploadedImages: string[] = [];
+        for (const file of files) {
+            const url = await storageService.uploadFile(
+                file.buffer,
+                file.originalname,
+                file.mimetype,
+                "products/images"
+            );
+            uploadedImages.push(url);
+        }
+
         const productUid = uuidv4();
 
         const product = await this.repository.create({
@@ -57,13 +73,17 @@ export class ProductService {
             ...(data.capacityUnit !== undefined ? { capacityUnit: data.capacityUnit } : {}),
             ...(data.warranty !== undefined ? { warranty: data.warranty } : {}),
             ...(data.description !== undefined ? { description: data.description } : {}),
+            modelNumber: data.modelNumber,
+            images: uploadedImages,
             createdBy: userUid,
         });
 
         return toProductSafe(product);
     }
 
-    async updateProduct(uid: string, data: IUpdateProductRequest, userUid: string): Promise<IProductSafe> {
+    async updateProduct(uid: string, data: IUpdateProductRequest, files: Express.Multer.File[], userUid: string): Promise<IProductSafe> {
+        logger.info("ProductService.updateProduct", { uid, filesCount: files.length });
+
         const product = await this.repository.findByUid(uid);
         if (!product) {
             throw new CustomError(PRODUCT_MESSAGES.NOT_FOUND, 404);
@@ -94,8 +114,31 @@ export class ProductService {
             if (!unit) throw new CustomError(PRODUCT_MESSAGES.UNIT_NOT_FOUND, 400);
         }
 
+        // Compute final image list
+        let finalImages: string[] = [];
+        if (data.existingImages !== undefined) {
+            finalImages = [...data.existingImages];
+        } else {
+            finalImages = product.images ? [...product.images] : [];
+        }
+
+        // Upload new files
+        for (const file of files) {
+            const url = await storageService.uploadFile(
+                file.buffer,
+                file.originalname,
+                file.mimetype,
+                "products/images"
+            );
+            finalImages.push(url);
+        }
+
+        // Extract existingImages so we don't pass it directly to repository.update
+        const { existingImages, ...repositoryData } = data;
+
         const updated = await this.repository.update(uid, {
-            ...data,
+            ...repositoryData,
+            images: finalImages,
             updatedBy: userUid,
         });
 

@@ -5,10 +5,9 @@
     // File Layout
     // "rootDir": "./src",
     "outDir": "./dist",
-    "baseUrl": ".",
     "paths": {
       "@packages/*": [
-        "packages/*"
+        "./packages/*"
       ]
     },
     // Environment Settings

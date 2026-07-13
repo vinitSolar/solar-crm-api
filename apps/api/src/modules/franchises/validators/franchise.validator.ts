@@ -59,6 +59,7 @@ export const createFranchiseSchema = z.object({
             city: z.string().max(100).optional(),
             state: z.string().max(100).optional(),
             pinCode: z.string().max(10).optional(),
+            outletName: z.string().max(255).optional(),
         }),
     }),
 });
@@ -96,6 +97,7 @@ export const updateFranchiseSchema = z.object({
             city: z.string().max(100).optional(),
             state: z.string().max(100).optional(),
             pinCode: z.string().max(10).optional(),
+            outletName: z.string().max(255).optional(),
         }).optional(),
     }).refine(data => data.franchise || data.owner || data.business, {
         message: FRANCHISE_MESSAGES.UPDATE_NO_FIELDS,

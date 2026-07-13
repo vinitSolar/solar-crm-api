@@ -12,6 +12,8 @@ export interface IProduct {
     capacityUnit: string | null;
     warranty: string | null;
     description: string | null;
+    modelNumber: string | null;
+    images: string[];
     isActive: number;
     isDeleted: number;
     deletedAt: Date | null;
@@ -20,7 +22,10 @@ export interface IProduct {
     createdBy: string | null;
     updatedBy: string | null;
     deletedBy: string | null;
+    brandName?: string | undefined;
 }
+
+
 
 export interface ICreateProductRequest {
     categoryUid: string;
@@ -30,25 +35,30 @@ export interface ICreateProductRequest {
     productCode: string;
     pricePerUnit: number;
     gstPercentage: number;
-    capacity?: string;
-    capacityUnit?: string;
-    warranty?: string;
-    description?: string;
+    capacity?: string | undefined;
+    capacityUnit?: string | undefined;
+    warranty?: string | undefined;
+    description?: string | undefined;
+    modelNumber?: string | undefined;
+    images?: string[] | undefined;
 }
 
 export interface IUpdateProductRequest {
-    categoryUid?: string;
-    brandUid?: string;
-    unitUid?: string;
-    name?: string;
-    productCode?: string;
-    pricePerUnit?: number;
-    gstPercentage?: number;
-    capacity?: string;
-    capacityUnit?: string;
-    warranty?: string;
-    description?: string;
-    isActive?: number;
+    categoryUid?: string | undefined;
+    brandUid?: string | undefined;
+    unitUid?: string | undefined;
+    name?: string | undefined;
+    productCode?: string | undefined;
+    pricePerUnit?: number | undefined;
+    gstPercentage?: number | undefined;
+    capacity?: string | null | undefined;
+    capacityUnit?: string | null | undefined;
+    warranty?: string | null | undefined;
+    description?: string | null | undefined;
+    modelNumber?: string | null | undefined;
+    images?: string[] | undefined;
+    existingImages?: string[] | undefined;
+    isActive?: number | undefined;
 }
 
 export interface IProductPaginationQuery {

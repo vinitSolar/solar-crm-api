@@ -55,6 +55,7 @@ const BUSINESS_COLUMNS = `
     business_address AS "businessAddress",
     city, state,
     pin_code AS "pinCode",
+    outlet_name AS "outletName",
     is_active AS "isActive", is_deleted AS "isDeleted",
     created_at AS "createdAt", updated_at AS "updatedAt",
     created_by AS "createdBy", updated_by AS "updatedBy",
@@ -121,16 +122,16 @@ export class FranchiseRepository {
     async createBusinessDetails(
         client: PoolClient,
         tenantUid: string,
-        data: { businessName: string; gstNumber: string; panNumber: string; cinNumber?: string; msmeRegistrationNumber?: string; tradeLicenseNumber?: string; businessAddress?: string; city?: string; state?: string; pinCode?: string },
+        data: { businessName: string; gstNumber: string; panNumber: string; cinNumber?: string; msmeRegistrationNumber?: string; tradeLicenseNumber?: string; businessAddress?: string; city?: string; state?: string; pinCode?: string; outletName?: string },
         createdBy: string,
     ): Promise<IFranchiseBusinessDetails> {
         const uid = uuidv4();
         const result = await client.query(
             `INSERT INTO franchise_business_details
-                (uid, tenant_uid, business_name, gst_number, pan_number, cin_number, msme_registration_number, trade_license_number, business_address, city, state, pin_code, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                (uid, tenant_uid, business_name, gst_number, pan_number, cin_number, msme_registration_number, trade_license_number, business_address, city, state, pin_code, outlet_name, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              RETURNING ${BUSINESS_COLUMNS}`,
-            [uid, tenantUid, data.businessName, data.gstNumber, data.panNumber, data.cinNumber ?? null, data.msmeRegistrationNumber ?? null, data.tradeLicenseNumber ?? null, data.businessAddress ?? null, data.city ?? null, data.state ?? null, data.pinCode ?? null, createdBy],
+            [uid, tenantUid, data.businessName, data.gstNumber, data.panNumber, data.cinNumber ?? null, data.msmeRegistrationNumber ?? null, data.tradeLicenseNumber ?? null, data.businessAddress ?? null, data.city ?? null, data.state ?? null, data.pinCode ?? null, data.outletName ?? null, createdBy],
         );
         return result.rows[0] as IFranchiseBusinessDetails;
     }
@@ -344,7 +345,7 @@ export class FranchiseRepository {
     async updateBusinessDetails(
         client: PoolClient,
         tenantUid: string,
-        data: { businessName?: string; gstNumber?: string; panNumber?: string; cinNumber?: string; msmeRegistrationNumber?: string; tradeLicenseNumber?: string; businessAddress?: string; city?: string; state?: string; pinCode?: string },
+        data: { businessName?: string; gstNumber?: string; panNumber?: string; cinNumber?: string; msmeRegistrationNumber?: string; tradeLicenseNumber?: string; businessAddress?: string; city?: string; state?: string; pinCode?: string; outletName?: string },
         updatedBy: string,
     ): Promise<IFranchiseBusinessDetails | null> {
         const updates: string[] = [];
@@ -361,6 +362,7 @@ export class FranchiseRepository {
         if (data.city !== undefined) { updates.push(`city = $${index++}`); values.push(data.city); }
         if (data.state !== undefined) { updates.push(`state = $${index++}`); values.push(data.state); }
         if (data.pinCode !== undefined) { updates.push(`pin_code = $${index++}`); values.push(data.pinCode); }
+        if (data.outletName !== undefined) { updates.push(`outlet_name = $${index++}`); values.push(data.outletName); }
 
         if (updates.length === 0) return this.getBusinessDetailsByTenantUid(tenantUid);
 

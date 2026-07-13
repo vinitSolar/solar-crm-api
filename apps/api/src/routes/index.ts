@@ -14,6 +14,10 @@ import { productBrandRoutes } from "../modules/product-brands/index.js";
 import { productUnitRoutes } from "../modules/product-units/index.js";
 import { productRoutes } from "../modules/products/index.js";
 import { stateSubsidyRuleRoutes } from "../modules/state-subsidy-rules/index.js";
+import { quotationTermsConditionRoutes } from "../modules/quotation-terms-conditions/index.js";
+import { quotationScopeOfWorkRoutes } from "../modules/quotation-scope-of-work/index.js";
+import { quotationRoutes } from "../modules/quotations/index.js";
+
 const apiRouter = Router();
 
 apiRouter.use("/auth", authRoutes);
@@ -33,5 +37,8 @@ apiRouter.use("/product-brands", productBrandRoutes);
 apiRouter.use("/product-units", productUnitRoutes);
 apiRouter.use("/products", productRoutes);
 apiRouter.use("/state-subsidy-rules", stateSubsidyRuleRoutes);
+apiRouter.use("/quotation-terms-conditions", quotationTermsConditionRoutes);
+apiRouter.use("/quotation-scope-of-work", quotationScopeOfWorkRoutes);
+apiRouter.use("/quotations", quotationRoutes);
 
 export default apiRouter;

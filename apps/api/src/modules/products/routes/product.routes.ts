@@ -106,26 +106,31 @@ router.get("/:uid", controller.getProductByUid);
  *           schema:
  *             type: object
  *             properties:
+ *               categoryUid:
+ *                 type: string
+ *                 format: uuid
+ *               brandUid:
+ *                 type: string
+ *                 format: uuid
+ *               unitUid:
+ *                 type: string
+ *                 format: uuid
  *               name:
  *                 type: string
- *               code:
+ *               productCode:
+ *                 type: string
+ *               pricePerUnit:
+ *                 type: number
+ *               gstPercentage:
+ *                 type: number
+ *               capacity:
+ *                 type: string
+ *               capacityUnit:
+ *                 type: string
+ *               warranty:
  *                 type: string
  *               description:
  *                 type: string
- *               categoryId:
- *                 type: integer
- *               brandId:
- *                 type: integer
- *               unitId:
- *                 type: integer
- *               basePrice:
- *                 type: number
- *               taxRate:
- *                 type: number
- *               isStockTracked:
- *                 type: boolean
- *               minimumStockLevel:
- *                 type: integer
  *     responses:
  *       201:
  *         description: Product created successfully
@@ -153,28 +158,34 @@ router.post("/", validateProductRequest(createProductSchema), controller.createP
  *           schema:
  *             type: object
  *             properties:
+ *               categoryUid:
+ *                 type: string
+ *                 format: uuid
+ *               brandUid:
+ *                 type: string
+ *                 format: uuid
+ *               unitUid:
+ *                 type: string
+ *                 format: uuid
  *               name:
  *                 type: string
- *               code:
+ *               productCode:
+ *                 type: string
+ *               pricePerUnit:
+ *                 type: number
+ *               gstPercentage:
+ *                 type: number
+ *               capacity:
+ *                 type: string
+ *               capacityUnit:
+ *                 type: string
+ *               warranty:
  *                 type: string
  *               description:
  *                 type: string
- *               categoryId:
- *                 type: integer
- *               brandId:
- *                 type: integer
- *               unitId:
- *                 type: integer
- *               basePrice:
- *                 type: number
- *               taxRate:
- *                 type: number
- *               isStockTracked:
- *                 type: boolean
- *               minimumStockLevel:
- *                 type: integer
  *               isActive:
- *                 type: boolean
+ *                 type: integer
+ *                 enum: [0, 1]
  *     responses:
  *       200:
  *         description: Product updated successfully

@@ -61,6 +61,7 @@ export interface IFranchiseBusinessDetails {
     city: string | null;
     state: string | null;
     pinCode: string | null;
+    outletName: string | null;
     isActive: number;
     isDeleted: number;
     createdAt: Date;
@@ -101,6 +102,7 @@ export interface ICreateFranchiseRequest {
         city?: string;
         state?: string;
         pinCode?: string;
+        outletName?: string;
     };
 }
 
@@ -134,6 +136,7 @@ export interface IUpdateFranchiseRequest {
         city?: string;
         state?: string;
         pinCode?: string;
+        outletName?: string;
     };
 }
 

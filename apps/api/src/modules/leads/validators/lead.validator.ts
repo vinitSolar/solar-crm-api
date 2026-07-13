@@ -60,7 +60,7 @@ export const createLeadSchema = z.object({
         systemSize: z.number({ message: "System size is required" }).min(0, "System size must be a positive number"),
         followUpDate: z.string().optional(), // accept ISO string
         leadSourceUid: z.string({ message: "Lead source is required" }).uuid("Invalid lead source UID format").optional(),
-        assignedTo: z.string().uuid("Invalid user UID format").optional(),
+        assignedTo: z.string().uuid("Invalid user UID format").optional().nullable().or(z.literal("")),
         remarks: z.string().optional(),
     }),
 });
@@ -84,7 +84,7 @@ export const updateLeadSchema = z.object({
         followUpDate: z.string().optional(),
         leadSourceUid: z.string().uuid("Invalid lead source UID format").optional(),
         statusUid: z.string().uuid("Invalid lead status UID format").optional(),
-        assignedTo: z.string().uuid("Invalid user UID format").optional(),
+        assignedTo: z.string().uuid("Invalid user UID format").optional().nullable().or(z.literal("")),
         remarks: z.string().optional(),
     }).strict(),
 });

@@ -1,6 +1,8 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import fs from "fs/promises";
+import fsSync from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "../logger/index.js";
 import { env } from "../config/index.js";
@@ -15,8 +17,26 @@ class StorageService {
     constructor() {
         this.provider = env.STORAGE.PROVIDER;
 
-        // Define where local files should be stored relative to the CWD (which is typically the project root)
-        this.localUploadPath = path.resolve(process.cwd(), "apps/api/public/uploads");
+        // Locate the workspace root dynamically based on the current module's location
+        const currentDir = path.dirname(fileURLToPath(import.meta.url));
+        let workspaceRoot = currentDir;
+        
+        // Traverse upwards until we find the project root (which contains the 'apps' and 'packages' directories)
+        while (workspaceRoot !== path.dirname(workspaceRoot)) {
+            const hasApps = fsSync.existsSync(path.join(workspaceRoot, "apps"));
+            const hasPackages = fsSync.existsSync(path.join(workspaceRoot, "packages"));
+            if (hasApps && hasPackages) {
+                break;
+            }
+            workspaceRoot = path.dirname(workspaceRoot);
+        }
+
+        // Fallback to process.cwd() if project structure isn't matched
+        if (!fsSync.existsSync(path.join(workspaceRoot, "apps"))) {
+            workspaceRoot = process.cwd();
+        }
+
+        this.localUploadPath = path.resolve(workspaceRoot, "apps/api/public/uploads");
         this.baseUrl = env.APP.URL;
 
         if (this.provider === "s3") {
@@ -48,15 +68,15 @@ class StorageService {
         }
     }
 
-    /**
-     * Uploads a file buffer to the configured storage provider.
-     * @param buffer The file buffer
-     * @param originalName The original file name
-     * @param mimeType The file mime type
-     * @param folder The target folder (e.g. "logos")
-     * @returns The public URL of the uploaded file
-     */
     async uploadFile(buffer: Buffer, originalName: string, mimeType: string, folder: string = "general"): Promise<string> {
+        const { url } = await this.uploadFileWithPath(buffer, originalName, mimeType, folder);
+        return url;
+    }
+
+    /**
+     * Uploads a file buffer and returns both the public URL and the relative storage path (key).
+     */
+    async uploadFileWithPath(buffer: Buffer, originalName: string, mimeType: string, folder: string = "general"): Promise<{ url: string; path: string }> {
         const ext = path.extname(originalName) || "";
         const fileName = `${uuidv4()}${ext}`;
         const key = `${folder}/${fileName}`;
@@ -76,10 +96,13 @@ class StorageService {
             await this.s3Client.send(command);
 
             // Generate public URL (assumes Cloudflare R2 / public S3 bucket structure or custom domain)
+            let url = "";
             if (env.STORAGE.PUBLIC_URL) {
-                return `${env.STORAGE.PUBLIC_URL.replace(/\/$/, "")}/${key}`;
+                url = `${env.STORAGE.PUBLIC_URL.replace(/\/$/, "")}/${key}`;
+            } else {
+                url = `https://${env.STORAGE.ACCOUNT_ID}.r2.cloudflarestorage.com/${this.bucketName}/${key}`;
             }
-            return `https://${env.STORAGE.ACCOUNT_ID}.r2.cloudflarestorage.com/${this.bucketName}/${key}`;
+            return { url, path: key };
         } else {
             // Local storage
             const targetDir = path.join(this.localUploadPath, folder);
@@ -89,7 +112,8 @@ class StorageService {
             await fs.writeFile(filePath, buffer);
 
             // Return public URL assuming express static serves apps/api/public at /public
-            return `${this.baseUrl}/public/uploads/${key}`;
+            const url = `${this.baseUrl}/public/uploads/${key}`;
+            return { url, path: key };
         }
     }
 }

@@ -31,6 +31,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /**
+ * Serve Static Files
+ */
+import path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use("/public", express.static(path.join(__dirname, "../public")));
+
+/**
  * Swagger API Documentation
  * Available at /api-docs in development
  */

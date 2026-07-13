@@ -8,6 +8,8 @@ import type { SurveyDocumentTypeRepository } from "../../survey-documents/reposi
 import type { MenuRepository } from "../../menus/repositories/menu.repository.js";
 import type { RolePermissionRepository } from "../../role-permissions/repositories/role-permission.repository.js";
 import { SurveyDocumentTypeService } from "../../survey-documents/services/survey-document-type.service.js";
+import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
+import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import type { IFranchiseOwnerDetails } from "../interfaces/franchise.interface.js";
 import { logger } from "@packages/logger/index.js";
 
@@ -21,6 +23,8 @@ export class FranchiseOnboardingService {
     private readonly surveyDocumentTypeService: SurveyDocumentTypeService;
     private readonly menuRepository: MenuRepository;
     private readonly rolePermissionRepository: RolePermissionRepository;
+    private readonly quotationTermsConditionRepository: QuotationTermsConditionRepository;
+    private readonly quotationScopeOfWorkRepository: QuotationScopeOfWorkRepository;
 
     constructor(
         roleRepository: RoleRepository, 
@@ -38,6 +42,8 @@ export class FranchiseOnboardingService {
         this.surveyDocumentTypeService = new SurveyDocumentTypeService(surveyDocumentTypeRepository);
         this.menuRepository = menuRepository;
         this.rolePermissionRepository = rolePermissionRepository;
+        this.quotationTermsConditionRepository = new QuotationTermsConditionRepository();
+        this.quotationScopeOfWorkRepository = new QuotationScopeOfWorkRepository();
     }
 
     /**
@@ -167,6 +173,62 @@ export class FranchiseOnboardingService {
             // 7. Create Default Survey Document Types
             await this.surveyDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
             logger.info("Successfully created default survey document types for franchise", { tenantUid });
+
+            // 8. Create Default Quotation Terms & Conditions
+            const defaultTerms = [
+                { title: "Taxes & Duties", description: "All taxes and duties as applicable at the time of delivery will be extra." },
+                { title: "Transportation Charges", description: "Transportation charges will be actuals and paid by the client." },
+                { title: "Payment Terms", description: "100% advance along with purchase order." },
+                { title: "Project Completion Period", description: "The project will be completed within 30 days from the date of advance receipt." },
+                { title: "Additional Material / Work", description: "Any additional material or work beyond the scope will be charged extra." },
+                { title: "System Handover", description: "System will be handed over to the client only after full payment." },
+            ];
+
+            for (let i = 0; i < defaultTerms.length; i++) {
+                const term = defaultTerms[i];
+                if (!term) continue;
+                
+                await this.quotationTermsConditionRepository.create(
+                    tenantUid,
+                    {
+                        title: term.title,
+                        description: term.description,
+                        sortOrder: i + 1,
+                        isDefault: 1
+                    },
+                    createdBy
+                );
+            }
+            logger.info("Successfully created default quotation terms & conditions for franchise", { tenantUid });
+
+            // 9. Create Default Quotation Scope of Work
+            const defaultScopeOfWork = [
+                { title: "Roof Top Area @ 10 Sq.Mtr./KWp", value: "Customer Scope" },
+                { title: "Civil Works", value: "Included" },
+                { title: "Module Mounting Structure", value: "Included" },
+                { title: "Mounting, Erection & Commissioning", value: "Included" },
+                { title: "Power Evacuation (Solar Plant to Mains)", value: "Included @ 20 Mtr" },
+                { title: "Earthing System", value: "Included" },
+                { title: "DISCOM & Net Meter Charges", value: "Included" },
+                { title: "Free Operation & Maintenance", value: "Included for 5 Years" },
+            ];
+
+            for (let i = 0; i < defaultScopeOfWork.length; i++) {
+                const scope = defaultScopeOfWork[i];
+                if (!scope) continue;
+
+                await this.quotationScopeOfWorkRepository.create(
+                    tenantUid,
+                    {
+                        title: scope.title,
+                        value: scope.value,
+                        sortOrder: i + 1,
+                        isDefault: 1
+                    },
+                    createdBy
+                );
+            }
+            logger.info("Successfully created default quotation scope of work for franchise", { tenantUid });
 
             return { adminPassword: plainPassword, adminEmail: email };
 

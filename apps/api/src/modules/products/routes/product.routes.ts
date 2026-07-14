@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import { ProductController } from "../controllers/product.controller.js";
 import { ProductService } from "../services/product.service.js";
 import { ProductRepository } from "../repositories/product.repository.js";
@@ -7,6 +8,11 @@ import { createProductSchema, updateProductSchema, paginationSchema, validatePro
 import pool from "@packages/connection.js";
 
 const router = Router();
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
 
 const repository = new ProductRepository(pool);
 const service = new ProductService(repository);
@@ -38,18 +44,117 @@ router.use(authenticate);
  *             properties:
  *               page:
  *                 type: integer
+ *                 default: 1
  *               limit:
  *                 type: integer
+ *                 default: 10
  *               search:
  *                 type: string
+ *               categoryUid:
+ *                 type: string
+ *                 format: uuid
+ *               brandUid:
+ *                 type: string
+ *                 format: uuid
  *               status:
  *                 type: string
  *                 enum: [active, deleted, all]
+ *                 default: active
  *     responses:
  *       200:
  *         description: Products fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       uid:
+ *                         type: string
+ *                       categoryUid:
+ *                         type: string
+ *                       brandUid:
+ *                         type: string
+ *                       unitUid:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       productCode:
+ *                         type: string
+ *                       pricePerUnit:
+ *                         type: number
+ *                       gstPercentage:
+ *                         type: number
+ *                       capacity:
+ *                         type: string
+ *                       capacityUnit:
+ *                         type: string
+ *                       warranty:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       modelNumber:
+ *                         type: string
+ *                       height:
+ *                         type: number
+ *                       width:
+ *                         type: number
+ *                       depth:
+ *                         type: number
+ *                       maxPower:
+ *                         type: number
+ *                       palletLength:
+ *                         type: number
+ *                       palletWidth:
+ *                         type: number
+ *                       palletHeight:
+ *                         type: number
+ *                       palletWeight:
+ *                         type: number
+ *                       palletDimension:
+ *                         type: string
+ *                       quantityPerPallet:
+ *                         type: integer
+ *                       cellTechnology:
+ *                         type: string
+ *                       images:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       isActive:
+ *                         type: boolean
+ *                       isDeleted:
+ *                         type: boolean
+ *                       brandName:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
  */
 router.post("/list", validateProductRequest(paginationSchema), controller.getPaginatedProducts);
+
 
 /**
  * @swagger
@@ -70,6 +175,8 @@ router.post("/list", validateProductRequest(paginationSchema), controller.getPag
  *         description: Products fetched successfully
  */
 router.get("/all", controller.getDropdownProducts);
+
+
 
 /**
  * @swagger
@@ -102,7 +209,7 @@ router.get("/:uid", controller.getProductByUid);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -131,11 +238,51 @@ router.get("/:uid", controller.getProductByUid);
  *                 type: string
  *               description:
  *                 type: string
+ *               modelNumber:
+ *                 type: string
+ *               height:
+ *                 type: number
+ *               width:
+ *                 type: number
+ *               depth:
+ *                 type: number
+ *               maxPower:
+ *                 type: number
+ *               palletLength:
+ *                 type: number
+ *               palletWidth:
+ *                 type: number
+ *               palletHeight:
+ *                 type: number
+ *               palletWeight:
+ *                 type: number
+ *               palletDimension:
+ *                 type: string
+ *               quantityPerPallet:
+ *                 type: integer
+ *               cellTechnology:
+ *                 type: string
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array of product document files
+ *               documentTypeUids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: JSON stringified array or multiple field entries of product document type UIDs matching files array in the exact same order
  *     responses:
  *       201:
  *         description: Product created successfully
  */
-router.post("/", validateProductRequest(createProductSchema), controller.createProduct);
+router.post("/", upload.any(), validateProductRequest(createProductSchema), controller.createProduct);
 
 /**
  * @swagger
@@ -154,7 +301,7 @@ router.post("/", validateProductRequest(createProductSchema), controller.createP
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -183,14 +330,60 @@ router.post("/", validateProductRequest(createProductSchema), controller.createP
  *                 type: string
  *               description:
  *                 type: string
+ *               modelNumber:
+ *                 type: string
+ *               height:
+ *                 type: number
+ *               width:
+ *                 type: number
+ *               depth:
+ *                 type: number
+ *               maxPower:
+ *                 type: number
+ *               palletLength:
+ *                 type: number
+ *               palletWidth:
+ *                 type: number
+ *               palletHeight:
+ *                 type: number
+ *               palletWeight:
+ *                 type: number
+ *               palletDimension:
+ *                 type: string
+ *               quantityPerPallet:
+ *                 type: integer
+ *               cellTechnology:
+ *                 type: string
+ *               existingImages:
+ *                 type: string
+ *                 description: JSON stringified array of existing image URLs to keep (e.g. '["url1", "url2"]')
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array of new product document files to upload
+ *               documentTypeUids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: JSON stringified array or multiple field entries of product document type UIDs matching new files in the exact same order
  *               isActive:
  *                 type: integer
  *                 enum: [0, 1]
+ *               deleteDocumentUids:
+ *                 type: string
+ *                 description: JSON stringified array of document UIDs to soft delete (e.g. '["uid1", "uid2"]')
  *     responses:
  *       200:
  *         description: Product updated successfully
  */
-router.put("/:uid", validateProductRequest(updateProductSchema), controller.updateProduct);
+router.put("/:uid", upload.any(), validateProductRequest(updateProductSchema), controller.updateProduct);
 
 /**
  * @swagger

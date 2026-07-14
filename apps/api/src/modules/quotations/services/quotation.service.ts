@@ -16,6 +16,39 @@ import type {
     IQuotationTermsConditionsItem
 } from "../interfaces/quotation.interface.js";
 import { logger } from "@packages/logger/logger.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+let cachedDefaultLogoBase64: string | null = null;
+
+function getDefaultLogoBase64(): string {
+    if (cachedDefaultLogoBase64 !== null) {
+        return cachedDefaultLogoBase64;
+    }
+    const pathsToTry = [
+        path.join(process.cwd(), "apps/api/public/uploads/sticky-logo.svg"),
+        path.join(__dirname, "../../../../public/uploads/sticky-logo.svg"),
+        path.join(__dirname, "../../../../../apps/api/public/uploads/sticky-logo.svg"),
+        path.join(__dirname, "../../../../../../apps/api/public/uploads/sticky-logo.svg")
+    ];
+    for (const p of pathsToTry) {
+        if (fs.existsSync(p)) {
+            try {
+                const fileBuffer = fs.readFileSync(p);
+                cachedDefaultLogoBase64 = `data:image/svg+xml;base64,${fileBuffer.toString("base64")}`;
+                return cachedDefaultLogoBase64;
+            } catch (err) {
+                logger.error(`Failed to read default logo from path: ${p}`, err);
+            }
+        }
+    }
+    logger.warn("Default logo file not found in any of the search paths.");
+    return "";
+}
 
 export class QuotationService {
     private readonly repository: QuotationRepository;
@@ -604,7 +637,10 @@ export class QuotationService {
 
         // Prepare PDF Data payload
         const pdfData = {
-            franchise,
+            franchise: {
+                ...franchise,
+                logo: franchise.logo || getDefaultLogoBase64()
+            },
             customer,
             quotation: {
                 quotationNumber: quotation.quotationNumber,

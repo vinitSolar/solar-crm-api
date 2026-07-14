@@ -8,6 +8,8 @@ import type { SurveyDocumentTypeRepository } from "../../survey-documents/reposi
 import type { MenuRepository } from "../../menus/repositories/menu.repository.js";
 import type { RolePermissionRepository } from "../../role-permissions/repositories/role-permission.repository.js";
 import { SurveyDocumentTypeService } from "../../survey-documents/services/survey-document-type.service.js";
+import { ProductDocumentTypeService } from "../../product-document-types/services/product-document-type.service.js";
+import type { ProductDocumentTypeRepository } from "../../product-document-types/repositories/product-document-type.repository.js";
 import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import type { IFranchiseOwnerDetails } from "../interfaces/franchise.interface.js";
@@ -21,6 +23,7 @@ export class FranchiseOnboardingService {
     private readonly leadSourceRepository: LeadSourceRepository;
     private readonly leadStatusRepository: LeadStatusRepository;
     private readonly surveyDocumentTypeService: SurveyDocumentTypeService;
+    private readonly productDocumentTypeService: ProductDocumentTypeService;
     private readonly menuRepository: MenuRepository;
     private readonly rolePermissionRepository: RolePermissionRepository;
     private readonly quotationTermsConditionRepository: QuotationTermsConditionRepository;
@@ -32,6 +35,7 @@ export class FranchiseOnboardingService {
         leadSourceRepository: LeadSourceRepository,
         leadStatusRepository: LeadStatusRepository,
         surveyDocumentTypeRepository: SurveyDocumentTypeRepository,
+        productDocumentTypeRepository: ProductDocumentTypeRepository,
         menuRepository: MenuRepository,
         rolePermissionRepository: RolePermissionRepository
     ) {
@@ -40,6 +44,7 @@ export class FranchiseOnboardingService {
         this.leadSourceRepository = leadSourceRepository;
         this.leadStatusRepository = leadStatusRepository;
         this.surveyDocumentTypeService = new SurveyDocumentTypeService(surveyDocumentTypeRepository);
+        this.productDocumentTypeService = new ProductDocumentTypeService(productDocumentTypeRepository);
         this.menuRepository = menuRepository;
         this.rolePermissionRepository = rolePermissionRepository;
         this.quotationTermsConditionRepository = new QuotationTermsConditionRepository();
@@ -173,6 +178,10 @@ export class FranchiseOnboardingService {
             // 7. Create Default Survey Document Types
             await this.surveyDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
             logger.info("Successfully created default survey document types for franchise", { tenantUid });
+
+            // 7.1 Create Default Product Document Types
+            await this.productDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
+            logger.info("Successfully created default product document types for franchise", { tenantUid });
 
             // 8. Create Default Quotation Terms & Conditions
             const defaultTerms = [

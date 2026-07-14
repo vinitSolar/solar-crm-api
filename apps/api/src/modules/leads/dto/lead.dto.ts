@@ -32,6 +32,25 @@ export function toLeadSafe(lead: ILead): ILeadSafe {
         isActive: lead.isActive,
         isDeleted: lead.isDeleted,
         createdAt: lead.createdAt,
+        leadSource: lead.leadSourceUid ? {
+            uid: lead.leadSourceUid,
+            name: lead.sourceName || "",
+            color: lead.sourceColor || null,
+            sortOrder: lead.sourceSortOrder || 0,
+            isDefault: lead.sourceIsDefault || 0,
+            isActive: lead.sourceIsActive || 0,
+            isDeleted: lead.sourceIsDeleted || 0,
+        } : null,
+        leadStatus: lead.statusUid ? {
+            uid: lead.statusUid,
+            name: lead.statusName || "",
+            color: lead.statusColor || null,
+            sortOrder: lead.statusSortOrder || 0,
+            isDefault: lead.statusIsDefault || 0,
+            isClosed: lead.statusIsClosed || 0,
+            isActive: lead.statusIsActive || 0,
+            isDeleted: lead.statusIsDeleted || 0,
+        } : null,
     };
 }
 

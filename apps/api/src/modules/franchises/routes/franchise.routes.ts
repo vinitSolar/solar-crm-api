@@ -23,6 +23,7 @@ import { LeadSourceRepository } from "../../leads/repositories/lead-source.repos
 import { LeadStatusRepository } from "../../leads/repositories/lead-status.repository.js";
 import { FranchiseOnboardingService } from "../services/franchise-onboarding.service.js";
 import { SurveyDocumentTypeRepository } from "../../survey-documents/repositories/survey-document-type.repository.js";
+import { ProductDocumentTypeRepository } from "../../product-document-types/repositories/product-document-type.repository.js";
 import { MenuRepository } from "../../menus/repositories/menu.repository.js";
 import { RolePermissionRepository } from "../../role-permissions/repositories/role-permission.repository.js";
 
@@ -41,6 +42,7 @@ function createFranchiseRouter(): Router {
     const leadSourceRepository = new LeadSourceRepository(pool);
     const leadStatusRepository = new LeadStatusRepository(pool);
     const surveyDocumentTypeRepository = new SurveyDocumentTypeRepository(pool);
+    const productDocumentTypeRepository = new ProductDocumentTypeRepository(pool);
     const menuRepository = new MenuRepository(pool);
     const rolePermissionRepository = new RolePermissionRepository(pool);
     
@@ -50,6 +52,7 @@ function createFranchiseRouter(): Router {
         leadSourceRepository,
         leadStatusRepository,
         surveyDocumentTypeRepository,
+        productDocumentTypeRepository,
         menuRepository,
         rolePermissionRepository
     );

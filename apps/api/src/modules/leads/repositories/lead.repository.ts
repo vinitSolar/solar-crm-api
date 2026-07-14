@@ -28,6 +28,15 @@ const LEAD_JOIN_COLUMNS = `
     l.created_by AS "createdBy", l.updated_by AS "updatedBy", l.deleted_by AS "deletedBy"
 `;
 
+const LEAD_RELATIONS_COLUMNS = `
+    ls.name AS "statusName", ls.color AS "statusColor", ls.sort_order AS "statusSortOrder", 
+    ls.is_default AS "statusIsDefault", ls.is_closed AS "statusIsClosed", 
+    ls.is_active AS "statusIsActive", ls.is_deleted AS "statusIsDeleted",
+    lsrc.name AS "sourceName", lsrc.color AS "sourceColor", lsrc.sort_order AS "sourceSortOrder", 
+    lsrc.is_default AS "sourceIsDefault", lsrc.is_active AS "sourceIsActive", lsrc.is_deleted AS "sourceIsDeleted",
+    TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS "assignedUserName"
+`;
+
 export class LeadRepository {
     private readonly pool: Pool;
 
@@ -65,19 +74,23 @@ export class LeadRepository {
             ? await client.query(query, values) 
             : await this.pool.query(query, values);
             
-        return result.rows[0] as ILead;
+        const created = result.rows[0] as ILead;
+        if (!created) return created;
+        return await this.getByUid(tenantUid, created.uid, client) as ILead;
     }
 
-    async getByUid(tenantUid: string, uid: string): Promise<ILead | null> {
-        const result = await this.pool.query(
-            `SELECT ${LEAD_JOIN_COLUMNS}, ls.name AS "statusName", lsrc.name AS "sourceName", TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS "assignedUserName" 
+    async getByUid(tenantUid: string, uid: string, client?: PoolClient): Promise<ILead | null> {
+        const query = `
+             SELECT ${LEAD_JOIN_COLUMNS}, ${LEAD_RELATIONS_COLUMNS}
              FROM leads l
              LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid 
              LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
              LEFT JOIN users u ON l.assigned_to = u.uid
-             WHERE l.uid = $1 AND l.tenant_uid = $2 AND l.is_deleted = 0`,
-            [uid, tenantUid]
-        );
+             WHERE l.uid = $1 AND l.tenant_uid = $2 AND l.is_deleted = 0
+        `;
+        const result = client
+            ? await client.query(query, [uid, tenantUid])
+            : await this.pool.query(query, [uid, tenantUid]);
         return result.rows.length > 0 ? (result.rows[0] as ILead) : null;
     }
 
@@ -115,7 +128,7 @@ export class LeadRepository {
         params.push(limit, offset);
 
         const result = await this.pool.query(
-            `SELECT ${LEAD_JOIN_COLUMNS}, ls.name AS "statusName", lsrc.name AS "sourceName", TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS "assignedUserName" 
+            `SELECT ${LEAD_JOIN_COLUMNS}, ${LEAD_RELATIONS_COLUMNS} 
              FROM leads l
              LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid 
              LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
@@ -140,7 +153,7 @@ export class LeadRepository {
         else if (status === "deleted") whereClause += " AND l.is_deleted = 1";
 
         const result = await this.pool.query(
-            `SELECT ${LEAD_JOIN_COLUMNS}, ls.name AS "statusName", lsrc.name AS "sourceName", TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS "assignedUserName" 
+            `SELECT ${LEAD_JOIN_COLUMNS}, ${LEAD_RELATIONS_COLUMNS} 
              FROM leads l
              LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid 
              LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
@@ -186,10 +199,10 @@ export class LeadRepository {
         const result = await this.pool.query(
             `UPDATE leads SET ${updates.join(", ")}
              WHERE uid = $${index - 2} AND tenant_uid = $${index - 1} AND is_deleted = 0
-             RETURNING ${LEAD_COLUMNS}`,
+             RETURNING uid`,
             values
         );
-        return result.rows.length > 0 ? (result.rows[0] as ILead) : null;
+        return result.rows.length > 0 ? this.getByUid(tenantUid, uid) : null;
     }
 
     async softDelete(tenantUid: string, uid: string, deletedBy: string): Promise<boolean> {

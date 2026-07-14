@@ -1,4 +1,33 @@
 import type { IProduct } from "../interfaces/product.interface.js";
+import type { IProductDocument } from "../repositories/product-document.repository.js";
+
+export interface IProductDocumentSafe {
+    uid: string;
+    productUid: string;
+    documentTypeUid: string;
+    documentTypeName?: string | undefined;
+    originalFileName: string;
+    storedFileName: string;
+    filePath: string;
+    mimeType: string;
+    fileSize: number;
+    createdAt: Date;
+}
+
+export const toProductDocumentSafe = (doc: IProductDocument): IProductDocumentSafe => {
+    return {
+        uid: doc.uid,
+        productUid: doc.productUid,
+        documentTypeUid: doc.documentTypeUid,
+        documentTypeName: doc.documentTypeName,
+        originalFileName: doc.originalFileName,
+        storedFileName: doc.storedFileName,
+        filePath: doc.filePath,
+        mimeType: doc.mimeType,
+        fileSize: doc.fileSize,
+        createdAt: doc.createdAt,
+    };
+};
 
 export interface IProductSafe {
     uid: string;
@@ -20,9 +49,21 @@ export interface IProductSafe {
     createdAt: Date;
     updatedAt: Date;
     brandName?: string | undefined;
+    documents?: IProductDocumentSafe[];
+    height: number | null;
+    width: number | null;
+    depth: number | null;
+    maxPower: number | null;
+    palletLength: number | null;
+    palletWidth: number | null;
+    palletHeight: number | null;
+    palletWeight: number | null;
+    palletDimension: string | null;
+    quantityPerPallet: number | null;
+    cellTechnology: string | null;
 }
 
-export const toProductSafe = (product: IProduct): IProductSafe => {
+export const toProductSafe = (product: IProduct, documents?: IProductDocument[]): IProductSafe => {
     return {
         uid: product.uid,
         categoryUid: product.categoryUid,
@@ -43,6 +84,18 @@ export const toProductSafe = (product: IProduct): IProductSafe => {
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
         brandName: product.brandName,
+        documents: documents ? documents.map(toProductDocumentSafe) : [],
+        height: product.height !== null ? Number(product.height) : null,
+        width: product.width !== null ? Number(product.width) : null,
+        depth: product.depth !== null ? Number(product.depth) : null,
+        maxPower: product.maxPower !== null ? Number(product.maxPower) : null,
+        palletLength: product.palletLength !== null ? Number(product.palletLength) : null,
+        palletWidth: product.palletWidth !== null ? Number(product.palletWidth) : null,
+        palletHeight: product.palletHeight !== null ? Number(product.palletHeight) : null,
+        palletWeight: product.palletWeight !== null ? Number(product.palletWeight) : null,
+        palletDimension: product.palletDimension,
+        quantityPerPallet: product.quantityPerPallet,
+        cellTechnology: product.cellTechnology,
     };
 };
 
@@ -67,5 +120,3 @@ export const toProductDropdown = (product: IProduct): IProductDropdown => {
         modelNumber: product.modelNumber,
     };
 };
-
-

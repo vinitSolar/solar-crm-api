@@ -51,8 +51,19 @@ export interface ILead {
     followUpDate: Date | null;
     leadSourceUid: string;
     sourceName?: string | undefined;
+    sourceColor?: string | null | undefined;
+    sourceSortOrder?: number | undefined;
+    sourceIsDefault?: number | undefined;
+    sourceIsActive?: number | undefined;
+    sourceIsDeleted?: number | undefined;
     statusUid: string;
     statusName?: string | undefined;
+    statusColor?: string | null | undefined;
+    statusSortOrder?: number | undefined;
+    statusIsDefault?: number | undefined;
+    statusIsClosed?: number | undefined;
+    statusIsActive?: number | undefined;
+    statusIsDeleted?: number | undefined;
     assignedTo: string | null;
     assignedUserName?: string | null | undefined;
     remarks: string | null;
@@ -129,6 +140,8 @@ export interface ILeadSafe {
     isActive: number;
     isDeleted: number;
     createdAt: Date;
+    leadSource?: ILeadSourceSafe | null;
+    leadStatus?: ILeadStatusSafe | null;
 }
 
 export interface ILeadSourceSafe {

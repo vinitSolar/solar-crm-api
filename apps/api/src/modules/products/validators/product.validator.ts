@@ -14,6 +14,30 @@ export const createProductSchema = z.object({
     warranty: z.string().max(255).optional(),
     description: z.string().optional(),
     modelNumber: z.string().max(255).optional(),
+    height: z.coerce.number().min(0, "Height must be greater than or equal to 0").optional().nullable(),
+    width: z.coerce.number().min(0, "Width must be greater than or equal to 0").optional().nullable(),
+    depth: z.coerce.number().min(0, "Depth must be greater than or equal to 0").optional().nullable(),
+    maxPower: z.coerce.number().min(0, "Max power must be greater than or equal to 0").optional().nullable(),
+    palletLength: z.coerce.number().min(0, "Pallet length must be greater than or equal to 0").optional().nullable(),
+    palletWidth: z.coerce.number().min(0, "Pallet width must be greater than or equal to 0").optional().nullable(),
+    palletHeight: z.coerce.number().min(0, "Pallet height must be greater than or equal to 0").optional().nullable(),
+    palletWeight: z.coerce.number().min(0, "Pallet weight must be greater than or equal to 0").optional().nullable(),
+    palletDimension: z.string().max(255, "Pallet dimension cannot exceed 255 characters").optional().nullable(),
+    quantityPerPallet: z.coerce.number().int("Quantity per pallet must be an integer").min(0, "Quantity per pallet must be greater than or equal to 0").optional().nullable(),
+    cellTechnology: z.string().max(255, "Cell technology cannot exceed 255 characters").optional().nullable(),
+    documentTypeUids: z.preprocess((val) => {
+        if (val === undefined || val === null || val === "") return [];
+        if (Array.isArray(val)) return val.map(String);
+        if (typeof val === "string") {
+            try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) return parsed.map(String);
+            } catch {
+                return [val];
+            }
+        }
+        return [];
+    }, z.array(z.string().uuid("Invalid Document Type UID"))).optional(),
 });
 
 export const updateProductSchema = z.object({
@@ -29,6 +53,17 @@ export const updateProductSchema = z.object({
     warranty: z.string().max(255).optional().nullable(),
     description: z.string().optional().nullable(),
     modelNumber: z.string().max(255).optional().nullable(),
+    height: z.coerce.number().min(0, "Height must be greater than or equal to 0").optional().nullable(),
+    width: z.coerce.number().min(0, "Width must be greater than or equal to 0").optional().nullable(),
+    depth: z.coerce.number().min(0, "Depth must be greater than or equal to 0").optional().nullable(),
+    maxPower: z.coerce.number().min(0, "Max power must be greater than or equal to 0").optional().nullable(),
+    palletLength: z.coerce.number().min(0, "Pallet length must be greater than or equal to 0").optional().nullable(),
+    palletWidth: z.coerce.number().min(0, "Pallet width must be greater than or equal to 0").optional().nullable(),
+    palletHeight: z.coerce.number().min(0, "Pallet height must be greater than or equal to 0").optional().nullable(),
+    palletWeight: z.coerce.number().min(0, "Pallet weight must be greater than or equal to 0").optional().nullable(),
+    palletDimension: z.string().max(255, "Pallet dimension cannot exceed 255 characters").optional().nullable(),
+    quantityPerPallet: z.coerce.number().int("Quantity per pallet must be an integer").min(0, "Quantity per pallet must be greater than or equal to 0").optional().nullable(),
+    cellTechnology: z.string().max(255, "Cell technology cannot exceed 255 characters").optional().nullable(),
     existingImages: z.preprocess((val) => {
         if (val === undefined || val === null || val === "") return [];
         if (Array.isArray(val)) return val.map(String);
@@ -43,6 +78,32 @@ export const updateProductSchema = z.object({
         return [];
     }, z.array(z.string())).optional(),
     isActive: z.coerce.number().min(0).max(1).optional(),
+    deleteDocumentUids: z.preprocess((val) => {
+        if (val === undefined || val === null || val === "") return [];
+        if (Array.isArray(val)) return val.map(String);
+        if (typeof val === "string") {
+            try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) return parsed.map(String);
+            } catch {
+                return [val];
+            }
+        }
+        return [];
+    }, z.array(z.string().uuid("Invalid Document UID"))).optional(),
+    documentTypeUids: z.preprocess((val) => {
+        if (val === undefined || val === null || val === "") return [];
+        if (Array.isArray(val)) return val.map(String);
+        if (typeof val === "string") {
+            try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) return parsed.map(String);
+            } catch {
+                return [val];
+            }
+        }
+        return [];
+    }, z.array(z.string().uuid("Invalid Document Type UID"))).optional(),
 });
 
 const sanitizePage = (val: unknown): number => {

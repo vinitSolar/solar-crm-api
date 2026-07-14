@@ -1,4 +1,5 @@
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
+import { v4 as uuidv4 } from "uuid";
 import type { IProduct } from "../interfaces/product.interface.js";
 
 export class ProductRepository {
@@ -21,6 +22,17 @@ export class ProductRepository {
             modelNumber: row.model_number,
             images: row.images || [],
             brandName: row.brand_name,
+            height: row.height,
+            width: row.width,
+            depth: row.depth,
+            maxPower: row.max_power,
+            palletLength: row.pallet_length,
+            palletWidth: row.pallet_width,
+            palletHeight: row.pallet_height,
+            palletWeight: row.pallet_weight,
+            palletDimension: row.pallet_dimension,
+            quantityPerPallet: row.quantity_per_pallet !== null && row.quantity_per_pallet !== undefined ? Number(row.quantity_per_pallet) : null,
+            cellTechnology: row.cell_technology,
         };
     }
 
@@ -39,23 +51,66 @@ export class ProductRepository {
         description?: string | undefined;
         modelNumber?: string | undefined;
         images?: string[] | undefined;
+        height?: number | null | undefined;
+        width?: number | null | undefined;
+        depth?: number | null | undefined;
+        maxPower?: number | null | undefined;
+        palletLength?: number | null | undefined;
+        palletWidth?: number | null | undefined;
+        palletHeight?: number | null | undefined;
+        palletWeight?: number | null | undefined;
+        palletDimension?: string | null | undefined;
+        quantityPerPallet?: number | null | undefined;
+        cellTechnology?: string | null | undefined;
         createdBy: string;
-    }): Promise<IProduct> {
-        const result = await this.pool.query(
-            `INSERT INTO products (
+    }, client?: PoolClient): Promise<IProduct> {
+        const dbClient = client || await this.pool.connect();
+        try {
+            if (!client) await dbClient.query("BEGIN");
+
+            // 1. Insert into products
+            const productQuery = `INSERT INTO products (
                 uid, category_uid, brand_uid, unit_uid, name, product_code, 
                 price_per_unit, gst_percentage, capacity, capacity_unit, 
                 warranty, description, model_number, images, created_by
              )
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-             RETURNING *`,
-            [
+             RETURNING *`;
+            const productValues = [
                 data.uid, data.categoryUid, data.brandUid, data.unitUid, data.name, data.productCode,
                 data.pricePerUnit, data.gstPercentage, data.capacity || null, data.capacityUnit || null,
                 data.warranty || null, data.description || null, data.modelNumber || null, data.images || [], data.createdBy
-            ]
-        );
-        return this.mapRowToProduct(result.rows[0]);
+            ];
+            await dbClient.query(productQuery, productValues);
+            
+            // 2. Insert into product_specifications
+            const specUid = uuidv4();
+            const specQuery = `INSERT INTO product_specifications (
+                uid, product_uid, height, width, depth, max_power, 
+                pallet_length, pallet_width, pallet_height, pallet_weight, 
+                pallet_dimension, quantity_per_pallet, cell_technology, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`;
+            
+            const getVal = (val: any) => val !== undefined ? val : null;
+            const specValues = [
+                specUid, data.uid,
+                getVal(data.height), getVal(data.width), getVal(data.depth), getVal(data.maxPower),
+                getVal(data.palletLength), getVal(data.palletWidth), getVal(data.palletHeight), getVal(data.palletWeight),
+                getVal(data.palletDimension), getVal(data.quantityPerPallet), getVal(data.cellTechnology),
+                data.createdBy
+            ];
+            await dbClient.query(specQuery, specValues);
+
+            if (!client) await dbClient.query("COMMIT");
+
+            const product = await this.findByUid(data.uid, dbClient);
+            return product!;
+        } catch (error) {
+            if (!client) await dbClient.query("ROLLBACK");
+            throw error;
+        } finally {
+            if (!client) (dbClient as any).release();
+        }
     }
 
     async update(uid: string, data: {
@@ -73,8 +128,19 @@ export class ProductRepository {
         modelNumber?: string | null | undefined;
         images?: string[] | undefined;
         isActive?: number | undefined;
+        height?: number | null | undefined;
+        width?: number | null | undefined;
+        depth?: number | null | undefined;
+        maxPower?: number | null | undefined;
+        palletLength?: number | null | undefined;
+        palletWidth?: number | null | undefined;
+        palletHeight?: number | null | undefined;
+        palletWeight?: number | null | undefined;
+        palletDimension?: string | null | undefined;
+        quantityPerPallet?: number | null | undefined;
+        cellTechnology?: string | null | undefined;
         updatedBy: string;
-    }): Promise<IProduct | null> {
+    }, client?: PoolClient): Promise<IProduct | null> {
         const fields: string[] = [];
         const values: any[] = [];
         let index = 1;
@@ -99,69 +165,154 @@ export class ProductRepository {
         if (data.images !== undefined) pushField('images', data.images);
         if (data.isActive !== undefined) pushField('is_active', data.isActive);
 
-        if (fields.length === 0) {
-            return this.findByUid(uid);
+        const specFields: string[] = [];
+        const specValues: any[] = [];
+        let specIndex = 1;
+
+        const pushSpecField = (dbField: string, value: any) => {
+            specFields.push(`${dbField} = $${specIndex++}`);
+            specValues.push(value);
+        };
+
+        if (data.height !== undefined) pushSpecField('height', data.height);
+        if (data.width !== undefined) pushSpecField('width', data.width);
+        if (data.depth !== undefined) pushSpecField('depth', data.depth);
+        if (data.maxPower !== undefined) pushSpecField('max_power', data.maxPower);
+        if (data.palletLength !== undefined) pushSpecField('pallet_length', data.palletLength);
+        if (data.palletWidth !== undefined) pushSpecField('pallet_width', data.palletWidth);
+        if (data.palletHeight !== undefined) pushSpecField('pallet_height', data.palletHeight);
+        if (data.palletWeight !== undefined) pushSpecField('pallet_weight', data.palletWeight);
+        if (data.palletDimension !== undefined) pushSpecField('pallet_dimension', data.palletDimension);
+        if (data.quantityPerPallet !== undefined) pushSpecField('quantity_per_pallet', data.quantityPerPallet);
+        if (data.cellTechnology !== undefined) pushSpecField('cell_technology', data.cellTechnology);
+
+        if (fields.length === 0 && specFields.length === 0) {
+            return this.findByUid(uid, client);
         }
 
-        pushField('updated_by', data.updatedBy);
-        pushField('updated_at', 'CURRENT_TIMESTAMP'); // Need special handling for functions
+        const dbClient = client || await this.pool.connect();
+        try {
+            if (!client) await dbClient.query("BEGIN");
 
-        // Pop updated_at and updated_by to handle CURRENT_TIMESTAMP properly
-        fields.pop(); 
-        values.pop();
-        fields.push(`updated_at = CURRENT_TIMESTAMP`);
+            if (fields.length > 0) {
+                pushField('updated_by', data.updatedBy);
+                // Pop updated_at and updated_by to handle CURRENT_TIMESTAMP properly
+                fields.pop(); 
+                values.pop();
+                fields.push(`updated_at = CURRENT_TIMESTAMP`);
+                fields.push(`updated_by = $${index++}`);
+                values.push(data.updatedBy);
+                values.push(uid);
 
-        fields.push(`updated_by = $${index++}`);
-        values.push(data.updatedBy);
+                const query = `UPDATE products
+                     SET ${fields.join(", ")}
+                     WHERE uid = $${index}`;
+                await dbClient.query(query, values);
+            }
 
-        values.push(uid);
+            if (specFields.length > 0) {
+                const checkResult = await dbClient.query(`SELECT 1 FROM product_specifications WHERE product_uid = $1`, [uid]);
+                if (checkResult.rows.length > 0) {
+                    pushSpecField('updated_by', data.updatedBy);
+                    // Pop updated_at and updated_by to handle CURRENT_TIMESTAMP properly
+                    specFields.push(`updated_at = CURRENT_TIMESTAMP`);
+                    specValues.push(uid);
 
-        const result = await this.pool.query(
-            `UPDATE products
-             SET ${fields.join(", ")}
-             WHERE uid = $${index}
-             RETURNING *`,
-            values
-        );
-        
+                    specValues.push(data.updatedBy);
+                    specFields.pop();
+                    specValues.pop();
+                    specFields.push(`updated_at = CURRENT_TIMESTAMP`);
+                    specFields.push(`updated_by = $${specIndex++}`);
+                    specValues.push(data.updatedBy);
+                    specValues.push(uid);
+
+                    const query = `UPDATE product_specifications
+                         SET ${specFields.join(", ")}
+                         WHERE product_uid = $${specIndex}`;
+                    await dbClient.query(query, specValues);
+                } else {
+                    const specUid = uuidv4();
+                    const getVal = (val: any) => val !== undefined ? val : null;
+                    const specQuery = `INSERT INTO product_specifications (
+                        uid, product_uid, height, width, depth, max_power,
+                        pallet_length, pallet_width, pallet_height, pallet_weight,
+                        pallet_dimension, quantity_per_pallet, cell_technology, created_by
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`;
+                    const insertSpecValues = [
+                        specUid, uid,
+                        getVal(data.height), getVal(data.width), getVal(data.depth), getVal(data.maxPower),
+                        getVal(data.palletLength), getVal(data.palletWidth), getVal(data.palletHeight), getVal(data.palletWeight),
+                        getVal(data.palletDimension), getVal(data.quantityPerPallet), getVal(data.cellTechnology),
+                        data.updatedBy
+                    ];
+                    await dbClient.query(specQuery, insertSpecValues);
+                }
+            }
+
+            if (!client) await dbClient.query("COMMIT");
+
+            return this.findByUid(uid, dbClient);
+        } catch (error) {
+            if (!client) await dbClient.query("ROLLBACK");
+            throw error;
+        } finally {
+            if (!client) (dbClient as any).release();
+        }
+    }
+
+    async findByUid(uid: string, client?: PoolClient): Promise<IProduct | null> {
+        const query = `SELECT p.*, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+             FROM products p 
+             LEFT JOIN product_specifications s ON p.uid = s.product_uid 
+             WHERE p.uid = $1`;
+        const result = client
+            ? await client.query(query, [uid])
+            : await this.pool.query(query, [uid]);
         if (!result.rows[0]) return null;
-
         return this.mapRowToProduct(result.rows[0]);
     }
 
-    async findByUid(uid: string): Promise<IProduct | null> {
-        const result = await this.pool.query(`SELECT * FROM products WHERE uid = $1`, [uid]);
+    async findByName(name: string, client?: PoolClient): Promise<IProduct | null> {
+        const query = `SELECT p.*, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+             FROM products p 
+             LEFT JOIN product_specifications s ON p.uid = s.product_uid 
+             WHERE p.name = $1`;
+        const result = client
+            ? await client.query(query, [name])
+            : await this.pool.query(query, [name]);
         if (!result.rows[0]) return null;
         return this.mapRowToProduct(result.rows[0]);
     }
 
-    async findByName(name: string): Promise<IProduct | null> {
-        const result = await this.pool.query(`SELECT * FROM products WHERE name = $1`, [name]);
-        if (!result.rows[0]) return null;
-        return this.mapRowToProduct(result.rows[0]);
-    }
-
-    async findByCode(code: string): Promise<IProduct | null> {
-        const result = await this.pool.query(`SELECT * FROM products WHERE product_code = $1`, [code]);
+    async findByCode(code: string, client?: PoolClient): Promise<IProduct | null> {
+        const query = `SELECT p.*, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+             FROM products p 
+             LEFT JOIN product_specifications s ON p.uid = s.product_uid 
+             WHERE p.product_code = $1`;
+        const result = client
+            ? await client.query(query, [code])
+            : await this.pool.query(query, [code]);
         if (!result.rows[0]) return null;
         return this.mapRowToProduct(result.rows[0]);
     }
 
     async findAll(status?: "active" | "deleted" | "all"): Promise<IProduct[]> {
-        let query = `SELECT * FROM products`;
+        let query = `SELECT p.*, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+             FROM products p 
+             LEFT JOIN product_specifications s ON p.uid = s.product_uid`;
         const conditions: string[] = [];
 
         if (status === "active") {
-            conditions.push(`is_deleted = 0`);
+            conditions.push(`p.is_deleted = 0`);
         } else if (status === "deleted") {
-            conditions.push(`is_deleted = 1`);
+            conditions.push(`p.is_deleted = 1`);
         }
 
         if (conditions.length > 0) {
             query += ` WHERE ${conditions.join(" AND ")}`;
         }
 
-        query += ` ORDER BY created_at DESC`;
+        query += ` ORDER BY p.created_at DESC`;
 
         const result = await this.pool.query(query);
         return result.rows.map(row => this.mapRowToProduct(row));
@@ -208,9 +359,10 @@ export class ProductRepository {
         const offsetIndex = index++;
 
         const result = await this.pool.query(
-            `SELECT p.*, b.name as brand_name 
+            `SELECT p.*, b.name as brand_name, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
+             LEFT JOIN product_specifications s ON p.uid = s.product_uid
              ${whereClause} 
              ORDER BY p.name ASC, p.created_at DESC 
              LIMIT $${limitIndex} OFFSET $${offsetIndex}`,
@@ -222,20 +374,20 @@ export class ProductRepository {
         return { products, total };
     }
 
-    async softDelete(uid: string, deletedBy: string): Promise<IProduct | null> {
-        const result = await this.pool.query(
-            `UPDATE products SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1 WHERE uid = $2 RETURNING *`,
-            [deletedBy, uid]
-        );
+    async softDelete(uid: string, deletedBy: string, client?: PoolClient): Promise<IProduct | null> {
+        const query = `UPDATE products SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1 WHERE uid = $2 RETURNING *`;
+        const result = client
+            ? await client.query(query, [deletedBy, uid])
+            : await this.pool.query(query, [deletedBy, uid]);
         if (!result.rows[0]) return null;
         return this.mapRowToProduct(result.rows[0]);
     }
 
-    async restore(uid: string, updatedBy: string): Promise<IProduct | null> {
-        const result = await this.pool.query(
-            `UPDATE products SET is_deleted = 0, deleted_at = NULL, deleted_by = NULL, updated_at = CURRENT_TIMESTAMP, updated_by = $1 WHERE uid = $2 RETURNING *`,
-            [updatedBy, uid]
-        );
+    async restore(uid: string, updatedBy: string, client?: PoolClient): Promise<IProduct | null> {
+        const query = `UPDATE products SET is_deleted = 0, deleted_at = NULL, deleted_by = NULL, updated_at = CURRENT_TIMESTAMP, updated_by = $1 WHERE uid = $2 RETURNING *`;
+        const result = client
+            ? await client.query(query, [updatedBy, uid])
+            : await this.pool.query(query, [updatedBy, uid]);
         if (!result.rows[0]) return null;
         return this.mapRowToProduct(result.rows[0]);
     }

@@ -103,6 +103,28 @@ router.use(authenticate);
  *                         type: string
  *                       modelNumber:
  *                         type: string
+ *                       height:
+ *                         type: number
+ *                       width:
+ *                         type: number
+ *                       depth:
+ *                         type: number
+ *                       maxPower:
+ *                         type: number
+ *                       palletLength:
+ *                         type: number
+ *                       palletWidth:
+ *                         type: number
+ *                       palletHeight:
+ *                         type: number
+ *                       palletWeight:
+ *                         type: number
+ *                       palletDimension:
+ *                         type: string
+ *                       quantityPerPallet:
+ *                         type: integer
+ *                       cellTechnology:
+ *                         type: string
  *                       images:
  *                         type: array
  *                         items:
@@ -218,16 +240,49 @@ router.get("/:uid", controller.getProductByUid);
  *                 type: string
  *               modelNumber:
  *                 type: string
+ *               height:
+ *                 type: number
+ *               width:
+ *                 type: number
+ *               depth:
+ *                 type: number
+ *               maxPower:
+ *                 type: number
+ *               palletLength:
+ *                 type: number
+ *               palletWidth:
+ *                 type: number
+ *               palletHeight:
+ *                 type: number
+ *               palletWeight:
+ *                 type: number
+ *               palletDimension:
+ *                 type: string
+ *               quantityPerPallet:
+ *                 type: integer
+ *               cellTechnology:
+ *                 type: string
  *               images:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array of product document files
+ *               documentTypeUids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: JSON stringified array or multiple field entries of product document type UIDs matching files array in the exact same order
  *     responses:
  *       201:
  *         description: Product created successfully
  */
-router.post("/", upload.array("images", 10), validateProductRequest(createProductSchema), controller.createProduct);
+router.post("/", upload.any(), validateProductRequest(createProductSchema), controller.createProduct);
 
 /**
  * @swagger
@@ -277,6 +332,28 @@ router.post("/", upload.array("images", 10), validateProductRequest(createProduc
  *                 type: string
  *               modelNumber:
  *                 type: string
+ *               height:
+ *                 type: number
+ *               width:
+ *                 type: number
+ *               depth:
+ *                 type: number
+ *               maxPower:
+ *                 type: number
+ *               palletLength:
+ *                 type: number
+ *               palletWidth:
+ *                 type: number
+ *               palletHeight:
+ *                 type: number
+ *               palletWeight:
+ *                 type: number
+ *               palletDimension:
+ *                 type: string
+ *               quantityPerPallet:
+ *                 type: integer
+ *               cellTechnology:
+ *                 type: string
  *               existingImages:
  *                 type: string
  *                 description: JSON stringified array of existing image URLs to keep (e.g. '["url1", "url2"]')
@@ -285,14 +362,28 @@ router.post("/", upload.array("images", 10), validateProductRequest(createProduc
  *                 items:
  *                   type: string
  *                   format: binary
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array of new product document files to upload
+ *               documentTypeUids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: JSON stringified array or multiple field entries of product document type UIDs matching new files in the exact same order
  *               isActive:
  *                 type: integer
  *                 enum: [0, 1]
+ *               deleteDocumentUids:
+ *                 type: string
+ *                 description: JSON stringified array of document UIDs to soft delete (e.g. '["uid1", "uid2"]')
  *     responses:
  *       200:
  *         description: Product updated successfully
  */
-router.put("/:uid", upload.array("images", 10), validateProductRequest(updateProductSchema), controller.updateProduct);
+router.put("/:uid", upload.any(), validateProductRequest(updateProductSchema), controller.updateProduct);
 
 /**
  * @swagger

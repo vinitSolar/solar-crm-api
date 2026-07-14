@@ -14,7 +14,7 @@ export class ProductController {
         try {
             const authReq = req as IAuthenticatedRequest;
             const files = (req.files as Express.Multer.File[]) || [];
-            const product = await this.service.createProduct(req.body, files, authReq.user.uid);
+            const product = await this.service.createProduct(req.body, files, authReq.tenantUid, authReq.user.uid);
             res.status(201).json({
                 success: true,
                 message: PRODUCT_MESSAGES.CREATED,
@@ -30,7 +30,7 @@ export class ProductController {
             const authReq = req as IAuthenticatedRequest;
             const uid = req.params.uid as string;
             const files = (req.files as Express.Multer.File[]) || [];
-            const product = await this.service.updateProduct(uid, req.body, files, authReq.user.uid);
+            const product = await this.service.updateProduct(uid, req.body, files, authReq.tenantUid, authReq.user.uid);
             res.status(200).json({
                 success: true,
                 message: PRODUCT_MESSAGES.UPDATED,
@@ -43,8 +43,9 @@ export class ProductController {
 
     public getProductByUid = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
+            const authReq = req as IAuthenticatedRequest;
             const uid = req.params.uid as string;
-            const product = await this.service.getProductByUid(uid);
+            const product = await this.service.getProductByUid(uid, authReq.tenantUid);
             res.status(200).json({
                 success: true,
                 message: PRODUCT_MESSAGES.FETCHED,

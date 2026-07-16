@@ -14,11 +14,36 @@ const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
  */
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
+const parseJsonPreprocess = (val: unknown) => {
+    if (typeof val === "string") {
+        try {
+            return JSON.parse(val);
+        } catch {
+            return undefined;
+        }
+    }
+    return val;
+};
+
+const parseArrayPreprocess = (val: unknown) => {
+    if (val === undefined || val === null || val === "") return [];
+    if (Array.isArray(val)) return val.map(String);
+    if (typeof val === "string") {
+        try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) return parsed.map(String);
+        } catch {
+            return [val];
+        }
+    }
+    return [];
+};
+
 // ─── Create ──────────────────────────────────────────────────────────
 
 export const createFranchiseSchema = z.object({
     body: z.object({
-        franchise: z.object({
+        franchise: z.preprocess(parseJsonPreprocess, z.object({
             name: z.string()
                 .min(2, FRANCHISE_MESSAGES.INVALID_NAME)
                 .max(255, FRANCHISE_MESSAGES.INVALID_NAME),
@@ -28,8 +53,8 @@ export const createFranchiseSchema = z.object({
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
             mobile: z.string().max(20, FRANCHISE_MESSAGES.INVALID_MOBILE).optional(),
             logo: z.string().max(500).optional(),
-        }),
-        owner: z.object({
+        })),
+        owner: z.preprocess(parseJsonPreprocess, z.object({
             fullName: z.string()
                 .min(2, FRANCHISE_MESSAGES.OWNER_FULL_NAME_REQUIRED)
                 .max(255, FRANCHISE_MESSAGES.OWNER_FULL_NAME_REQUIRED),
@@ -41,8 +66,8 @@ export const createFranchiseSchema = z.object({
             alternateNumber: z.string().max(20).optional(),
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
             residentialAddress: z.string().optional(),
-        }),
-        business: z.object({
+        })),
+        business: z.preprocess(parseJsonPreprocess, z.object({
             businessName: z.string()
                 .min(2, FRANCHISE_MESSAGES.BUSINESS_NAME_REQUIRED)
                 .max(255, FRANCHISE_MESSAGES.BUSINESS_NAME_REQUIRED),
@@ -60,7 +85,9 @@ export const createFranchiseSchema = z.object({
             state: z.string().max(100).optional(),
             pinCode: z.string().max(10).optional(),
             outletName: z.string().max(255).optional(),
-        }),
+        })),
+        documentTypeUids: z.preprocess(parseArrayPreprocess, z.array(z.string().uuid("Invalid Document Type UID"))).optional(),
+        documentNumbers: z.preprocess(parseArrayPreprocess, z.array(z.string())).optional(),
     }),
 });
 
@@ -71,13 +98,13 @@ export const updateFranchiseSchema = z.object({
         uid: z.string().uuid(FRANCHISE_MESSAGES.INVALID_UID),
     }),
     body: z.object({
-        franchise: z.object({
+        franchise: z.preprocess(parseJsonPreprocess, z.object({
             name: z.string().min(2, FRANCHISE_MESSAGES.INVALID_NAME).max(255, FRANCHISE_MESSAGES.INVALID_NAME).optional(),
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
             mobile: z.string().max(20, FRANCHISE_MESSAGES.INVALID_MOBILE).optional(),
             logo: z.string().max(500).optional(),
-        }).optional(),
-        owner: z.object({
+        }).optional()),
+        owner: z.preprocess(parseJsonPreprocess, z.object({
             fullName: z.string().min(2, FRANCHISE_MESSAGES.OWNER_FULL_NAME_REQUIRED).max(255).optional(),
             dateOfBirth: z.string().optional(),
             profilePhoto: z.string().max(500).optional(),
@@ -85,8 +112,8 @@ export const updateFranchiseSchema = z.object({
             alternateNumber: z.string().max(20).optional(),
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
             residentialAddress: z.string().optional(),
-        }).optional(),
-        business: z.object({
+        }).optional()),
+        business: z.preprocess(parseJsonPreprocess, z.object({
             businessName: z.string().min(2, FRANCHISE_MESSAGES.BUSINESS_NAME_REQUIRED).max(255).optional(),
             gstNumber: z.string().regex(GST_REGEX, FRANCHISE_MESSAGES.GST_NUMBER_INVALID).optional(),
             panNumber: z.string().regex(PAN_REGEX, FRANCHISE_MESSAGES.PAN_NUMBER_INVALID).optional(),
@@ -98,8 +125,11 @@ export const updateFranchiseSchema = z.object({
             state: z.string().max(100).optional(),
             pinCode: z.string().max(10).optional(),
             outletName: z.string().max(255).optional(),
-        }).optional(),
-    }).refine(data => data.franchise || data.owner || data.business, {
+        }).optional()),
+        documentTypeUids: z.preprocess(parseArrayPreprocess, z.array(z.string().uuid("Invalid Document Type UID"))).optional(),
+        documentNumbers: z.preprocess(parseArrayPreprocess, z.array(z.string())).optional(),
+        deleteDocumentUids: z.preprocess(parseArrayPreprocess, z.array(z.string().uuid("Invalid Document UID"))).optional(),
+    }).refine(data => data.franchise || data.owner || data.business || (data.documentTypeUids && data.documentTypeUids.length > 0) || (data.deleteDocumentUids && data.deleteDocumentUids.length > 0), {
         message: FRANCHISE_MESSAGES.UPDATE_NO_FIELDS,
     }),
 });
@@ -121,6 +151,16 @@ export const deleteFranchiseSchema = z.object({
 export const restoreFranchiseSchema = z.object({
     params: z.object({
         uid: z.string().uuid(FRANCHISE_MESSAGES.INVALID_UID),
+    }),
+});
+
+export const addFranchiseDocumentSchema = z.object({
+    params: z.object({
+        uid: z.string().uuid(FRANCHISE_MESSAGES.INVALID_UID),
+    }),
+    body: z.object({
+        documentTypeUid: z.string().uuid("Invalid Document Type UID"),
+        documentNumber: z.string().optional(),
     }),
 });
 

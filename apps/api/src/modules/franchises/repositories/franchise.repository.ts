@@ -4,6 +4,7 @@ import type {
     IFranchiseOwnerDetails,
     IFranchiseBusinessDetails,
     IUpdateFranchiseRequest,
+    IFranchiseDocument,
 } from "../interfaces/franchise.interface.js";
 import { v4 as uuidv4 } from "uuid";
 import { TENANT_TYPE, ONBOARDING_STATUS, FRANCHISE_STATUS } from "../constants/franchise.constants.js";
@@ -56,6 +57,25 @@ const BUSINESS_COLUMNS = `
     city, state,
     pin_code AS "pinCode",
     outlet_name AS "outletName",
+    is_active AS "isActive", is_deleted AS "isDeleted",
+    created_at AS "createdAt", updated_at AS "updatedAt",
+    created_by AS "createdBy", updated_by AS "updatedBy",
+    deleted_by AS "deletedBy"
+`;
+
+/**
+ * Common SELECT columns for the franchise_documents table.
+ */
+const DOCUMENT_COLUMNS = `
+    id, uid,
+    tenant_uid AS "tenantUid",
+    document_type_uid AS "documentTypeUid",
+    document_number AS "documentNumber",
+    original_file_name AS "originalFileName",
+    stored_file_name AS "storedFileName",
+    file_path AS "filePath",
+    mime_type AS "mimeType",
+    file_size AS "fileSize",
     is_active AS "isActive", is_deleted AS "isDeleted",
     created_at AS "createdAt", updated_at AS "updatedAt",
     created_by AS "createdBy", updated_by AS "updatedBy",
@@ -436,5 +456,91 @@ export class FranchiseRepository {
         );
 
         return (tenantResult.rowCount ?? 0) > 0;
+    }
+    // ─── Document Operations ────────────────────────────────────────
+
+    /**
+     * Creates a new franchise document record.
+     */
+    async createDocument(
+        client: PoolClient,
+        tenantUid: string,
+        documentTypeUid: string,
+        data: {
+            documentNumber?: string;
+            originalFileName: string;
+            storedFileName: string;
+            filePath: string;
+            mimeType: string;
+            fileSize: number;
+        },
+        createdBy: string,
+    ): Promise<IFranchiseDocument> {
+        const uid = uuidv4();
+        const result = await client.query(
+            `INSERT INTO franchise_documents (
+                uid, tenant_uid, document_type_uid, document_number, 
+                original_file_name, stored_file_name, file_path, mime_type, file_size, created_by
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             RETURNING ${DOCUMENT_COLUMNS}`,
+            [
+                uid, tenantUid, documentTypeUid, data.documentNumber ?? null,
+                data.originalFileName, data.storedFileName, data.filePath, data.mimeType, data.fileSize, createdBy
+            ]
+        );
+        return result.rows[0] as IFranchiseDocument;
+    }
+
+    /**
+     * Gets all active documents for a franchise, including document type name.
+     */
+    async getDocumentsByTenantUid(tenantUid: string): Promise<(IFranchiseDocument & { documentTypeName?: string })[]> {
+        const result = await this.pool.query(
+            `SELECT d.*, 
+                    d.tenant_uid AS "tenantUid",
+                    d.document_type_uid AS "documentTypeUid",
+                    d.document_number AS "documentNumber",
+                    d.original_file_name AS "originalFileName",
+                    d.stored_file_name AS "storedFileName",
+                    d.file_path AS "filePath",
+                    d.mime_type AS "mimeType",
+                    d.file_size AS "fileSize",
+                    d.is_active AS "isActive", d.is_deleted AS "isDeleted",
+                    d.created_at AS "createdAt", d.updated_at AS "updatedAt",
+                    d.created_by AS "createdBy", d.updated_by AS "updatedBy",
+                    d.deleted_by AS "deletedBy",
+                    t.name AS "documentTypeName"
+             FROM franchise_documents d
+             LEFT JOIN franchise_document_types t ON d.document_type_uid = t.uid
+             WHERE d.tenant_uid = $1 AND d.is_deleted = 0`,
+            [tenantUid]
+        );
+        return result.rows;
+    }
+
+    /**
+     * Soft deletes specific documents by their UIDs.
+     */
+    async softDeleteDocuments(client: PoolClient, tenantUid: string, uids: string[], deletedBy: string): Promise<void> {
+        if (!uids.length) return;
+        await client.query(
+            `UPDATE franchise_documents 
+             SET is_deleted = 1, deleted_by = $1, deleted_at = CURRENT_TIMESTAMP, is_active = 0
+             WHERE tenant_uid = $2 AND uid = ANY($3) AND is_deleted = 0`,
+            [deletedBy, tenantUid, uids]
+        );
+    }
+
+    /**
+     * Gets documents by tenant UID and Document Type UID.
+     */
+    async getDocumentsByTenantAndType(client: PoolClient, tenantUid: string, documentTypeUid: string): Promise<IFranchiseDocument[]> {
+        const result = await client.query(
+            `SELECT ${DOCUMENT_COLUMNS} FROM franchise_documents
+             WHERE tenant_uid = $1 AND document_type_uid = $2 AND is_deleted = 0`,
+            [tenantUid, documentTypeUid]
+        );
+        return result.rows as IFranchiseDocument[];
     }
 }

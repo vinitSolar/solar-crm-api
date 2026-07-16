@@ -72,6 +72,29 @@ export interface IFranchiseBusinessDetails {
 }
 
 /**
+ * Represents a franchise document from the `franchise_documents` table.
+ */
+export interface IFranchiseDocument {
+    id: number;
+    uid: string;
+    tenantUid: string;
+    documentTypeUid: string;
+    documentNumber: string | null;
+    originalFileName: string;
+    storedFileName: string;
+    filePath: string;
+    mimeType: string;
+    fileSize: number;
+    isActive: number;
+    isDeleted: number;
+    createdAt: Date;
+    updatedAt: Date;
+    createdBy: string | null;
+    updatedBy: string | null;
+    deletedBy: string | null;
+}
+
+/**
  * Request body shape for creating a franchise.
  */
 export interface ICreateFranchiseRequest {
@@ -104,6 +127,9 @@ export interface ICreateFranchiseRequest {
         pinCode?: string;
         outletName?: string;
     };
+    documentFiles?: Express.Multer.File[];
+    documentTypeUids?: string[];
+    documentNumbers?: string[];
 }
 
 /**
@@ -138,6 +164,10 @@ export interface IUpdateFranchiseRequest {
         pinCode?: string;
         outletName?: string;
     };
+    documentFiles?: Express.Multer.File[];
+    documentTypeUids?: string[];
+    documentNumbers?: string[];
+    deleteDocumentUids?: string[];
 }
 
 /**
@@ -169,12 +199,28 @@ export interface IFranchiseSafe {
 }
 
 /**
- * Full franchise detail response (tenant + owner + business).
+ * Safe franchise document response.
+ */
+export interface IFranchiseDocumentSafe {
+    uid: string;
+    documentTypeUid: string;
+    documentTypeName?: string; // Optional, resolved during fetching
+    documentNumber: string | null;
+    originalFileName: string;
+    filePath: string;
+    mimeType: string;
+    fileSize: number;
+    uploadedAt: Date;
+}
+
+/**
+ * Full franchise detail response (tenant + owner + business + documents).
  */
 export interface IFranchiseDetail {
     franchise: IFranchiseSafe;
     owner: Omit<IFranchiseOwnerDetails, "id"> | null;
     business: Omit<IFranchiseBusinessDetails, "id"> | null;
+    documents: IFranchiseDocumentSafe[];
 }
 
 /**
@@ -199,3 +245,4 @@ export interface IPaginatedFranchiseResponse {
         totalPages: number;
     };
 }
+

@@ -13,6 +13,7 @@ import {
     getPaginatedFranchisesSchema,
     getAllFranchisesSchema,
     validateFranchiseRequest,
+    addFranchiseDocumentSchema,
 } from "../validators/franchise.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import type { IAuthenticatedRequest } from "../../auth/interfaces/auth.interface.js";
@@ -26,6 +27,8 @@ import { SurveyDocumentTypeRepository } from "../../survey-documents/repositorie
 import { ProductDocumentTypeRepository } from "../../product-document-types/repositories/product-document-type.repository.js";
 import { MenuRepository } from "../../menus/repositories/menu.repository.js";
 import { RolePermissionRepository } from "../../role-permissions/repositories/role-permission.repository.js";
+import { storageService } from "@packages/storage/index.js";
+import { FranchiseDocumentTypeRepository } from "../../franchise-document-types/repositories/franchise-document-type.repository.js";
 
 function createFranchiseRouter(): Router {
     const router = Router();
@@ -45,6 +48,7 @@ function createFranchiseRouter(): Router {
     const productDocumentTypeRepository = new ProductDocumentTypeRepository(pool);
     const menuRepository = new MenuRepository(pool);
     const rolePermissionRepository = new RolePermissionRepository(pool);
+    const franchiseDocumentTypeRepository = new FranchiseDocumentTypeRepository(pool);
     
     const franchiseOnboardingService = new FranchiseOnboardingService(
         roleRepository, 
@@ -54,9 +58,16 @@ function createFranchiseRouter(): Router {
         surveyDocumentTypeRepository,
         productDocumentTypeRepository,
         menuRepository,
-        rolePermissionRepository
+        rolePermissionRepository,
+        franchiseDocumentTypeRepository
     );
-    const franchiseService = new FranchiseService(franchiseRepository, franchiseOnboardingService, pool);
+    const franchiseService = new FranchiseService(
+        franchiseRepository, 
+        franchiseOnboardingService, 
+        franchiseDocumentTypeRepository,
+        storageService,
+        pool
+    );
     const franchiseController = new FranchiseController(franchiseService);
 
     // Middleware to ensure only Head Office (type = 0) can manage franchises
@@ -240,79 +251,33 @@ function createFranchiseRouter(): Router {
      *     requestBody:
      *       required: true
      *       content:
-     *         application/json:
+     *         multipart/form-data:
      *           schema:
      *             type: object
-     *             required: [franchise, owner, business]
      *             properties:
      *               franchise:
-     *                 type: object
-     *                 required: [name, code]
-     *                 properties:
-     *                   name:
-     *                     type: string
-     *                     example: "Solar Express Delhi"
-     *                   code:
-     *                     type: string
-     *                     example: "SED001"
-     *                   email:
-     *                     type: string
-     *                     example: "delhi@solarexpress.com"
-     *                   mobile:
-     *                     type: string
-     *                     example: "9876543210"
-     *                   logo:
-     *                     type: string
-     *                     example: "https://cdn.example.com/logo.png"
+     *                 type: string
+     *                 description: JSON stringified franchise object (name, code, email, mobile)
      *               owner:
-     *                 type: object
-     *                 required: [fullName, mobileNumber]
-     *                 properties:
-     *                   fullName:
-     *                     type: string
-     *                     example: "Rajesh Kumar"
-     *                   dateOfBirth:
-     *                     type: string
-     *                     example: "1990-05-15"
-     *                   profilePhoto:
-     *                     type: string
-     *                   mobileNumber:
-     *                     type: string
-     *                     example: "9876543210"
-     *                   alternateNumber:
-     *                     type: string
-     *                   email:
-     *                     type: string
-     *                     example: "rajesh@example.com"
-     *                   residentialAddress:
-     *                     type: string
+     *                 type: string
+     *                 description: JSON stringified owner object (fullName, dateOfBirth, mobileNumber, email, etc)
      *               business:
-     *                 type: object
-     *                 required: [businessName, gstNumber, panNumber]
-     *                 properties:
-     *                   businessName:
-     *                     type: string
-     *                     example: "Solar Express Pvt Ltd"
-     *                   gstNumber:
-     *                     type: string
-     *                     example: "22AAAAA0000A1Z5"
-     *                   panNumber:
-     *                     type: string
-     *                     example: "ABCDE1234F"
-     *                   cinNumber:
-     *                     type: string
-     *                   msmeRegistrationNumber:
-     *                     type: string
-     *                   tradeLicenseNumber:
-     *                     type: string
-     *                   businessAddress:
-     *                     type: string
-     *                   city:
-     *                     type: string
-     *                   state:
-     *                     type: string
-     *                   pinCode:
-     *                     type: string
+     *                 type: string
+     *                 description: JSON stringified business object (businessName, gstNumber, panNumber, etc)
+     *               documentFiles:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *                   format: binary
+     *               documentTypeUids:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *               documentNumbers:
+     *                 type: array
+     *                 items:
+     *                   type: string
+
      *     responses:
      *       201:
      *         description: Franchise created successfully
@@ -351,6 +316,7 @@ function createFranchiseRouter(): Router {
      */
     router.post(
         "/",
+        upload.any(),
         validateFranchiseRequest(createFranchiseSchema),
         franchiseController.createFranchise,
     );
@@ -378,61 +344,36 @@ function createFranchiseRouter(): Router {
      *     requestBody:
      *       required: true
      *       content:
-     *         application/json:
+     *         multipart/form-data:
      *           schema:
      *             type: object
      *             properties:
      *               franchise:
-     *                 type: object
-     *                 properties:
-     *                   name:
-     *                     type: string
-     *                   email:
-     *                     type: string
-     *                   mobile:
-     *                     type: string
-     *                   logo:
-     *                     type: string
+     *                 type: string
+     *                 description: JSON stringified franchise object
      *               owner:
-     *                 type: object
-     *                 properties:
-     *                   fullName:
-     *                     type: string
-     *                   dateOfBirth:
-     *                     type: string
-     *                   profilePhoto:
-     *                     type: string
-     *                   mobileNumber:
-     *                     type: string
-     *                   alternateNumber:
-     *                     type: string
-     *                   email:
-     *                     type: string
-     *                   residentialAddress:
-     *                     type: string
+     *                 type: string
+     *                 description: JSON stringified owner object
      *               business:
-     *                 type: object
-     *                 properties:
-     *                   businessName:
-     *                     type: string
-     *                   gstNumber:
-     *                     type: string
-     *                   panNumber:
-     *                     type: string
-     *                   cinNumber:
-     *                     type: string
-     *                   msmeRegistrationNumber:
-     *                     type: string
-     *                   tradeLicenseNumber:
-     *                     type: string
-     *                   businessAddress:
-     *                     type: string
-     *                   city:
-     *                     type: string
-     *                   state:
-     *                     type: string
-     *                   pinCode:
-     *                     type: string
+     *                 type: string
+     *                 description: JSON stringified business object
+     *               documentFiles:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *                   format: binary
+     *               documentTypeUids:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *               documentNumbers:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *               deleteDocumentUids:
+     *                 type: array
+     *                 items:
+     *                   type: string
      *     responses:
      *       200:
      *         description: Franchise updated successfully
@@ -445,6 +386,7 @@ function createFranchiseRouter(): Router {
      */
     router.put(
         "/:uid",
+        upload.any(),
         validateFranchiseRequest(updateFranchiseSchema),
         franchiseController.updateFranchise,
     );
@@ -554,6 +496,56 @@ function createFranchiseRouter(): Router {
         authenticate,
         upload.single("logo"),
         franchiseController.uploadLogo,
+    );
+
+    /**
+     * @swagger
+     * /franchises/{uid}/documents:
+     *   post:
+     *     tags: [Franchises]
+     *     summary: Add a document to a franchise
+     *     description: Uploads a document file and associates it with a specific document type for the franchise.
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: The franchise UID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         multipart/form-data:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               documentTypeUid:
+     *                 type: string
+     *                 format: uuid
+     *                 description: The UID of the franchise document type
+     *               documentNumber:
+     *                 type: string
+     *                 description: Optional document number (e.g., PAN number, GST number)
+     *               documentFile:
+     *                 type: string
+     *                 format: binary
+     *                 description: The document file to upload
+     *     responses:
+     *       200:
+     *         description: Document added successfully
+     *       400:
+     *         description: Validation error or missing file
+     *       404:
+     *         description: Franchise or document type not found
+     */
+    router.post(
+        "/:uid/documents",
+        upload.single("documentFile"),
+        validateFranchiseRequest(addFranchiseDocumentSchema),
+        franchiseController.addDocument,
     );
 
     return router;

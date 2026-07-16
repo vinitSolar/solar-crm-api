@@ -12,6 +12,8 @@ import { ProductDocumentTypeService } from "../../product-document-types/service
 import type { ProductDocumentTypeRepository } from "../../product-document-types/repositories/product-document-type.repository.js";
 import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
+import { FranchiseDocumentTypeService } from "../../franchise-document-types/services/franchise-document-type.service.js";
+import type { FranchiseDocumentTypeRepository } from "../../franchise-document-types/repositories/franchise-document-type.repository.js";
 import type { IFranchiseOwnerDetails } from "../interfaces/franchise.interface.js";
 import { logger } from "@packages/logger/index.js";
 
@@ -28,6 +30,7 @@ export class FranchiseOnboardingService {
     private readonly rolePermissionRepository: RolePermissionRepository;
     private readonly quotationTermsConditionRepository: QuotationTermsConditionRepository;
     private readonly quotationScopeOfWorkRepository: QuotationScopeOfWorkRepository;
+    private readonly franchiseDocumentTypeService: FranchiseDocumentTypeService;
 
     constructor(
         roleRepository: RoleRepository, 
@@ -37,7 +40,8 @@ export class FranchiseOnboardingService {
         surveyDocumentTypeRepository: SurveyDocumentTypeRepository,
         productDocumentTypeRepository: ProductDocumentTypeRepository,
         menuRepository: MenuRepository,
-        rolePermissionRepository: RolePermissionRepository
+        rolePermissionRepository: RolePermissionRepository,
+        franchiseDocumentTypeRepository: FranchiseDocumentTypeRepository
     ) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
@@ -49,6 +53,7 @@ export class FranchiseOnboardingService {
         this.rolePermissionRepository = rolePermissionRepository;
         this.quotationTermsConditionRepository = new QuotationTermsConditionRepository();
         this.quotationScopeOfWorkRepository = new QuotationScopeOfWorkRepository();
+        this.franchiseDocumentTypeService = new FranchiseDocumentTypeService(franchiseDocumentTypeRepository);
     }
 
     /**
@@ -110,23 +115,31 @@ export class FranchiseOnboardingService {
             const hashedPassword = await bcrypt.hash(plainPassword, SALT_ROUNDS);
 
             // 4. Create the initial admin user
-            const user = await this.userRepository.createUser(
-                tenantUid,
-                {
-                    roleUid: adminRoleUid as string,
-                    firstName,
-                    lastName,
-                    email,
-                    password: hashedPassword,
-                },
-                createdBy
-            );
+            try {
+                const user = await this.userRepository.createUser(
+                    tenantUid,
+                    {
+                        roleUid: adminRoleUid as string,
+                        firstName,
+                        lastName,
+                        email,
+                        password: hashedPassword,
+                    },
+                    createdBy
+                );
 
-            logger.info("Successfully created default roles and admin user for franchise", {
-                tenantUid,
-                userUid: user.uid,
-                email: user.email,
-            });
+                logger.info("Successfully created default roles and admin user for franchise", {
+                    tenantUid,
+                    userUid: user.uid,
+                    email: user.email,
+                });
+            } catch (userError) {
+                logger.error("Failed to create initial admin user for franchise (possibly duplicate email)", { 
+                    error: userError, 
+                    tenantUid, 
+                    email 
+                });
+            }
 
             // Note: In a real system, we might trigger an email here containing the 'plainPassword' 
             // so the franchise owner can log in.
@@ -238,6 +251,10 @@ export class FranchiseOnboardingService {
                 );
             }
             logger.info("Successfully created default quotation scope of work for franchise", { tenantUid });
+
+            // 10. Create Default Franchise Document Types
+            await this.franchiseDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
+            logger.info("Successfully created default franchise document types for franchise", { tenantUid });
 
             return { adminPassword: plainPassword, adminEmail: email };
 

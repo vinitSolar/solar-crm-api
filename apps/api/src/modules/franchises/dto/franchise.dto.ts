@@ -1,6 +1,5 @@
-import type { ITenant, IFranchiseSafe, IFranchiseOwnerDetails, IFranchiseBusinessDetails } from "../interfaces/franchise.interface.js";
+import type { ITenant, IFranchiseSafe, IFranchiseOwnerDetails, IFranchiseBusinessDetails, IFranchiseDocument, IFranchiseDocumentSafe } from "../interfaces/franchise.interface.js";
 import type { ICreateFranchiseResponse } from "../interfaces/franchise.interface.js";
-
 /**
  * Maps a tenant record to the franchise creation response DTO.
  * Only exposes fields relevant to the API response.
@@ -52,4 +51,20 @@ export function toOwnerDetailsSafe(owner: IFranchiseOwnerDetails): Omit<IFranchi
 export function toBusinessDetailsSafe(business: IFranchiseBusinessDetails): Omit<IFranchiseBusinessDetails, "id"> {
     const { id, ...safe } = business;
     return safe;
+}
+
+/**
+ * Maps a franchise document record to a safe DTO.
+ */
+export function toFranchiseDocumentSafe(doc: IFranchiseDocument): IFranchiseDocumentSafe {
+    return {
+        uid: doc.uid,
+        documentTypeUid: doc.documentTypeUid,
+        documentNumber: doc.documentNumber,
+        originalFileName: doc.originalFileName,
+        filePath: doc.filePath,
+        mimeType: doc.mimeType,
+        fileSize: doc.fileSize,
+        uploadedAt: doc.createdAt,
+    };
 }

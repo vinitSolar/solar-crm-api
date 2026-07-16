@@ -21,6 +21,12 @@ export class FranchiseController {
     createFranchise = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
+            
+            const files = req.files as Express.Multer.File[] | undefined;
+            if (files) {
+                req.body.documentFiles = files.filter(f => f.fieldname === "documentFiles");
+            }
+            
             const data = req.body as ICreateFranchiseRequest;
 
             logger.info("FranchiseController.createFranchise", { code: data.franchise.code, createdBy: authReq.user.uid });
@@ -103,6 +109,12 @@ export class FranchiseController {
         try {
             const authReq = req as IAuthenticatedRequest;
             const uid = req.params.uid as string;
+            
+            const files = req.files as Express.Multer.File[] | undefined;
+            if (files) {
+                req.body.documentFiles = files.filter(f => f.fieldname === "documentFiles");
+            }
+
             const data = req.body as IUpdateFranchiseRequest;
 
             logger.info("FranchiseController.updateFranchise", { uid, userUid: authReq.user.uid });
@@ -192,6 +204,44 @@ export class FranchiseController {
                 success: true,
                 message: "Logo uploaded successfully",
                 data: { logo: logoUrl },
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+    /**
+     * Add a document to a franchise.
+     */
+    addDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const uid = req.params.uid as string;
+            const { documentTypeUid, documentNumber } = req.body;
+            const documentFile = req.file;
+
+            if (!documentFile) {
+                res.status(400).json({
+                    success: false,
+                    message: "Validation Error",
+                    errors: [{ field: "documentFile", message: "Document file is required" }],
+                });
+                return;
+            }
+
+            const updatedBy = authReq.user?.uid || "system";
+
+            const document = await this.franchiseService.addDocument(
+                uid,
+                documentTypeUid,
+                documentNumber,
+                documentFile,
+                updatedBy
+            );
+
+            res.status(200).json({
+                success: true,
+                message: "Document added successfully",
+                data: document,
             });
         } catch (error) {
             next(error);

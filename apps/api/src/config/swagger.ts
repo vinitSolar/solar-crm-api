@@ -32,7 +32,16 @@ const swaggerOptions: Options = {
             { name: "Site Surveys", description: "Site survey management" },
             { name: "Survey Document Types", description: "Survey document type management" },
             { name: "Franchises", description: "Franchise onboarding" },
+            { name: "FranchiseDocumentTypes", description: "Franchise Document Type Management APIs" },
             { name: "StateSubsidyRules", description: "State Subsidy Rule Management APIs" },
+            { name: "Products", description: "Product Management APIs" },
+            { name: "ProductBrands", description: "Product Brand Management APIs" },
+            { name: "ProductCategories", description: "Product Category Management APIs" },
+            { name: "ProductUnits", description: "Product Unit Management APIs" },
+            { name: "ProductDocumentTypes", description: "Product Document Type Management APIs" },
+            { name: "Quotations", description: "Quotation Management APIs" },
+            { name: "QuotationScopeOfWork", description: "Quotation Scope of Work Management APIs" },
+            { name: "QuotationTermsConditions", description: "Quotation Terms & Conditions Management APIs" },
         ],
         components: {
             securitySchemes: {
@@ -158,6 +167,39 @@ const swaggerOptions: Options = {
                         isActive: { type: "integer", enum: [0, 1] },
                         isDeleted: { type: "integer", enum: [0, 1] },
                         createdAt: { type: "string", format: "date-time" },
+                        leadSource: {
+                            nullable: true,
+                            allOf: [{ $ref: "#/components/schemas/LeadSourceSafe" }],
+                        },
+                        leadStatus: {
+                            nullable: true,
+                            allOf: [{ $ref: "#/components/schemas/LeadStatusSafe" }],
+                        },
+                    },
+                },
+                LeadSourceSafe: {
+                    type: "object",
+                    properties: {
+                        uid: { type: "string" },
+                        name: { type: "string" },
+                        color: { type: "string", nullable: true },
+                        sortOrder: { type: "integer" },
+                        isDefault: { type: "integer", enum: [0, 1] },
+                        isActive: { type: "integer", enum: [0, 1] },
+                        isDeleted: { type: "integer", enum: [0, 1] },
+                    },
+                },
+                LeadStatusSafe: {
+                    type: "object",
+                    properties: {
+                        uid: { type: "string" },
+                        name: { type: "string" },
+                        color: { type: "string", nullable: true },
+                        sortOrder: { type: "integer" },
+                        isDefault: { type: "integer", enum: [0, 1] },
+                        isClosed: { type: "integer", enum: [0, 1] },
+                        isActive: { type: "integer", enum: [0, 1] },
+                        isDeleted: { type: "integer", enum: [0, 1] },
                     },
                 },
                 RoleMenuPermissionSafe: {

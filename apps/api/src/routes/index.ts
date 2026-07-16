@@ -18,6 +18,8 @@ import { stateSubsidyRuleRoutes } from "../modules/state-subsidy-rules/index.js"
 import { quotationTermsConditionRoutes } from "../modules/quotation-terms-conditions/index.js";
 import { quotationScopeOfWorkRoutes } from "../modules/quotation-scope-of-work/index.js";
 import { quotationRoutes } from "../modules/quotations/index.js";
+import { franchiseDocumentTypeRoutes } from "../modules/franchise-document-types/index.js";
+import { locationsRoutes } from "../modules/locations/index.js";
 
 const apiRouter = Router();
 
@@ -34,6 +36,7 @@ apiRouter.use("/lead-statuses", leadStatusRoutes);
 apiRouter.use("/site-surveys", siteSurveyRoutes);
 apiRouter.use("/survey-document-types", surveyDocumentTypeRoutes);
 apiRouter.use("/product-document-types", productDocumentTypeRoutes);
+apiRouter.use("/franchise-document-types", franchiseDocumentTypeRoutes);
 apiRouter.use("/product-categories", productCategoryRoutes);
 apiRouter.use("/product-brands", productBrandRoutes);
 apiRouter.use("/product-units", productUnitRoutes);
@@ -42,5 +45,6 @@ apiRouter.use("/state-subsidy-rules", stateSubsidyRuleRoutes);
 apiRouter.use("/quotation-terms-conditions", quotationTermsConditionRoutes);
 apiRouter.use("/quotation-scope-of-work", quotationScopeOfWorkRoutes);
 apiRouter.use("/quotations", quotationRoutes);
+apiRouter.use("/locations", locationsRoutes);
 
 export default apiRouter;

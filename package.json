@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "tsx watch apps/api/src/server.ts",
     "start": "node dist/apps/api/src/server.js",
-    "build": "tsc"
+    "build": "tsc",
+    "seed:geonames": "tsx packages/database/seeds/seed_geonames.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -25,6 +26,7 @@
     "eslint": "^10.6.0",
     "nodemon": "^3.1.14",
     "prettier": "^3.9.4",
+    "stream-json": "^3.5.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
     "typescript": "^6.0.3",

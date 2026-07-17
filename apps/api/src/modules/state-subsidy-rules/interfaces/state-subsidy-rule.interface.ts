@@ -4,6 +4,7 @@
 export interface IStateSubsidyRule {
     id: number;
     uid: string;
+    state_uid: string | null;
     state: string;
     subsidy_per_kw: number;
     maximum_subsidy_amount: number;
@@ -23,6 +24,7 @@ export interface IStateSubsidyRule {
  */
 export interface IStateSubsidyRuleSafe {
     uid: string;
+    stateUid: string | null;
     state: string;
     subsidyPerKw: number;
     maximumSubsidyAmount: number;
@@ -38,5 +40,6 @@ export interface IStateSubsidyRuleSafe {
  */
 export interface IStateSubsidyRuleDropdown {
     uid: string;
+    stateUid: string | null;
     state: string;
 }

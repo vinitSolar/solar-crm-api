@@ -7,17 +7,15 @@ import type { Request, Response, NextFunction } from "express";
  */
 export const createStateSubsidyRuleSchema = z.object({
     body: z.object({
+        stateUid: z.string().optional().nullable(),
         state: z.string({
-            required_error: STATE_SUBSIDY_RULE_MESSAGES.STATE_REQUIRED,
-            invalid_type_error: STATE_SUBSIDY_RULE_MESSAGES.STATE_REQUIRED,
+            message: STATE_SUBSIDY_RULE_MESSAGES.STATE_REQUIRED,
         }).min(2, STATE_SUBSIDY_RULE_MESSAGES.STATE_REQUIRED).max(255),
         subsidyPerKw: z.number({
-            required_error: STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID,
-            invalid_type_error: STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID,
+            message: STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID,
         }).min(0, STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID),
         maximumSubsidyAmount: z.number({
-            required_error: STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID,
-            invalid_type_error: STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID,
+            message: STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID,
         }).min(0, STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID),
         description: z.string().optional(),
     }),
@@ -28,6 +26,7 @@ export const createStateSubsidyRuleSchema = z.object({
  */
 export const updateStateSubsidyRuleSchema = z.object({
     body: z.object({
+        stateUid: z.string().optional().nullable(),
         state: z.string().min(2, STATE_SUBSIDY_RULE_MESSAGES.STATE_REQUIRED).max(255).optional(),
         subsidyPerKw: z.number().min(0, STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID).optional(),
         maximumSubsidyAmount: z.number().min(0, STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID).optional(),
@@ -53,7 +52,7 @@ export const paginationSchema = z.object({
 /**
  * Generic validation middleware using Zod.
  */
-export const validateStateSubsidyRuleRequest = (schema: z.AnyZodObject) => {
+export const validateStateSubsidyRuleRequest = (schema: z.ZodSchema) => {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             await schema.parseAsync({
@@ -67,7 +66,7 @@ export const validateStateSubsidyRuleRequest = (schema: z.AnyZodObject) => {
                 res.status(400).json({
                     success: false,
                     message: STATE_SUBSIDY_RULE_MESSAGES.VALIDATION_ERROR,
-                    errors: error.errors.map((e) => ({
+                    errors: error.issues.map((e) => ({
                         field: e.path.join("."),
                         message: e.message,
                     })),

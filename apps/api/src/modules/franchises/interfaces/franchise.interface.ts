@@ -95,6 +95,23 @@ export interface IFranchiseDocument {
 }
 
 /**
+ * Represents a franchise service area record.
+ */
+export interface IFranchiseServiceArea {
+    id: number;
+    uid: string;
+    tenantUid: string;
+    cityUid: string;
+    isActive: number;
+    isDeleted: number;
+    createdAt: Date;
+    updatedAt: Date;
+    createdBy: string | null;
+    updatedBy: string | null;
+    deletedBy: string | null;
+}
+
+/**
  * Request body shape for creating a franchise.
  */
 export interface ICreateFranchiseRequest {
@@ -127,9 +144,7 @@ export interface ICreateFranchiseRequest {
         pinCode?: string;
         outletName?: string;
     };
-    documentFiles?: Express.Multer.File[];
-    documentTypeUids?: string[];
-    documentNumbers?: string[];
+    serviceAreaCityUids?: string[];
 }
 
 /**
@@ -164,10 +179,7 @@ export interface IUpdateFranchiseRequest {
         pinCode?: string;
         outletName?: string;
     };
-    documentFiles?: Express.Multer.File[];
-    documentTypeUids?: string[];
-    documentNumbers?: string[];
-    deleteDocumentUids?: string[];
+    serviceAreaCityUids?: string[];
 }
 
 /**
@@ -196,6 +208,7 @@ export interface IFranchiseSafe {
     isActive: number;
     isDeleted: number;
     createdAt: Date;
+    totalAssignedCities?: number;
 }
 
 /**
@@ -214,6 +227,16 @@ export interface IFranchiseDocumentSafe {
 }
 
 /**
+ * Detailed Franchise Service Area response.
+ */
+export interface IFranchiseServiceAreaDetail {
+    cityUid: string;
+    cityName: string;
+    districtName: string;
+    stateName: string;
+}
+
+/**
  * Full franchise detail response (tenant + owner + business + documents).
  */
 export interface IFranchiseDetail {
@@ -221,6 +244,7 @@ export interface IFranchiseDetail {
     owner: Omit<IFranchiseOwnerDetails, "id"> | null;
     business: Omit<IFranchiseBusinessDetails, "id"> | null;
     documents: IFranchiseDocumentSafe[];
+    serviceAreas?: IFranchiseServiceAreaDetail[];
 }
 
 /**

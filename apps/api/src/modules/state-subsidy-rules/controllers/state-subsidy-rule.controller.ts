@@ -13,7 +13,11 @@ export class StateSubsidyRuleController {
     public createRule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const rule = await this.service.createRule(req.body, authReq.user.uid, authReq.tenantUid);
+            const payload = {
+                ...req.body,
+                state_uid: req.body.stateUid !== undefined ? (req.body.stateUid === "All" ? null : req.body.stateUid) : undefined,
+            };
+            const rule = await this.service.createRule(payload, authReq.user.uid, authReq.tenantUid);
             res.status(201).json({
                 success: true,
                 message: STATE_SUBSIDY_RULE_MESSAGES.CREATED,
@@ -28,7 +32,11 @@ export class StateSubsidyRuleController {
         try {
             const uid = req.params.uid as string;
             const authReq = req as IAuthenticatedRequest;
-            const rule = await this.service.updateRule(uid, req.body, authReq.user.uid, authReq.tenantUid);
+            const payload = {
+                ...req.body,
+                state_uid: req.body.stateUid !== undefined ? (req.body.stateUid === "All" ? null : req.body.stateUid) : undefined,
+            };
+            const rule = await this.service.updateRule(uid, payload, authReq.user.uid, authReq.tenantUid);
             res.status(200).json({
                 success: true,
                 message: STATE_SUBSIDY_RULE_MESSAGES.UPDATED,

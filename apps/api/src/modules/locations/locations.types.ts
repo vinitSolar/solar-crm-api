@@ -17,29 +17,6 @@ export interface District {
     updated_at: Date;
 }
 
-export interface Subdistrict {
-    id: number;
-    uid: string;
-    code: number;
-    state_id: number;
-    district_id: number;
-    name: string;
-    created_at: Date;
-    updated_at: Date;
-}
-
-export interface Village {
-    id: number;
-    uid: string;
-    code: number;
-    state_id: number;
-    district_id: number;
-    subdistrict_id: number;
-    name: string;
-    pincode: number | null;
-    created_at: Date;
-    updated_at: Date;
-}
 
 export interface City {
     id: number;

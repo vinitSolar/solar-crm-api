@@ -22,9 +22,8 @@ export class FranchiseController {
         try {
             const authReq = req as IAuthenticatedRequest;
             
-            const files = req.files as Express.Multer.File[] | undefined;
-            if (files) {
-                req.body.documentFiles = files.filter(f => f.fieldname === "documentFiles");
+            if (req.body.service_area_city_uids) {
+                req.body.serviceAreaCityUids = req.body.service_area_city_uids;
             }
             
             const data = req.body as ICreateFranchiseRequest;
@@ -109,10 +108,8 @@ export class FranchiseController {
         try {
             const authReq = req as IAuthenticatedRequest;
             const uid = req.params.uid as string;
-            
-            const files = req.files as Express.Multer.File[] | undefined;
-            if (files) {
-                req.body.documentFiles = files.filter(f => f.fieldname === "documentFiles");
+            if (req.body.service_area_city_uids) {
+                req.body.serviceAreaCityUids = req.body.service_area_city_uids;
             }
 
             const data = req.body as IUpdateFranchiseRequest;
@@ -242,6 +239,27 @@ export class FranchiseController {
                 success: true,
                 message: "Document added successfully",
                 data: document,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    /**
+     * Get service areas for a specific franchise.
+     */
+    getServiceAreas = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const uid = req.params.uid as string;
+            logger.info("FranchiseController.getServiceAreas", { uid, userUid: authReq.user.uid });
+
+            const serviceAreas = await this.franchiseService.getServiceAreas(uid);
+
+            res.status(200).json({
+                success: true,
+                message: "Service areas fetched successfully.",
+                data: serviceAreas,
             });
         } catch (error) {
             next(error);

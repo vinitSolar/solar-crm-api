@@ -81,6 +81,13 @@ export class FranchiseService {
         try {
             await client.query("BEGIN");
 
+            if (data.serviceAreaCityUids && data.serviceAreaCityUids.length > 0) {
+                const assignedCities = await this.franchiseRepository.checkCityAssignments(client, data.serviceAreaCityUids);
+                if (assignedCities.length > 0) {
+                    throw new CustomError("This city is already assigned to another franchise.", 409);
+                }
+            }
+
             const tenant = await this.franchiseRepository.createTenant(client, data.franchise, createdBy);
             logger.info("FranchiseService.createFranchise — tenant created", { tenantUid: tenant.uid });
 
@@ -90,50 +97,9 @@ export class FranchiseService {
             await this.franchiseRepository.createBusinessDetails(client, tenant.uid, data.business, createdBy);
             logger.info("FranchiseService.createFranchise — business details created", { tenantUid: tenant.uid });
 
-            // Process Document Uploads
-            if (data.documentFiles && data.documentFiles.length > 0) {
-                const typeUids = data.documentTypeUids || [];
-                const numbers = data.documentNumbers || [];
-
-                for (let i = 0; i < data.documentFiles.length; i++) {
-                    const file = data.documentFiles[i];
-                    const docTypeUid = typeUids[i];
-                    const docNumber = numbers[i];
-
-                    if (!file || !docTypeUid) continue;
-
-                    const docType = await this.documentTypeRepo.getByUid(tenant.uid, docTypeUid, client);
-                    if (!docType) continue;
-
-                    // If allow_multiple is 0, we might want to enforce it even on create if they upload duplicates,
-                    // but we'll handle the strict cleanup on updates.
-
-                    const folder = `franchises/${tenant.uid}/documents`;
-                    const { url: fileUrl, path: storedFileName } = await this.storageService.uploadFileWithPath(
-                        file.buffer,
-                        file.originalname,
-                        file.mimetype,
-                        folder
-                    );
-
-                    const docData: any = {
-                        originalFileName: file.originalname,
-                        storedFileName,
-                        filePath: fileUrl,
-                        mimeType: file.mimetype,
-                        fileSize: file.size,
-                    };
-                    if (docNumber) docData.documentNumber = docNumber;
-
-                    await this.franchiseRepository.createDocument(
-                        client,
-                        tenant.uid,
-                        docTypeUid,
-                        docData,
-                        createdBy
-                    );
-                }
-                logger.info("FranchiseService.createFranchise — documents processed", { tenantUid: tenant.uid });
+            if (data.serviceAreaCityUids && data.serviceAreaCityUids.length > 0) {
+                await this.franchiseRepository.insertServiceAreas(client, tenant.uid, data.serviceAreaCityUids, createdBy);
+                logger.info("FranchiseService.createFranchise — service areas created", { tenantUid: tenant.uid });
             }
 
             await client.query("COMMIT");
@@ -198,6 +164,7 @@ export class FranchiseService {
         const owner = await this.franchiseRepository.getOwnerDetailsByTenantUid(uid);
         const business = await this.franchiseRepository.getBusinessDetailsByTenantUid(uid);
         const rawDocs = await this.franchiseRepository.getDocumentsByTenantUid(uid);
+        const serviceAreas = await this.franchiseRepository.getServiceAreasByTenantUid(uid);
 
         const documents = rawDocs.map(doc => {
             const safeDoc = toFranchiseDocumentSafe(doc);
@@ -210,7 +177,17 @@ export class FranchiseService {
             owner: owner ? toOwnerDetailsSafe(owner) : null,
             business: business ? toBusinessDetailsSafe(business) : null,
             documents,
+            serviceAreas,
         };
+    }
+
+    async getServiceAreas(uid: string) {
+        logger.info("FranchiseService.getServiceAreas", { uid });
+        const existingTenant = await this.franchiseRepository.getFranchiseByUid(uid);
+        if (!existingTenant) {
+            throw new CustomError(FRANCHISE_MESSAGES.NOT_FOUND, 404);
+        }
+        return this.franchiseRepository.getServiceAreasByTenantUid(uid);
     }
 
     // ─── Update ─────────────────────────────────────────────────────
@@ -242,59 +219,25 @@ export class FranchiseService {
                 await this.franchiseRepository.updateBusinessDetails(client, uid, data.business, updatedBy);
             }
 
-            // Document Deletions
-            if (data.deleteDocumentUids && data.deleteDocumentUids.length > 0) {
-                await this.franchiseRepository.softDeleteDocuments(client, uid, data.deleteDocumentUids, updatedBy);
-            }
+            // Service Areas Update
+            if (data.serviceAreaCityUids) {
+                const existingServiceAreas = await this.franchiseRepository.getServiceAreasByTenantUid(uid);
+                const existingCityUids = existingServiceAreas.map(sa => sa.cityUid);
 
-            // Document Uploads
-            if (data.documentFiles && data.documentFiles.length > 0) {
-                const typeUids = data.documentTypeUids || [];
-                const numbers = data.documentNumbers || [];
+                const newCityUids = data.serviceAreaCityUids;
+                const toAdd = newCityUids.filter(cityUid => !existingCityUids.includes(cityUid));
+                const toRemove = existingCityUids.filter(cityUid => !newCityUids.includes(cityUid));
 
-                for (let i = 0; i < data.documentFiles.length; i++) {
-                    const file = data.documentFiles[i];
-                    const docTypeUid = typeUids[i];
-                    const docNumber = numbers[i];
-
-                    if (!file || !docTypeUid) continue;
-
-                    const docType = await this.documentTypeRepo.getByUid(uid, docTypeUid, client);
-                    if (!docType) continue;
-
-                    // If allow_multiple = 0, replace existing
-                    if (docType.allowMultiple === 0) {
-                        const existingDocs = await this.franchiseRepository.getDocumentsByTenantAndType(client, uid, docTypeUid);
-                        const existingUids = existingDocs.map(d => d.uid);
-                        if (existingUids.length > 0) {
-                            await this.franchiseRepository.softDeleteDocuments(client, uid, existingUids, updatedBy);
-                        }
+                if (toAdd.length > 0) {
+                    const assignedCities = await this.franchiseRepository.checkCityAssignments(client, toAdd, uid);
+                    if (assignedCities.length > 0) {
+                        throw new CustomError("This city is already assigned to another franchise.", 409);
                     }
+                    await this.franchiseRepository.insertServiceAreas(client, uid, toAdd, updatedBy);
+                }
 
-                    const folder = `franchises/${uid}/documents`;
-                    const { url: fileUrl, path: storedFileName } = await this.storageService.uploadFileWithPath(
-                        file.buffer,
-                        file.originalname,
-                        file.mimetype,
-                        folder
-                    );
-
-                    const docData: any = {
-                        originalFileName: file.originalname,
-                        storedFileName,
-                        filePath: fileUrl,
-                        mimeType: file.mimetype,
-                        fileSize: file.size,
-                    };
-                    if (docNumber) docData.documentNumber = docNumber;
-
-                    await this.franchiseRepository.createDocument(
-                        client,
-                        uid,
-                        docTypeUid,
-                        docData,
-                        updatedBy
-                    );
+                if (toRemove.length > 0) {
+                    await this.franchiseRepository.softDeleteSpecificServiceAreas(client, uid, toRemove, updatedBy);
                 }
             }
 
@@ -304,6 +247,7 @@ export class FranchiseService {
             const owner = await this.franchiseRepository.getOwnerDetailsByTenantUid(uid);
             const business = await this.franchiseRepository.getBusinessDetailsByTenantUid(uid);
             const rawDocs = await this.franchiseRepository.getDocumentsByTenantUid(uid);
+            const serviceAreas = await this.franchiseRepository.getServiceAreasByTenantUid(uid);
 
             const documents = rawDocs.map(doc => {
                 const safeDoc = toFranchiseDocumentSafe(doc);
@@ -316,6 +260,7 @@ export class FranchiseService {
                 owner: owner ? toOwnerDetailsSafe(owner) : null,
                 business: business ? toBusinessDetailsSafe(business) : null,
                 documents,
+                serviceAreas,
             };
         } catch (error) {
             await client.query("ROLLBACK");

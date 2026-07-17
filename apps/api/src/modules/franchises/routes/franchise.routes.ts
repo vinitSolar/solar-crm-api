@@ -251,33 +251,25 @@ function createFranchiseRouter(): Router {
      *     requestBody:
      *       required: true
      *       content:
-     *         multipart/form-data:
+     *         application/json:
      *           schema:
      *             type: object
      *             properties:
      *               franchise:
-     *                 type: string
-     *                 description: JSON stringified franchise object (name, code, email, mobile)
+     *                 type: object
+     *                 description: Franchise object details
      *               owner:
-     *                 type: string
-     *                 description: JSON stringified owner object (fullName, dateOfBirth, mobileNumber, email, etc)
+     *                 type: object
+     *                 description: Owner object details
      *               business:
-     *                 type: string
-     *                 description: JSON stringified business object (businessName, gstNumber, panNumber, etc)
-     *               documentFiles:
+     *                 type: object
+     *                 description: Business object details
+     *               service_area_city_uids:
      *                 type: array
      *                 items:
      *                   type: string
-     *                   format: binary
-     *               documentTypeUids:
-     *                 type: array
-     *                 items:
-     *                   type: string
-     *               documentNumbers:
-     *                 type: array
-     *                 items:
-     *                   type: string
-
+     *                   format: uuid
+     *
      *     responses:
      *       201:
      *         description: Franchise created successfully
@@ -316,7 +308,6 @@ function createFranchiseRouter(): Router {
      */
     router.post(
         "/",
-        upload.any(),
         validateFranchiseRequest(createFranchiseSchema),
         franchiseController.createFranchise,
     );
@@ -344,36 +335,24 @@ function createFranchiseRouter(): Router {
      *     requestBody:
      *       required: true
      *       content:
-     *         multipart/form-data:
+     *         application/json:
      *           schema:
      *             type: object
      *             properties:
      *               franchise:
-     *                 type: string
-     *                 description: JSON stringified franchise object
+     *                 type: object
+     *                 description: Franchise object details
      *               owner:
-     *                 type: string
-     *                 description: JSON stringified owner object
+     *                 type: object
+     *                 description: Owner object details
      *               business:
-     *                 type: string
-     *                 description: JSON stringified business object
-     *               documentFiles:
+     *                 type: object
+     *                 description: Business object details
+     *               service_area_city_uids:
      *                 type: array
      *                 items:
      *                   type: string
-     *                   format: binary
-     *               documentTypeUids:
-     *                 type: array
-     *                 items:
-     *                   type: string
-     *               documentNumbers:
-     *                 type: array
-     *                 items:
-     *                   type: string
-     *               deleteDocumentUids:
-     *                 type: array
-     *                 items:
-     *                   type: string
+     *                   format: uuid
      *     responses:
      *       200:
      *         description: Franchise updated successfully
@@ -386,7 +365,6 @@ function createFranchiseRouter(): Router {
      */
     router.put(
         "/:uid",
-        upload.any(),
         validateFranchiseRequest(updateFranchiseSchema),
         franchiseController.updateFranchise,
     );
@@ -546,6 +524,37 @@ function createFranchiseRouter(): Router {
         upload.single("documentFile"),
         validateFranchiseRequest(addFranchiseDocumentSchema),
         franchiseController.addDocument,
+    );
+
+    /**
+     * @swagger
+     * /franchises/{uid}/service-areas:
+     *   get:
+     *     tags: [Franchises]
+     *     summary: Get service areas for a franchise
+     *     description: Retrieves the list of cities assigned to a specific franchise.
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *         description: The franchise UID
+     *     responses:
+     *       200:
+     *         description: Service areas fetched successfully
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Franchise not found
+     */
+    router.get(
+        "/:uid/service-areas",
+        validateFranchiseRequest(getFranchiseSchema),
+        franchiseController.getServiceAreas,
     );
 
     return router;

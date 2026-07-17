@@ -250,7 +250,9 @@ export class FranchiseRepository {
         params.push(limit, offset);
 
         const result = await this.pool.query(
-            `SELECT ${TENANT_COLUMNS} FROM tenants
+            `SELECT ${TENANT_COLUMNS},
+                (SELECT COUNT(*)::int FROM franchise_service_areas fsa WHERE fsa.tenant_uid = tenants.uid AND fsa.is_deleted = 0) AS "totalAssignedCities"
+             FROM tenants
              WHERE ${whereClause}
              ORDER BY created_at DESC
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -542,5 +544,75 @@ export class FranchiseRepository {
             [tenantUid, documentTypeUid]
         );
         return result.rows as IFranchiseDocument[];
+    }
+
+    // ─── Service Areas ──────────────────────────────────────────────
+
+    /**
+     * Checks if any of the provided city UIDs are already assigned to an active franchise.
+     * Optionally excludes a specific tenant UID (useful during updates).
+     * Returns an array of city UIDs that are already assigned.
+     */
+    async checkCityAssignments(client: PoolClient, cityUids: string[], excludeTenantUid?: string): Promise<string[]> {
+        if (!cityUids || cityUids.length === 0) return [];
+
+        const params: any[] = [cityUids];
+        let query = `SELECT city_uid FROM franchise_service_areas WHERE city_uid = ANY($1) AND is_deleted = 0`;
+
+        if (excludeTenantUid) {
+            params.push(excludeTenantUid);
+            query += ` AND tenant_uid != $2`;
+        }
+
+        const result = await client.query(query, params);
+        return result.rows.map(row => row.city_uid);
+    }
+
+    /**
+     * Inserts multiple service areas for a franchise.
+     */
+    async insertServiceAreas(client: PoolClient, tenantUid: string, cityUids: string[], createdBy: string): Promise<void> {
+        if (!cityUids || cityUids.length === 0) return;
+
+        const values = cityUids.map(cityUid => {
+            return `('${uuidv4()}', '${tenantUid}', '${cityUid}', '${createdBy}')`;
+        }).join(", ");
+
+        await client.query(
+            `INSERT INTO franchise_service_areas (uid, tenant_uid, city_uid, created_by) VALUES ${values}`
+        );
+    }
+
+    /**
+     * Soft deletes specific service areas by city UIDs.
+     */
+    async softDeleteSpecificServiceAreas(client: PoolClient, tenantUid: string, cityUids: string[], deletedBy: string): Promise<void> {
+        if (!cityUids || cityUids.length === 0) return;
+        await client.query(
+            `UPDATE franchise_service_areas 
+             SET is_deleted = 1, deleted_by = $1, is_active = 0, updated_at = CURRENT_TIMESTAMP
+             WHERE tenant_uid = $2 AND city_uid = ANY($3) AND is_deleted = 0`,
+            [deletedBy, tenantUid, cityUids]
+        );
+    }
+
+    /**
+     * Gets service areas for a specific franchise, including location names.
+     */
+    async getServiceAreasByTenantUid(tenantUid: string): Promise<any[]> {
+        const result = await this.pool.query(
+            `SELECT 
+                fsa.city_uid AS "cityUid",
+                c.name AS "cityName",
+                d.name AS "districtName",
+                s.name AS "stateName"
+             FROM franchise_service_areas fsa
+             JOIN cities c ON fsa.city_uid = c.uid
+             LEFT JOIN districts d ON c.district_uid = d.uid
+             JOIN states s ON c.state_uid = s.uid
+             WHERE fsa.tenant_uid = $1 AND fsa.is_deleted = 0`,
+            [tenantUid]
+        );
+        return result.rows;
     }
 }

@@ -139,6 +139,8 @@ router.get("/:uid", controller.getRuleByUid);
  *           schema:
  *             type: object
  *             properties:
+ *               stateUid:
+ *                 type: string
  *               state:
  *                 type: string
  *               subsidyPerKw:
@@ -174,6 +176,8 @@ router.post("/", validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), 
  *           schema:
  *             type: object
  *             properties:
+ *               stateUid:
+ *                 type: string
  *               state:
  *                 type: string
  *               subsidyPerKw:

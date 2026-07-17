@@ -50,46 +50,6 @@ router.get('/states/:uid/districts', locationsController.getDistrictsByState);
 
 /**
  * @swagger
- * /api/v1/locations/districts/{uid}/subdistricts:
- *   get:
- *     summary: Get subdistricts by district ID
- *     tags: [Locations]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Successfully retrieved subdistricts
- */
-router.get('/districts/:uid/subdistricts', locationsController.getSubdistrictsByDistrict);
-
-/**
- * @swagger
- * /api/v1/locations/subdistricts/{uid}/villages:
- *   get:
- *     summary: Get villages by subdistrict ID
- *     tags: [Locations]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Successfully retrieved villages
- */
-router.get('/subdistricts/:uid/villages', locationsController.getVillagesBySubdistrict);
-
-/**
- * @swagger
  * /api/v1/locations/states/{uid}/cities:
  *   get:
  *     summary: Get cities by state ID
@@ -107,5 +67,25 @@ router.get('/subdistricts/:uid/villages', locationsController.getVillagesBySubdi
  *         description: Successfully retrieved cities
  */
 router.get('/states/:uid/cities', locationsController.getCitiesByState);
+
+/**
+ * @swagger
+ * /api/v1/locations/districts/{uid}/cities:
+ *   get:
+ *     summary: Get cities by district ID
+ *     tags: [Locations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: uid
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved cities
+ */
+router.get('/districts/:uid/cities', locationsController.getCitiesByDistrict);
 
 export default router;

@@ -15,6 +15,7 @@ export class StateSubsidyRuleService {
     private sanitize(rule: IStateSubsidyRule): IStateSubsidyRuleSafe {
         return {
             uid: rule.uid,
+            stateUid: rule.state_uid,
             state: rule.state,
             subsidyPerKw: Number(rule.subsidy_per_kw),
             maximumSubsidyAmount: Number(rule.maximum_subsidy_amount),

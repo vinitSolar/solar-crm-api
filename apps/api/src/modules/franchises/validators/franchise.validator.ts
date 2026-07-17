@@ -43,7 +43,7 @@ const parseArrayPreprocess = (val: unknown) => {
 
 export const createFranchiseSchema = z.object({
     body: z.object({
-        franchise: z.preprocess(parseJsonPreprocess, z.object({
+        franchise: z.object({
             name: z.string()
                 .min(2, FRANCHISE_MESSAGES.INVALID_NAME)
                 .max(255, FRANCHISE_MESSAGES.INVALID_NAME),
@@ -53,8 +53,8 @@ export const createFranchiseSchema = z.object({
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
             mobile: z.string().max(20, FRANCHISE_MESSAGES.INVALID_MOBILE).optional(),
             logo: z.string().max(500).optional(),
-        })),
-        owner: z.preprocess(parseJsonPreprocess, z.object({
+        }),
+        owner: z.object({
             fullName: z.string()
                 .min(2, FRANCHISE_MESSAGES.OWNER_FULL_NAME_REQUIRED)
                 .max(255, FRANCHISE_MESSAGES.OWNER_FULL_NAME_REQUIRED),
@@ -66,8 +66,8 @@ export const createFranchiseSchema = z.object({
             alternateNumber: z.string().max(20).optional(),
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
             residentialAddress: z.string().optional(),
-        })),
-        business: z.preprocess(parseJsonPreprocess, z.object({
+        }),
+        business: z.object({
             businessName: z.string()
                 .min(2, FRANCHISE_MESSAGES.BUSINESS_NAME_REQUIRED)
                 .max(255, FRANCHISE_MESSAGES.BUSINESS_NAME_REQUIRED),
@@ -85,9 +85,8 @@ export const createFranchiseSchema = z.object({
             state: z.string().max(100).optional(),
             pinCode: z.string().max(10).optional(),
             outletName: z.string().max(255).optional(),
-        })),
-        documentTypeUids: z.preprocess(parseArrayPreprocess, z.array(z.string().uuid("Invalid Document Type UID"))).optional(),
-        documentNumbers: z.preprocess(parseArrayPreprocess, z.array(z.string())).optional(),
+        }),
+        serviceAreaCityUids: z.preprocess(parseArrayPreprocess, z.array(z.string().uuid("Invalid City UID"))).optional(),
     }),
 });
 
@@ -98,13 +97,13 @@ export const updateFranchiseSchema = z.object({
         uid: z.string().uuid(FRANCHISE_MESSAGES.INVALID_UID),
     }),
     body: z.object({
-        franchise: z.preprocess(parseJsonPreprocess, z.object({
+        franchise: z.object({
             name: z.string().min(2, FRANCHISE_MESSAGES.INVALID_NAME).max(255, FRANCHISE_MESSAGES.INVALID_NAME).optional(),
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
             mobile: z.string().max(20, FRANCHISE_MESSAGES.INVALID_MOBILE).optional(),
             logo: z.string().max(500).optional(),
-        }).optional()),
-        owner: z.preprocess(parseJsonPreprocess, z.object({
+        }).optional(),
+        owner: z.object({
             fullName: z.string().min(2, FRANCHISE_MESSAGES.OWNER_FULL_NAME_REQUIRED).max(255).optional(),
             dateOfBirth: z.string().optional(),
             profilePhoto: z.string().max(500).optional(),
@@ -112,8 +111,8 @@ export const updateFranchiseSchema = z.object({
             alternateNumber: z.string().max(20).optional(),
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
             residentialAddress: z.string().optional(),
-        }).optional()),
-        business: z.preprocess(parseJsonPreprocess, z.object({
+        }).optional(),
+        business: z.object({
             businessName: z.string().min(2, FRANCHISE_MESSAGES.BUSINESS_NAME_REQUIRED).max(255).optional(),
             gstNumber: z.string().regex(GST_REGEX, FRANCHISE_MESSAGES.GST_NUMBER_INVALID).optional(),
             panNumber: z.string().regex(PAN_REGEX, FRANCHISE_MESSAGES.PAN_NUMBER_INVALID).optional(),
@@ -125,11 +124,9 @@ export const updateFranchiseSchema = z.object({
             state: z.string().max(100).optional(),
             pinCode: z.string().max(10).optional(),
             outletName: z.string().max(255).optional(),
-        }).optional()),
-        documentTypeUids: z.preprocess(parseArrayPreprocess, z.array(z.string().uuid("Invalid Document Type UID"))).optional(),
-        documentNumbers: z.preprocess(parseArrayPreprocess, z.array(z.string())).optional(),
-        deleteDocumentUids: z.preprocess(parseArrayPreprocess, z.array(z.string().uuid("Invalid Document UID"))).optional(),
-    }).refine(data => data.franchise || data.owner || data.business || (data.documentTypeUids && data.documentTypeUids.length > 0) || (data.deleteDocumentUids && data.deleteDocumentUids.length > 0), {
+        }).optional(),
+        serviceAreaCityUids: z.preprocess(parseArrayPreprocess, z.array(z.string().uuid("Invalid City UID"))).optional(),
+    }).refine(data => data.franchise || data.owner || data.business || (data.serviceAreaCityUids && data.serviceAreaCityUids.length > 0), {
         message: FRANCHISE_MESSAGES.UPDATE_NO_FIELDS,
     }),
 });

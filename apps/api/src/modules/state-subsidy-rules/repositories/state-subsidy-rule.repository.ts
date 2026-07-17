@@ -14,13 +14,14 @@ export class StateSubsidyRuleRepository {
         
         const query = `
             INSERT INTO state_subsidy_rules 
-            (uid, state, subsidy_per_kw, maximum_subsidy_amount, description, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            (uid, state_uid, state, subsidy_per_kw, maximum_subsidy_amount, description, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
         `;
         
         const values = [
             uid,
+            data.state_uid || null,
             data.state,
             data.subsidy_per_kw,
             data.maximum_subsidy_amount,
@@ -70,6 +71,10 @@ export class StateSubsidyRuleRepository {
         if (data.state !== undefined) {
             setClause.push(`state = $${index++}`);
             values.push(data.state);
+        }
+        if (data.state_uid !== undefined) {
+            setClause.push(`state_uid = $${index++}`);
+            values.push(data.state_uid);
         }
         if (data.subsidy_per_kw !== undefined) {
             setClause.push(`subsidy_per_kw = $${index++}`);
@@ -157,7 +162,7 @@ export class StateSubsidyRuleRepository {
 
     public async getDropdown(): Promise<IStateSubsidyRuleDropdown[]> {
         const query = `
-            SELECT uid, state 
+            SELECT uid, state_uid AS "stateUid", state 
             FROM state_subsidy_rules 
             WHERE is_active = 1 AND is_deleted = 0
             ORDER BY state ASC

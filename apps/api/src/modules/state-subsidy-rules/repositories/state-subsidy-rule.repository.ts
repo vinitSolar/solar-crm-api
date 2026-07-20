@@ -14,15 +14,14 @@ export class StateSubsidyRuleRepository {
         
         const query = `
             INSERT INTO state_subsidy_rules 
-            (uid, state_uid, state, subsidy_per_kw, maximum_subsidy_amount, description, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (uid, state_uid, subsidy_per_kw, maximum_subsidy_amount, description, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
         `;
         
         const values = [
             uid,
             data.state_uid || null,
-            data.state,
             data.subsidy_per_kw,
             data.maximum_subsidy_amount,
             data.description || null,
@@ -43,23 +42,33 @@ export class StateSubsidyRuleRepository {
         return result.rows[0] || null;
     }
 
-    public async findByState(state: string): Promise<IStateSubsidyRule | null> {
-        const query = `
-            SELECT * FROM state_subsidy_rules 
-            WHERE state = $1
-        `;
-        const result = await this.pool.query<IStateSubsidyRule>(query, [state]);
+    public async findByStateUid(stateUid: string | null): Promise<IStateSubsidyRule | null> {
+        let query;
+        const params = [];
+        if (stateUid) {
+            query = `
+                SELECT * FROM state_subsidy_rules 
+                WHERE state_uid = $1
+            `;
+            params.push(stateUid);
+        } else {
+            query = `
+                SELECT * FROM state_subsidy_rules 
+                WHERE state_uid IS NULL
+            `;
+        }
+        const result = await this.pool.query<IStateSubsidyRule>(query, params);
         return result.rows[0] || null;
     }
 
-    public async findByStateOrAll(state: string): Promise<IStateSubsidyRule[]> {
+    public async findByStateUidOrAll(stateUid: string): Promise<IStateSubsidyRule[]> {
         const query = `
             SELECT * FROM state_subsidy_rules 
-            WHERE (state ILIKE $1 OR state ILIKE 'All States' OR state ILIKE 'Central' OR state ILIKE 'National')
+            WHERE (state_uid = $1 OR state_uid IS NULL)
             AND is_active = 1 AND is_deleted = 0
-            ORDER BY state ASC
+            ORDER BY state_uid ASC
         `;
-        const result = await this.pool.query<IStateSubsidyRule>(query, [state]);
+        const result = await this.pool.query<IStateSubsidyRule>(query, [stateUid]);
         return result.rows;
     }
 
@@ -68,10 +77,6 @@ export class StateSubsidyRuleRepository {
         const values: any[] = [];
         let index = 1;
 
-        if (data.state !== undefined) {
-            setClause.push(`state = $${index++}`);
-            values.push(data.state);
-        }
         if (data.state_uid !== undefined) {
             setClause.push(`state_uid = $${index++}`);
             values.push(data.state_uid);
@@ -129,7 +134,7 @@ export class StateSubsidyRuleRepository {
         }
 
         if (search) {
-            whereClauses.push(`state ILIKE $${index++}`);
+            whereClauses.push(`state_uid ILIKE $${index++}`);
             values.push(`%${search}%`);
         }
 
@@ -145,7 +150,7 @@ export class StateSubsidyRuleRepository {
             SELECT * 
             FROM state_subsidy_rules 
             ${whereString}
-            ORDER BY state ASC, created_at DESC
+            ORDER BY created_at DESC
             LIMIT $${index++} OFFSET $${index++}
         `;
 
@@ -162,10 +167,10 @@ export class StateSubsidyRuleRepository {
 
     public async getDropdown(): Promise<IStateSubsidyRuleDropdown[]> {
         const query = `
-            SELECT uid, state_uid AS "stateUid", state 
+            SELECT uid, state_uid AS "stateUid" 
             FROM state_subsidy_rules 
             WHERE is_active = 1 AND is_deleted = 0
-            ORDER BY state ASC
+            ORDER BY state_uid ASC
         `;
         const result = await this.pool.query<IStateSubsidyRuleDropdown>(query);
         return result.rows;

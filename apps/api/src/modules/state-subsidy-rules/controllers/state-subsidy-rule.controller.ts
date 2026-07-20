@@ -61,10 +61,10 @@ export class StateSubsidyRuleController {
         }
     };
 
-    public getRulesByState = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    public getRulesByStateUid = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const state = req.params.state as string;
-            const rules = await this.service.getRulesByState(state);
+            const stateUid = req.params.stateUid as string;
+            const rules = await this.service.getRulesByStateUid(stateUid);
             res.status(200).json({
                 success: true,
                 message: STATE_SUBSIDY_RULE_MESSAGES.FETCHED,

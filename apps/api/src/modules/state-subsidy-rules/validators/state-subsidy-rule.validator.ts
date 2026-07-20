@@ -7,10 +7,9 @@ import type { Request, Response, NextFunction } from "express";
  */
 export const createStateSubsidyRuleSchema = z.object({
     body: z.object({
-        stateUid: z.string().optional().nullable(),
-        state: z.string({
-            message: STATE_SUBSIDY_RULE_MESSAGES.STATE_REQUIRED,
-        }).min(2, STATE_SUBSIDY_RULE_MESSAGES.STATE_REQUIRED).max(255),
+        stateUid: z.string({
+            message: STATE_SUBSIDY_RULE_MESSAGES.STATE_UID_REQUIRED,
+        }).min(1, STATE_SUBSIDY_RULE_MESSAGES.STATE_UID_REQUIRED).max(255),
         subsidyPerKw: z.number({
             message: STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID,
         }).min(0, STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID),
@@ -26,8 +25,7 @@ export const createStateSubsidyRuleSchema = z.object({
  */
 export const updateStateSubsidyRuleSchema = z.object({
     body: z.object({
-        stateUid: z.string().optional().nullable(),
-        state: z.string().min(2, STATE_SUBSIDY_RULE_MESSAGES.STATE_REQUIRED).max(255).optional(),
+        stateUid: z.string().min(1, STATE_SUBSIDY_RULE_MESSAGES.STATE_UID_REQUIRED).max(255).optional(),
         subsidyPerKw: z.number().min(0, STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID).optional(),
         maximumSubsidyAmount: z.number().min(0, STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID).optional(),
         description: z.string().optional(),

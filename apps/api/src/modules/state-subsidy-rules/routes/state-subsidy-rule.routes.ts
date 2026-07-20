@@ -86,15 +86,15 @@ router.get("/dropdown", controller.getDropdownRules);
 
 /**
  * @swagger
- * /state-subsidy-rules/by-state/{state}:
+ * /state-subsidy-rules/by-state-uid/{stateUid}:
  *   get:
  *     tags: [StateSubsidyRules]
- *     summary: Get state subsidy rules by state name (includes 'All States' rules)
+ *     summary: Get state subsidy rules by state UID (includes 'All States' rules)
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: state
+ *         name: stateUid
  *         required: true
  *         schema:
  *           type: string
@@ -102,7 +102,7 @@ router.get("/dropdown", controller.getDropdownRules);
  *       200:
  *         description: State subsidy rules fetched successfully
  */
-router.get("/by-state/:state", controller.getRulesByState);
+router.get("/by-state-uid/:stateUid", controller.getRulesByStateUid);
 
 /**
  * @swagger
@@ -141,8 +141,6 @@ router.get("/:uid", controller.getRuleByUid);
  *             properties:
  *               stateUid:
  *                 type: string
- *               state:
- *                 type: string
  *               subsidyPerKw:
  *                 type: number
  *               maximumSubsidyAmount:
@@ -177,8 +175,6 @@ router.post("/", validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), 
  *             type: object
  *             properties:
  *               stateUid:
- *                 type: string
- *               state:
  *                 type: string
  *               subsidyPerKw:
  *                 type: number

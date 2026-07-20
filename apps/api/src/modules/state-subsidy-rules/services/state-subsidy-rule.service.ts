@@ -16,7 +16,6 @@ export class StateSubsidyRuleService {
         return {
             uid: rule.uid,
             stateUid: rule.state_uid,
-            state: rule.state,
             subsidyPerKw: Number(rule.subsidy_per_kw),
             maximumSubsidyAmount: Number(rule.maximum_subsidy_amount),
             description: rule.description,
@@ -42,13 +41,13 @@ export class StateSubsidyRuleService {
     public async createRule(data: Partial<IStateSubsidyRule>, userUid: string, tenantUid: string): Promise<IStateSubsidyRuleSafe> {
         await this.verifyHeadOffice(tenantUid);
 
-        if (!data.state) {
-            throw new CustomError(STATE_SUBSIDY_RULE_MESSAGES.STATE_REQUIRED, 400);
+        if (data.state_uid === undefined) {
+            throw new CustomError(STATE_SUBSIDY_RULE_MESSAGES.STATE_UID_REQUIRED, 400);
         }
 
-        const existing = await this.repository.findByState(data.state);
+        const existing = await this.repository.findByStateUid(data.state_uid || null);
         if (existing) {
-            throw new CustomError(STATE_SUBSIDY_RULE_MESSAGES.STATE_ALREADY_EXISTS, 400);
+            throw new CustomError(STATE_SUBSIDY_RULE_MESSAGES.STATE_UID_ALREADY_EXISTS, 400);
         }
 
         const rule = await this.repository.create(data, userUid);
@@ -63,10 +62,10 @@ export class StateSubsidyRuleService {
             throw new CustomError(STATE_SUBSIDY_RULE_MESSAGES.NOT_FOUND, 404);
         }
 
-        if (data.state && data.state.toLowerCase() !== existingRule.state.toLowerCase()) {
-            const stateExists = await this.repository.findByState(data.state);
+        if (data.state_uid !== undefined && data.state_uid !== existingRule.state_uid) {
+            const stateExists = await this.repository.findByStateUid(data.state_uid || null);
             if (stateExists && stateExists.uid !== uid) {
-                throw new CustomError(STATE_SUBSIDY_RULE_MESSAGES.STATE_ALREADY_EXISTS, 400);
+                throw new CustomError(STATE_SUBSIDY_RULE_MESSAGES.STATE_UID_ALREADY_EXISTS, 400);
             }
         }
 
@@ -82,8 +81,8 @@ export class StateSubsidyRuleService {
         return this.sanitize(rule);
     }
 
-    public async getRulesByState(state: string): Promise<IStateSubsidyRuleSafe[]> {
-        const rules = await this.repository.findByStateOrAll(state);
+    public async getRulesByStateUid(stateUid: string): Promise<IStateSubsidyRuleSafe[]> {
+        const rules = await this.repository.findByStateUidOrAll(stateUid);
         return rules.map(r => this.sanitize(r));
     }
 

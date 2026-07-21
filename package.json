@@ -10,7 +10,7 @@
     "dev": "tsx watch apps/api/src/server.ts",
     "start": "node dist/apps/api/src/server.js",
     "build": "tsc",
-    "seed:geonames": "tsx packages/database/seeds/seed_geonames.ts"
+    "seed:location": "tsx packages/database/seeds/seed_locations_from_json.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -40,9 +40,17 @@ export class LeadService {
         
         const finalStatusUid = defaultStatus.uid;
 
-        const createData = { ...data, statusUid: finalStatusUid };
-
         try {
+            const lastLeadNumber = await this.repository.getLastLeadNumber();
+            let nextLeadNumber = "SS00001";
+            
+            if (lastLeadNumber) {
+                const numStr = lastLeadNumber.replace("SS", "");
+                const nextNum = parseInt(numStr, 10) + 1;
+                nextLeadNumber = `SS${String(nextNum).padStart(5, "0")}`;
+            }
+
+            const createData = { ...data, statusUid: finalStatusUid, leadNumber: nextLeadNumber };
             const lead = await this.repository.create(tenantUid, createData, createdBy);
             return toLeadSafe(lead);
         } catch (error) {

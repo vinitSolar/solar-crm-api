@@ -128,6 +128,25 @@ export class SiteSurveyService {
         }
     }
 
+    async changeSiteSurveyStatus(tenantUid: string, uid: string, status: number, updatedBy: string): Promise<ISiteSurveySafe> {
+        const existing = await this.repository.getByUid(tenantUid, uid);
+        if (!existing) {
+            throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
+        }
+
+        if (status < 0 || status > 3) {
+            throw new CustomError(SITE_SURVEY_MESSAGES.INVALID_STATUS, 400);
+        }
+
+        try {
+            const updated = await this.repository.update(tenantUid, uid, { status }, updatedBy);
+            return toSiteSurveySafe(updated);
+        } catch (error) {
+            logger.error("SiteSurveyService.changeSiteSurveyStatus error", { error });
+            throw new CustomError(SITE_SURVEY_MESSAGES.UPDATE_FAILED, 500);
+        }
+    }
+
     async deleteSiteSurvey(tenantUid: string, uid: string, deletedBy: string): Promise<void> {
         const existing = await this.repository.getByUid(tenantUid, uid);
         if (!existing) {

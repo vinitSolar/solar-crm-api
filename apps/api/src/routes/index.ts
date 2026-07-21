@@ -21,6 +21,7 @@ import { quotationRoutes } from "../modules/quotations/index.js";
 import { franchiseDocumentTypeRoutes } from "../modules/franchise-document-types/index.js";
 import { locationsRoutes } from "../modules/locations/index.js";
 import { auditLogRoutes } from "../modules/audit-logs/index.js";
+import { projectRoutes, projectStatusRoutes } from "../modules/projects/index.js";
 
 const apiRouter = Router();
 
@@ -48,5 +49,7 @@ apiRouter.use("/quotation-scope-of-work", quotationScopeOfWorkRoutes);
 apiRouter.use("/quotations", quotationRoutes);
 apiRouter.use("/locations", locationsRoutes);
 apiRouter.use("/audit-logs", auditLogRoutes);
+apiRouter.use("/project-statuses", projectStatusRoutes);
+apiRouter.use("/projects", projectRoutes);
 
 export default apiRouter;

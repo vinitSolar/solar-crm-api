@@ -85,7 +85,53 @@ router.get('/states/:uid/cities', locationsController.getCitiesByState);
  *     responses:
  *       200:
  *         description: Successfully retrieved cities
+ *       400:
+ *         description: Invalid district uid
  */
 router.get('/districts/:uid/cities', locationsController.getCitiesByDistrict);
+
+/**
+ * @swagger
+ * /api/v1/locations/pincode/{pincode}/localities:
+ *   get:
+ *     summary: Get all localities (cities) by pincode
+ *     tags: [Locations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: pincode
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved localities
+ *       404:
+ *         description: No localities found
+ */
+router.get('/pincode/:pincode/localities', locationsController.getLocalitiesByPincode);
+
+/**
+ * @swagger
+ * /api/v1/locations/pincode/{pincode}:
+ *   get:
+ *     summary: Get location (city, district, state) by pincode
+ *     tags: [Locations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: pincode
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved location
+ *       404:
+ *         description: Location not found
+ */
+router.get('/pincode/:pincode', locationsController.getLocationByPincode);
 
 export default router;

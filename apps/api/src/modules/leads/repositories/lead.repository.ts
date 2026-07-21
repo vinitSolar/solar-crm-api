@@ -3,7 +3,7 @@ import type { ILead, ICreateLead, IUpdateLead } from "../interfaces/lead.interfa
 import { v4 as uuidv4 } from "uuid";
 
 const LEAD_COLUMNS = `
-    id, uid, tenant_uid AS "tenantUid", 
+    id, uid, tenant_uid AS "tenantUid", lead_number AS "leadNumber",
     first_name AS "firstName", last_name AS "lastName", 
     mobile_number AS "mobileNumber", alternate_number AS "alternateNumber", 
     email, address, state, city, pin_code AS "pinCode",
@@ -16,7 +16,7 @@ const LEAD_COLUMNS = `
 `;
 
 const LEAD_JOIN_COLUMNS = `
-    l.id, l.uid, l.tenant_uid AS "tenantUid", 
+    l.id, l.uid, l.tenant_uid AS "tenantUid", l.lead_number AS "leadNumber",
     l.first_name AS "firstName", l.last_name AS "lastName", 
     l.mobile_number AS "mobileNumber", l.alternate_number AS "alternateNumber", 
     l.email, l.address, l.state, l.city, l.pin_code AS "pinCode",
@@ -53,17 +53,17 @@ export class LeadRepository {
         const uid = uuidv4();
         const query = `
             INSERT INTO leads (
-                uid, tenant_uid, first_name, last_name, mobile_number, alternate_number, email, 
+                uid, tenant_uid, lead_number, first_name, last_name, mobile_number, alternate_number, email, 
                 address, state, city, pin_code, monthly_bill_amount, system_size, follow_up_date, 
                 lead_source_uid, status_uid, assigned_to, remarks, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
             )
             RETURNING ${LEAD_COLUMNS}
         `;
         const values = [
-            uid, tenantUid, data.firstName, data.lastName ?? null, data.mobileNumber, 
+            uid, tenantUid, data.leadNumber, data.firstName, data.lastName ?? null, data.mobileNumber, 
             data.alternateNumber ?? null, data.email ?? null, data.address ?? null, 
             data.state, data.city, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
             data.systemSize, data.followUpDate || null, data.leadSourceUid ?? null, 
@@ -77,6 +77,20 @@ export class LeadRepository {
         const created = result.rows[0] as ILead;
         if (!created) return created;
         return await this.getByUid(tenantUid, created.uid, client) as ILead;
+    }
+
+    async getLastLeadNumber(client?: PoolClient): Promise<string | null> {
+        const query = `
+            SELECT lead_number 
+            FROM leads 
+            WHERE lead_number LIKE 'SS%' 
+            ORDER BY id DESC 
+            LIMIT 1
+        `;
+        const result = client 
+            ? await client.query(query) 
+            : await this.pool.query(query);
+        return result.rows.length > 0 ? result.rows[0].lead_number : null;
     }
 
     async getByUid(tenantUid: string, uid: string, client?: PoolClient): Promise<ILead | null> {
@@ -111,6 +125,7 @@ export class LeadRepository {
             params.push(`%${search}%`);
             const searchIndex = params.length;
             whereClause += ` AND (
+                lead_number ILIKE $${searchIndex} OR
                 first_name ILIKE $${searchIndex} OR 
                 last_name ILIKE $${searchIndex} OR 
                 mobile_number ILIKE $${searchIndex} OR 

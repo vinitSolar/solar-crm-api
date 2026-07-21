@@ -24,6 +24,15 @@ export const updateSiteSurveySchema = z.object({
         }).optional(),
         status: z.number().int().min(0).max(3).optional(),
         remarks: z.string().optional(),
+}).strict(),
+});
+
+export const changeSiteSurveyStatusSchema = z.object({
+    params: z.object({
+        uid: z.string().uuid(SITE_SURVEY_VALIDATION_MESSAGES.UID_INVALID),
+    }),
+    body: z.object({
+        status: z.number().int().min(0).max(3),
     }).strict(),
 });
 

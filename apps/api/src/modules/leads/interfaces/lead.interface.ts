@@ -37,6 +37,7 @@ export interface ILead {
     id: string;
     uid: string;
     tenantUid: string;
+    leadNumber: string;
     firstName: string;
     lastName: string | null;
     mobileNumber: string;
@@ -96,6 +97,7 @@ export interface ICreateLeadStatus {
 export interface IUpdateLeadStatus extends Partial<ICreateLeadStatus> {}
 
 export interface ICreateLead {
+    leadNumber?: string;
     firstName: string;
     lastName: string;
     mobileNumber: string;
@@ -118,6 +120,7 @@ export interface IUpdateLead extends Partial<ICreateLead> {}
 
 export interface ILeadSafe {
     uid: string;
+    leadNumber: string;
     firstName: string;
     lastName: string | null;
     mobileNumber: string;

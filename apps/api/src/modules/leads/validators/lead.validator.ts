@@ -89,6 +89,15 @@ export const updateLeadSchema = z.object({
     }).strict(),
 });
 
+export const changeLeadStatusSchema = z.object({
+    params: z.object({
+        uid: z.string().uuid("Invalid UID format"),
+    }),
+    body: z.object({
+        statusUid: z.string({ message: "Status UID is required" }).uuid("Invalid lead status UID format"),
+    }).strict(),
+});
+
 export const getByUidSchema = z.object({
     params: z.object({
         uid: z.string().uuid("Invalid UID format"),

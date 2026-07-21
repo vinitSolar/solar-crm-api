@@ -12,6 +12,7 @@ import { UserRepository } from "../../users/repositories/user.repository.js";
 import {
     createSiteSurveySchema,
     updateSiteSurveySchema,
+    changeSiteSurveyStatusSchema,
     saveDetailsSchema,
     updateDetailsSchema,
     getByUidSchema,
@@ -231,6 +232,46 @@ function createSiteSurveyRouter(): Router {
         "/:uid",
         validateSiteSurveyRequest(updateSiteSurveySchema),
         controller.updateSiteSurvey,
+    );
+
+    /**
+     * @swagger
+     * /site-surveys/{uid}/status:
+     *   put:
+     *     tags: [Site Surveys]
+     *     summary: Change the status of a site survey
+     *     description: Updates only the status of an existing site survey.
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *           format: uuid
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               status:
+     *                 type: integer
+     *                 description: The new status of the site survey (0=Pending, 1=Completed, 2=Cancelled, 3=Rescheduled)
+     *     responses:
+     *       200:
+     *         description: Status updated successfully
+     *       400:
+     *         description: Validation error
+     *       404:
+     *         description: Site survey not found
+     */
+    router.put(
+        "/:uid/status",
+        validateSiteSurveyRequest(changeSiteSurveyStatusSchema),
+        controller.changeStatus,
     );
 
     /**

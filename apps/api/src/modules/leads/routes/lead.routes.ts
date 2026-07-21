@@ -9,6 +9,7 @@ import {
     updateLeadSchema,
     getByUidSchema,
     paginationSchema,
+    changeLeadStatusSchema,
     validateLeadRequest,
 } from "../validators/lead.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
@@ -332,6 +333,59 @@ function createLeadRouter(): Router {
         "/:uid",
         validateLeadRequest(updateLeadSchema),
         controller.updateLead,
+    );
+
+    /**
+     * @swagger
+     * /leads/{uid}/status:
+     *   put:
+     *     tags: [Leads]
+     *     summary: Change the status of a lead
+     *     description: Updates only the status of an existing lead.
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: The UID of the lead
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               statusUid:
+     *                 type: string
+     *                 description: The UID of the new lead status
+     *     responses:
+     *       200:
+     *         description: Lead status updated successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 message:
+     *                   type: string
+     *                 data:
+     *                   $ref: '#/components/schemas/LeadSafe'
+     *       400:
+     *         description: Validation error
+     *       404:
+     *         description: Lead not found
+     *       401:
+     *         description: Unauthorized
+     */
+    router.put(
+        "/:uid/status",
+        validateLeadRequest(changeLeadStatusSchema),
+        controller.changeStatus,
     );
 
     /**

@@ -10,6 +10,7 @@ import type {
 export function toLeadSafe(lead: ILead): ILeadSafe {
     return {
         uid: lead.uid,
+        leadNumber: lead.leadNumber,
         firstName: lead.firstName,
         lastName: lead.lastName,
         mobileNumber: lead.mobileNumber,

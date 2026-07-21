@@ -97,6 +97,25 @@ export class SiteSurveyController {
         }
     };
 
+    changeStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const uid = req.params.uid as string;
+            const { status } = req.body;
+
+            const survey = await this.service.changeSiteSurveyStatus(tenantUid, uid, status, userUid);
+            res.status(200).json({
+                success: true,
+                message: SITE_SURVEY_MESSAGES.UPDATED,
+                data: survey,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     deleteSiteSurvey = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;

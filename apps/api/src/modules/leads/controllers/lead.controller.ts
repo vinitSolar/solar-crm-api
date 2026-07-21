@@ -97,6 +97,25 @@ export class LeadController {
         }
     };
 
+    changeStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const uid = req.params.uid as string;
+            const { statusUid } = req.body;
+
+            const lead = await this.service.changeLeadStatus(tenantUid, uid, statusUid, userUid);
+            res.status(200).json({
+                success: true,
+                message: LEAD_MESSAGES.UPDATED,
+                data: lead,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     deleteLead = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;

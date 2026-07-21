@@ -40,9 +40,17 @@ export class LeadService {
         
         const finalStatusUid = defaultStatus.uid;
 
-        const createData = { ...data, statusUid: finalStatusUid };
-
         try {
+            const lastLeadNumber = await this.repository.getLastLeadNumber();
+            let nextLeadNumber = "SS00001";
+            
+            if (lastLeadNumber) {
+                const numStr = lastLeadNumber.replace("SS", "");
+                const nextNum = parseInt(numStr, 10) + 1;
+                nextLeadNumber = `SS${String(nextNum).padStart(5, "0")}`;
+            }
+
+            const createData = { ...data, statusUid: finalStatusUid, leadNumber: nextLeadNumber };
             const lead = await this.repository.create(tenantUid, createData, createdBy);
             return toLeadSafe(lead);
         } catch (error) {
@@ -105,6 +113,27 @@ export class LeadService {
             return toLeadSafe(updated);
         } catch (error) {
             logger.error("LeadService.updateLead error", { error });
+            throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
+        }
+    }
+
+    async changeLeadStatus(tenantUid: string, uid: string, statusUid: string, updatedBy: string): Promise<ILeadSafe> {
+        const existing = await this.repository.getByUid(tenantUid, uid);
+        if (!existing) {
+            throw new CustomError(LEAD_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const leadStatus = await this.statusRepository.getByUid(tenantUid, statusUid);
+        if (!leadStatus) throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 400);
+
+        try {
+            const updated = await this.repository.update(tenantUid, uid, { statusUid }, updatedBy);
+            if (!updated) {
+                throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
+            }
+            return toLeadSafe(updated);
+        } catch (error) {
+            logger.error("LeadService.changeLeadStatus error", { error });
             throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
         }
     }

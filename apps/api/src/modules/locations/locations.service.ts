@@ -18,6 +18,14 @@ export class LocationsService {
     public async getCitiesByDistrict(districtUid: string): Promise<City[]> {
         return locationsRepository.getCitiesByDistrict(districtUid);
     }
+
+    public async getLocationByPincode(pincode: number): Promise<any> {
+        return locationsRepository.getLocationByPincode(pincode);
+    }
+
+    public async getLocalitiesByPincode(pincode: number): Promise<any[]> {
+        return locationsRepository.getLocalitiesByPincode(pincode);
+    }
 }
 
 export const locationsService = new LocationsService();

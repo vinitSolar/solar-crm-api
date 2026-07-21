@@ -35,6 +35,30 @@ export class LocationsController {
         const cities = await locationsService.getCitiesByDistrict(districtUid);
         return res.status(200).json({ success: true, message: 'Cities retrieved successfully', data: cities });
     });
+
+    public getLocationByPincode = asyncHandler(async (req: Request, res: Response) => {
+        const pincode = parseInt(req.params.pincode as string, 10);
+        if (isNaN(pincode)) {
+            return res.status(400).json({ success: false, message: 'Invalid pincode' });
+        }
+        const location = await locationsService.getLocationByPincode(pincode);
+        if (!location) {
+             return res.status(404).json({ success: false, message: 'Location not found for the given pincode' });
+        }
+        return res.status(200).json({ success: true, message: 'Location retrieved successfully', data: location });
+    });
+
+    public getLocalitiesByPincode = asyncHandler(async (req: Request, res: Response) => {
+        const pincode = parseInt(req.params.pincode as string, 10);
+        if (isNaN(pincode)) {
+            return res.status(400).json({ success: false, message: 'Invalid pincode' });
+        }
+        const localities = await locationsService.getLocalitiesByPincode(pincode);
+        if (!localities.length) {
+             return res.status(404).json({ success: false, message: 'No localities found for the given pincode' });
+        }
+        return res.status(200).json({ success: true, message: 'Localities retrieved successfully', data: localities });
+    });
 }
 
 export const locationsController = new LocationsController();

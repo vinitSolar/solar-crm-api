@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcrypt";
+import pool from "@packages/connection.js";
 import type { RoleRepository } from "../../roles/repositories/role.repository.js";
 import type { UserRepository } from "../../users/repositories/user.repository.js";
 import type { LeadSourceRepository } from "../../leads/repositories/lead-source.repository.js";
@@ -14,6 +15,7 @@ import { QuotationTermsConditionRepository } from "../../quotation-terms-conditi
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import { FranchiseDocumentTypeService } from "../../franchise-document-types/services/franchise-document-type.service.js";
 import type { FranchiseDocumentTypeRepository } from "../../franchise-document-types/repositories/franchise-document-type.repository.js";
+import { ProjectStatusRepository } from "../../projects/repositories/project-status.repository.js";
 import type { IFranchiseOwnerDetails } from "../interfaces/franchise.interface.js";
 import { logger } from "@packages/logger/index.js";
 
@@ -31,6 +33,7 @@ export class FranchiseOnboardingService {
     private readonly quotationTermsConditionRepository: QuotationTermsConditionRepository;
     private readonly quotationScopeOfWorkRepository: QuotationScopeOfWorkRepository;
     private readonly franchiseDocumentTypeService: FranchiseDocumentTypeService;
+    private readonly projectStatusRepository: ProjectStatusRepository;
 
     constructor(
         roleRepository: RoleRepository, 
@@ -54,6 +57,7 @@ export class FranchiseOnboardingService {
         this.quotationTermsConditionRepository = new QuotationTermsConditionRepository();
         this.quotationScopeOfWorkRepository = new QuotationScopeOfWorkRepository();
         this.franchiseDocumentTypeService = new FranchiseDocumentTypeService(franchiseDocumentTypeRepository);
+        this.projectStatusRepository = new ProjectStatusRepository(pool);
     }
 
     /**
@@ -187,6 +191,24 @@ export class FranchiseOnboardingService {
             }
 
             logger.info("Successfully created default lead sources and statuses for franchise", { tenantUid });
+
+            // 6.5 Create default Project Statuses
+            const defaultProjectStatuses = [
+                { name: "Material Planning", sortOrder: 1, isDefault: 1, isClosed: 0 },
+                { name: "Material Dispatched", sortOrder: 2, isDefault: 0, isClosed: 0 },
+                { name: "Installation Started", sortOrder: 3, isDefault: 0, isClosed: 0 },
+                { name: "Installation Completed", sortOrder: 4, isDefault: 0, isClosed: 0 },
+                { name: "Net Metering Process", sortOrder: 5, isDefault: 0, isClosed: 0 },
+                { name: "Subsidy Process", sortOrder: 6, isDefault: 0, isClosed: 0 },
+                { name: "Completed", sortOrder: 7, isDefault: 0, isClosed: 1 },
+                { name: "On Hold", sortOrder: 8, isDefault: 0, isClosed: 0 },
+                { name: "Cancelled", sortOrder: 9, isDefault: 0, isClosed: 1 },
+            ];
+
+            for (const status of defaultProjectStatuses) {
+                await this.projectStatusRepository.create(tenantUid, status, createdBy);
+            }
+            logger.info("Successfully created default project statuses for franchise", { tenantUid });
 
             // 7. Create Default Survey Document Types
             await this.surveyDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);

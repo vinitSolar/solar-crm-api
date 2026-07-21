@@ -41,6 +41,43 @@ export class LocationsRepository {
         const result = await pool.query(query, [districtUid]);
         return result.rows;
     }
+
+    public async getLocationByPincode(pincode: number): Promise<any> {
+        const query = `
+            SELECT 
+                c.uid as city_uid, c.name as city_name, c.branch_type, c.block,
+                d.uid as district_uid, d.name as district_name,
+                s.uid as state_uid, s.name as state_name
+            FROM cities c
+            LEFT JOIN districts d ON c.district_uid = d.uid
+            LEFT JOIN states s ON c.state_uid = s.uid
+            WHERE c.pincode = $1
+            ORDER BY 
+                CASE WHEN c.branch_type = 'Head Post Office' THEN 1 
+                     WHEN c.branch_type = 'Sub Post Office' THEN 2 
+                     ELSE 3 
+                END ASC
+            LIMIT 1;
+        `;
+        const result = await pool.query(query, [pincode]);
+        return result.rows[0] || null;
+    }
+
+    public async getLocalitiesByPincode(pincode: number): Promise<any[]> {
+        const query = `
+            SELECT 
+                c.uid as city_uid, c.name as locality_name, c.branch_type, c.block,
+                d.uid as district_uid, d.name as district_name,
+                s.uid as state_uid, s.name as state_name
+            FROM cities c
+            LEFT JOIN districts d ON c.district_uid = d.uid
+            LEFT JOIN states s ON c.state_uid = s.uid
+            WHERE c.pincode = $1
+            ORDER BY c.name ASC;
+        `;
+        const result = await pool.query(query, [pincode]);
+        return result.rows;
+    }
 }
 
 export const locationsRepository = new LocationsRepository();

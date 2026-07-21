@@ -39,9 +39,12 @@ const swaggerOptions: Options = {
             { name: "ProductCategories", description: "Product Category Management APIs" },
             { name: "ProductUnits", description: "Product Unit Management APIs" },
             { name: "ProductDocumentTypes", description: "Product Document Type Management APIs" },
-            { name: "Quotations", description: "Quotation Management APIs" },
-            { name: "QuotationScopeOfWork", description: "Quotation Scope of Work Management APIs" },
-            { name: "QuotationTermsConditions", description: "Quotation Terms & Conditions Management APIs" },
+            { name: "State Subsidy Rules", description: "Manage subsidy rules for states" },
+            { name: "Quotation Terms & Conditions", description: "Manage terms & conditions templates for quotations" },
+            { name: "Quotation Scope Of Work", description: "Manage scope of work templates for quotations" },
+            { name: "Quotations", description: "Quotation generation and management" },
+            { name: "Project Statuses", description: "Manage statuses for projects" },
+            { name: "Projects", description: "Project management and execution" },
         ],
         components: {
             securitySchemes: {

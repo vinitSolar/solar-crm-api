@@ -1,9 +1,12 @@
+import type { ISubsidyRequiredDocumentDetail } from "../repositories/subsidy-required-document.repository.js";
+
 /**
  * Represents a state subsidy rule record from the database.
  */
 export interface IStateSubsidyRule {
     id: number;
     uid: string;
+    scheme_name: string | null;
     state_uid: string | null;
     subsidy_per_kw: number;
     maximum_subsidy_amount: number;
@@ -23,7 +26,9 @@ export interface IStateSubsidyRule {
  */
 export interface IStateSubsidyRuleSafe {
     uid: string;
+    schemeName: string | null;
     stateUid: string | null;
+    state?: string | null;
     subsidyPerKw: number;
     maximumSubsidyAmount: number;
     description: string | null;
@@ -31,6 +36,8 @@ export interface IStateSubsidyRuleSafe {
     isDeleted: number;
     createdAt: Date;
     updatedAt: Date;
+    requiredDocuments?: ISubsidyRequiredDocumentDetail[];
+    requiredDocumentsCount?: number;
 }
 
 /**
@@ -38,5 +45,6 @@ export interface IStateSubsidyRuleSafe {
  */
 export interface IStateSubsidyRuleDropdown {
     uid: string;
+    schemeName: string | null;
     stateUid: string | null;
 }

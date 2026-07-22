@@ -7,6 +7,9 @@ import type { Request, Response, NextFunction } from "express";
  */
 export const createStateSubsidyRuleSchema = z.object({
     body: z.object({
+        schemeName: z.string({
+            message: "Scheme name is required",
+        }).min(1, "Scheme name cannot be empty").max(255).optional(),
         stateUid: z.string({
             message: STATE_SUBSIDY_RULE_MESSAGES.STATE_UID_REQUIRED,
         }).min(1, STATE_SUBSIDY_RULE_MESSAGES.STATE_UID_REQUIRED).max(255),
@@ -16,7 +19,8 @@ export const createStateSubsidyRuleSchema = z.object({
         maximumSubsidyAmount: z.number({
             message: STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID,
         }).min(0, STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID),
-        description: z.string().optional(),
+        description: z.string().optional().nullable(),
+        documentTypeUids: z.array(z.string().min(1, "Document type UID cannot be empty")).optional(),
     }),
 });
 
@@ -25,11 +29,13 @@ export const createStateSubsidyRuleSchema = z.object({
  */
 export const updateStateSubsidyRuleSchema = z.object({
     body: z.object({
+        schemeName: z.string().min(1, "Scheme name cannot be empty").max(255).optional(),
         stateUid: z.string().min(1, STATE_SUBSIDY_RULE_MESSAGES.STATE_UID_REQUIRED).max(255).optional(),
         subsidyPerKw: z.number().min(0, STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID).optional(),
         maximumSubsidyAmount: z.number().min(0, STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID).optional(),
-        description: z.string().optional(),
+        description: z.string().optional().nullable(),
         isActive: z.boolean().optional(),
+        documentTypeUids: z.array(z.string().min(1, "Document type UID cannot be empty")).optional(),
     }).refine((data) => Object.keys(data).length > 0, {
         message: "At least one field must be provided to update",
     }),

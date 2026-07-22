@@ -2,6 +2,10 @@ import { Router } from "express";
 import { StateSubsidyRuleController } from "../controllers/state-subsidy-rule.controller.js";
 import { StateSubsidyRuleService } from "../services/state-subsidy-rule.service.js";
 import { StateSubsidyRuleRepository } from "../repositories/state-subsidy-rule.repository.js";
+import { SubsidyRequiredDocumentRepository } from "../repositories/subsidy-required-document.repository.js";
+import { SubsidyDocumentTypeRepository } from "../../subsidy-document-types/repositories/subsidy-document-type.repository.js";
+import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
+import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import {
     createStateSubsidyRuleSchema,
@@ -14,7 +18,11 @@ import pool from "@packages/connection.js";
 const router = Router();
 
 const repository = new StateSubsidyRuleRepository(pool);
-const service = new StateSubsidyRuleService(repository);
+const requiredDocRepository = new SubsidyRequiredDocumentRepository(pool);
+const docTypeRepository = new SubsidyDocumentTypeRepository(pool);
+const auditLogRepository = new AuditLogRepository(pool);
+const auditLogService = new AuditLogService(auditLogRepository);
+const service = new StateSubsidyRuleService(repository, requiredDocRepository, docTypeRepository, auditLogService);
 const controller = new StateSubsidyRuleController(service);
 
 router.use(authenticate);
@@ -43,16 +51,44 @@ router.use(authenticate);
  *             properties:
  *               page:
  *                 type: integer
+ *                 default: 1
  *               limit:
  *                 type: integer
+ *                 default: 10
  *               search:
  *                 type: string
  *               status:
  *                 type: string
  *                 enum: [active, deleted, all]
+ *                 default: active
  *     responses:
  *       200:
  *         description: State subsidy rules fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/StateSubsidyRuleSafe'
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
  */
 router.post("/list", validateStateSubsidyRuleRequest(paginationSchema), controller.getPaginatedRules);
 
@@ -101,6 +137,20 @@ router.get("/dropdown", controller.getDropdownRules);
  *     responses:
  *       200:
  *         description: State subsidy rules fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/StateSubsidyRuleSafe'
  */
 router.get("/by-state-uid/:stateUid", controller.getRulesByStateUid);
 
@@ -109,7 +159,7 @@ router.get("/by-state-uid/:stateUid", controller.getRulesByStateUid);
  * /state-subsidy-rules/{uid}:
  *   get:
  *     tags: [StateSubsidyRules]
- *     summary: Get state subsidy rule by UID
+ *     summary: Get state subsidy rule by UID (includes required documents list)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -121,6 +171,18 @@ router.get("/by-state-uid/:stateUid", controller.getRulesByStateUid);
  *     responses:
  *       200:
  *         description: State subsidy rule fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/StateSubsidyRuleSafe'
  */
 router.get("/:uid", controller.getRuleByUid);
 
@@ -129,7 +191,7 @@ router.get("/:uid", controller.getRuleByUid);
  * /state-subsidy-rules:
  *   post:
  *     tags: [StateSubsidyRules]
- *     summary: Create a new state subsidy rule
+ *     summary: Create a new state subsidy rule with required document mappings
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -138,18 +200,46 @@ router.get("/:uid", controller.getRuleByUid);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - stateUid
+ *               - subsidyPerKw
+ *               - maximumSubsidyAmount
  *             properties:
+ *               schemeName:
+ *                 type: string
+ *                 example: "Surya Gujarat Scheme"
  *               stateUid:
  *                 type: string
+ *                 example: "GJ"
  *               subsidyPerKw:
  *                 type: number
+ *                 example: 30000
  *               maximumSubsidyAmount:
  *                 type: number
+ *                 example: 78000
  *               description:
  *                 type: string
+ *                 example: "Surya Gujarat Residential Solar Subsidy"
+ *               documentTypeUids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["DOC_TYPE_UID_1", "DOC_TYPE_UID_2"]
  *     responses:
  *       201:
  *         description: State subsidy rule created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/StateSubsidyRuleSafe'
  */
 router.post("/", validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), controller.createRule);
 
@@ -158,7 +248,7 @@ router.post("/", validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), 
  * /state-subsidy-rules/{uid}:
  *   put:
  *     tags: [StateSubsidyRules]
- *     summary: Update an existing state subsidy rule
+ *     summary: Update an existing state subsidy rule and its required document mappings
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -174,6 +264,8 @@ router.post("/", validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), 
  *           schema:
  *             type: object
  *             properties:
+ *               schemeName:
+ *                 type: string
  *               stateUid:
  *                 type: string
  *               subsidyPerKw:
@@ -184,9 +276,25 @@ router.post("/", validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), 
  *                 type: string
  *               isActive:
  *                 type: boolean
+ *               documentTypeUids:
+ *                 type: array
+ *                 items:
+ *                   type: string
  *     responses:
  *       200:
  *         description: State subsidy rule updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/StateSubsidyRuleSafe'
  */
 router.put("/:uid", validateStateSubsidyRuleRequest(updateStateSubsidyRuleSchema), controller.updateRule);
 

@@ -29,20 +29,46 @@ async function seedLocationsFromJson() {
         console.log(`Seeding ${data.states?.length || 0} states...`);
         for (const state of (data.states || [])) {
             await client.query(
-                `INSERT INTO states (id, name, created_at, updated_at, deleted_at) 
-                 VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`,
-                [state.id, state.name, state.created_at, state.updated_at, state.deleted_at]
+                `INSERT INTO states (id, uid, code, name, created_at, updated_at, deleted_at) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (id) DO UPDATE SET 
+                    uid = EXCLUDED.uid, 
+                    code = EXCLUDED.code, 
+                    name = EXCLUDED.name, 
+                    updated_at = EXCLUDED.updated_at`,
+                [
+                    state.id,
+                    state.uid || null,
+                    state.code || null,
+                    state.name,
+                    state.created_at || new Date(),
+                    state.updated_at || new Date(),
+                    state.deleted_at || null
+                ]
             );
         }
 
         console.log(`Seeding ${data.districts?.length || 0} districts...`);
         for (const district of (data.districts || [])) {
             await client.query(
-                `INSERT INTO districts (id, state_id, name, created_at, updated_at, deleted_at) 
-                 VALUES ($1, $2, $3, $4, $5, $6)
-                 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, state_id = EXCLUDED.state_id`,
-                [district.id, district.state_id, district.name, district.created_at, district.updated_at, district.deleted_at]
+                `INSERT INTO districts (id, uid, code, state_uid, name, created_at, updated_at, deleted_at) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 ON CONFLICT (id) DO UPDATE SET 
+                    uid = EXCLUDED.uid, 
+                    code = EXCLUDED.code, 
+                    state_uid = EXCLUDED.state_uid, 
+                    name = EXCLUDED.name, 
+                    updated_at = EXCLUDED.updated_at`,
+                [
+                    district.id,
+                    district.uid || null,
+                    district.code || null,
+                    district.state_uid || district.state_id || null,
+                    district.name,
+                    district.created_at || new Date(),
+                    district.updated_at || new Date(),
+                    district.deleted_at || null
+                ]
             );
         }
 
@@ -54,12 +80,36 @@ async function seedLocationsFromJson() {
             console.log(`Processing city batch ${i} to ${i + batch.length}...`);
             for (const city of batch) {
                 await client.query(
-                    `INSERT INTO cities (id, state_id, district_id, name, pincode, created_at, updated_at, deleted_at) 
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    `INSERT INTO cities (id, uid, code, state_uid, district_uid, name, local_body_type, pincode, block, branch_type, region, created_at, updated_at, deleted_at) 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                      ON CONFLICT (id) DO UPDATE SET 
-                     name = EXCLUDED.name, state_id = EXCLUDED.state_id, 
-                     district_id = EXCLUDED.district_id, pincode = EXCLUDED.pincode`,
-                    [city.id, city.state_id, city.district_id, city.name, city.pincode, city.created_at, city.updated_at, city.deleted_at]
+                        uid = EXCLUDED.uid, 
+                        code = EXCLUDED.code, 
+                        state_uid = EXCLUDED.state_uid, 
+                        district_uid = EXCLUDED.district_uid, 
+                        name = EXCLUDED.name, 
+                        local_body_type = EXCLUDED.local_body_type, 
+                        pincode = EXCLUDED.pincode, 
+                        block = EXCLUDED.block, 
+                        branch_type = EXCLUDED.branch_type, 
+                        region = EXCLUDED.region, 
+                        updated_at = EXCLUDED.updated_at`,
+                    [
+                        city.id,
+                        city.uid || null,
+                        city.code || null,
+                        city.state_uid || city.state_id || null,
+                        city.district_uid || city.district_id || null,
+                        city.name,
+                        city.local_body_type || null,
+                        city.pincode || null,
+                        city.block || null,
+                        city.branch_type || null,
+                        city.region || null,
+                        city.created_at || new Date(),
+                        city.updated_at || new Date(),
+                        city.deleted_at || null
+                    ]
                 );
             }
         }

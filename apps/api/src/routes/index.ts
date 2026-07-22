@@ -10,6 +10,7 @@ import { leadRoutes, leadSourceRoutes, leadStatusRoutes } from "../modules/leads
 import { siteSurveyRoutes } from "../modules/site-surveys/index.js";
 import { surveyDocumentTypeRoutes } from "../modules/survey-documents/index.js";
 import { productDocumentTypeRoutes } from "../modules/product-document-types/index.js";
+import { subsidyDocumentTypeRoutes } from "../modules/subsidy-document-types/index.js";
 import { productCategoryRoutes } from "../modules/product-categories/index.js";
 import { productBrandRoutes } from "../modules/product-brands/index.js";
 import { productUnitRoutes } from "../modules/product-units/index.js";
@@ -38,6 +39,7 @@ apiRouter.use("/lead-statuses", leadStatusRoutes);
 apiRouter.use("/site-surveys", siteSurveyRoutes);
 apiRouter.use("/survey-document-types", surveyDocumentTypeRoutes);
 apiRouter.use("/product-document-types", productDocumentTypeRoutes);
+apiRouter.use("/subsidy-document-types", subsidyDocumentTypeRoutes);
 apiRouter.use("/franchise-document-types", franchiseDocumentTypeRoutes);
 apiRouter.use("/product-categories", productCategoryRoutes);
 apiRouter.use("/product-brands", productBrandRoutes);

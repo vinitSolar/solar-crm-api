@@ -194,15 +194,11 @@ export class FranchiseOnboardingService {
 
             // 6.5 Create default Project Statuses
             const defaultProjectStatuses = [
-                { name: "Material Planning", sortOrder: 1, isDefault: 1, isClosed: 0 },
-                { name: "Material Dispatched", sortOrder: 2, isDefault: 0, isClosed: 0 },
-                { name: "Installation Started", sortOrder: 3, isDefault: 0, isClosed: 0 },
-                { name: "Installation Completed", sortOrder: 4, isDefault: 0, isClosed: 0 },
-                { name: "Net Metering Process", sortOrder: 5, isDefault: 0, isClosed: 0 },
-                { name: "Subsidy Process", sortOrder: 6, isDefault: 0, isClosed: 0 },
-                { name: "Completed", sortOrder: 7, isDefault: 0, isClosed: 1 },
-                { name: "On Hold", sortOrder: 8, isDefault: 0, isClosed: 0 },
-                { name: "Cancelled", sortOrder: 9, isDefault: 0, isClosed: 1 },
+                { name: "Not Started", sortOrder: 1, isDefault: 1, isClosed: 0 },
+                { name: "In Progress", sortOrder: 2, isDefault: 0, isClosed: 0 },
+                { name: "Commissioned", sortOrder: 3, isDefault: 0, isClosed: 1 },
+                { name: "On Hold", sortOrder: 4, isDefault: 0, isClosed: 0 },
+                { name: "Cancelled", sortOrder: 5, isDefault: 0, isClosed: 1 },
             ];
 
             for (const status of defaultProjectStatuses) {

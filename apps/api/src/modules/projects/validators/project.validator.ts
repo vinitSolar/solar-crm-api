@@ -58,6 +58,15 @@ export const changeProjectStatusSchema = z.object({
     }).strict(),
 });
 
+export const assignProjectManagerSchema = z.object({
+    params: z.object({
+        uid: z.string().uuid("Invalid UID format"),
+    }),
+    body: z.object({
+        projectManagerUid: z.string({ message: "Project manager UID is required" }).uuid("Invalid project manager UID format"),
+    }).strict(),
+});
+
 export const getByUidSchema = z.object({
     params: z.object({
         uid: z.string().uuid("Invalid UID format"),
@@ -80,6 +89,16 @@ export const paginationSchema = z.object({
 export const getAllSchema = z.object({
     query: z.object({
         status: z.enum(["active", "deleted", "all"]).optional(),
+    }),
+});
+
+export const addSubsidyDocumentSchema = z.object({
+    params: z.object({
+        uid: z.string().uuid("Invalid project UID format"),
+    }),
+    body: z.object({
+        documentTypeUid: z.string({ message: "Document type UID is required" }).uuid("Invalid document type UID format"),
+        remarks: z.string().optional(),
     }),
 });
 

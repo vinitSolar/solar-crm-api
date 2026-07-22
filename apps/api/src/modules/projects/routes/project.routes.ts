@@ -1,8 +1,10 @@
 import { Router } from "express";
+import multer from "multer";
 import { ProjectController } from "../controllers/project.controller.js";
 import { ProjectService } from "../services/project.service.js";
 import { ProjectRepository } from "../repositories/project.repository.js";
 import { ProjectStatusRepository } from "../repositories/project-status.repository.js";
+import { ProjectSubsidyDocumentRepository } from "../repositories/project-subsidy-document.repository.js";
 import { QuotationRepository } from "../../quotations/repositories/quotation.repository.js";
 import { StateSubsidyRuleRepository } from "../../state-subsidy-rules/repositories/state-subsidy-rule.repository.js";
 import { SubsidyRequiredDocumentRepository } from "../../state-subsidy-rules/repositories/subsidy-required-document.repository.js";
@@ -12,18 +14,24 @@ import {
     createProjectSchema,
     updateProjectSchema,
     changeProjectStatusSchema,
+    assignProjectManagerSchema,
     getByUidSchema,
     paginationSchema,
     validateProjectRequest,
+    addSubsidyDocumentSchema,
 } from "../validators/project.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
 
 function createProjectRouter(): Router {
     const router = Router();
+    const upload = multer({
+        storage: multer.memoryStorage(),
+    });
 
     const projectRepository = new ProjectRepository(pool);
     const statusRepository = new ProjectStatusRepository(pool);
+    const subsidyDocumentRepository = new ProjectSubsidyDocumentRepository(pool);
     const quotationRepository = new QuotationRepository();
     const subsidyRuleRepository = new StateSubsidyRuleRepository(pool);
     const requiredDocRepository = new SubsidyRequiredDocumentRepository(pool);
@@ -33,6 +41,7 @@ function createProjectRouter(): Router {
     const service = new ProjectService(
         projectRepository,
         statusRepository,
+        subsidyDocumentRepository,
         quotationRepository,
         subsidyRuleRepository,
         requiredDocRepository,
@@ -41,6 +50,7 @@ function createProjectRouter(): Router {
     const controller = new ProjectController(service);
 
     router.use(authenticate);
+
 
     /**
      * @swagger
@@ -118,6 +128,67 @@ function createProjectRouter(): Router {
         "/:uid/required-subsidy-documents",
         validateProjectRequest(getByUidSchema),
         controller.getRequiredSubsidyDocuments,
+    );
+
+    /**
+     * @swagger
+     * /projects/{uid}/subsidy-documents:
+     *   post:
+     *     tags: [Projects]
+     *     summary: Add a subsidy document to a project
+     *     description: Adds an uploaded subsidy document to the specified project.
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Project UID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - documentTypeUid
+     *               - originalName
+     *               - fileName
+     *               - fileUrl
+     *               - mimeType
+     *               - fileSize
+     *             properties:
+     *               documentTypeUid:
+     *                 type: string
+     *               originalName:
+     *                 type: string
+     *               fileName:
+     *                 type: string
+     *               fileUrl:
+     *                 type: string
+     *               mimeType:
+     *                 type: string
+     *               fileSize:
+     *                 type: integer
+     *               remarks:
+     *                 type: string
+     *     responses:
+     *       201:
+     *         description: Subsidy document added successfully
+     *       400:
+     *         description: Validation error
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Project not found
+     */
+    router.post(
+        "/:uid/subsidy-documents",
+        upload.single("file"),
+        validateProjectRequest(addSubsidyDocumentSchema),
+        controller.addSubsidyDocument,
     );
 
     /**
@@ -285,6 +356,49 @@ function createProjectRouter(): Router {
         "/:uid/status",
         validateProjectRequest(changeProjectStatusSchema),
         controller.changeStatus,
+    );
+
+    /**
+     * @swagger
+     * /projects/{uid}/assign-manager:
+     *   put:
+     *     tags: [Projects]
+     *     summary: Assign a project manager to a project
+     *     description: Assigns a user as the project manager for a specific project.
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: The UID of the project
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - projectManagerUid
+     *             properties:
+     *               projectManagerUid:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Project manager assigned successfully
+     *       400:
+     *         description: Validation error
+     *       404:
+     *         description: Project not found
+     *       401:
+     *         description: Unauthorized
+     */
+    router.put(
+        "/:uid/assign-manager",
+        validateProjectRequest(assignProjectManagerSchema),
+        controller.assignProjectManager,
     );
 
     /**

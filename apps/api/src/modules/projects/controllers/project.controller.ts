@@ -46,6 +46,34 @@ export class ProjectController {
         }
     };
 
+    getRequiredSubsidyDocuments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const uid = req.params.uid as string;
+
+            let subsidyUids: string[] | undefined = undefined;
+            if (req.query.subsidyUids) {
+                if (typeof req.query.subsidyUids === "string") {
+                    subsidyUids = req.query.subsidyUids.split(",").map((s) => s.trim());
+                } else if (Array.isArray(req.query.subsidyUids)) {
+                    subsidyUids = req.query.subsidyUids as string[];
+                }
+            } else if (req.body && Array.isArray(req.body.subsidyUids)) {
+                subsidyUids = req.body.subsidyUids as string[];
+            }
+
+            const docs = await this.service.getProjectRequiredSubsidyDocuments(tenantUid, uid, subsidyUids);
+            res.status(200).json({
+                success: true,
+                message: PROJECT_MESSAGES.FETCHED_SUCCESSFULLY,
+                data: docs,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     getProjectsPaginated = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;

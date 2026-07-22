@@ -48,6 +48,17 @@ export class FranchiseDocumentTypeRepository {
         client?: PoolClient
     ): Promise<IFranchiseDocumentType> {
         const uid = uuidv4();
+        const executor = client || this.pool;
+
+        let sortOrder = data.sortOrder;
+        if (sortOrder === undefined || sortOrder === null) {
+            const maxRes = await executor.query(
+                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM franchise_document_types WHERE tenant_uid = $1 AND is_deleted = 0`,
+                [tenantUid]
+            );
+            sortOrder = Number(maxRes.rows[0]?.max_sort || 0) + 1;
+        }
+
         const query = `
             INSERT INTO franchise_document_types (
                 uid, tenant_uid, name, description, allow_multiple, is_required, sort_order, created_by
@@ -62,13 +73,11 @@ export class FranchiseDocumentTypeRepository {
             data.description ?? null,
             data.allowMultiple ?? 0,
             data.isRequired ?? 0,
-            data.sortOrder ?? 0,
+            sortOrder,
             createdBy,
         ];
 
-        const result = client
-            ? await client.query(query, values)
-            : await this.pool.query(query, values);
+        const result = await executor.query(query, values);
 
         return this.mapRow(result.rows[0]);
     }

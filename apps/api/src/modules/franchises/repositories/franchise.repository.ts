@@ -251,7 +251,7 @@ export class FranchiseRepository {
 
         const result = await this.pool.query(
             `SELECT ${TENANT_COLUMNS},
-                (SELECT COUNT(*)::int FROM franchise_service_areas fsa WHERE fsa.tenant_uid = tenants.uid AND fsa.is_deleted = 0) AS "totalAssignedCities"
+                (SELECT COUNT(*)::int FROM franchise_service_areas fsa WHERE fsa.tenant_uid::text = tenants.uid AND fsa.is_deleted = 0) AS "totalAssignedCities"
              FROM tenants
              WHERE ${whereClause}
              ORDER BY created_at DESC

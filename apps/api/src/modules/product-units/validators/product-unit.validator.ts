@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Request, Response, NextFunction } from "express";
 
 export const createProductUnitSchema = z.object({
-    name: z.string({ required_error: "Name is required" }).min(1, "Name is required").max(255),
+    name: z.string({ message: "Name is required" }).min(1, "Name is required").max(255),
     shortName: z.string().max(100).optional(),
     description: z.string().optional(),
     sortOrder: z.coerce.number().optional(),

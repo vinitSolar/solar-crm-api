@@ -8,17 +8,25 @@ export class ProductUnitRepository {
         this.pool = pool;
     }
 
-    async create(data: { uid: string; name: string; shortName?: string; description?: string; sortOrder?: number; createdBy: string }): Promise<IProductUnit> {
+    async create(data: { uid: string; name: string; shortName?: string | undefined; description?: string | undefined; sortOrder?: number | undefined; createdBy: string }): Promise<IProductUnit> {
+        let sortOrder = data.sortOrder;
+        if (sortOrder === undefined || sortOrder === null) {
+            const maxRes = await this.pool.query(
+                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM product_units WHERE is_deleted = 0`
+            );
+            sortOrder = Number(maxRes.rows[0]?.max_sort || 0) + 1;
+        }
+
         const result = await this.pool.query(
             `INSERT INTO product_units (uid, name, short_name, description, sort_order, created_by)
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING *`,
-            [data.uid, data.name, data.shortName || null, data.description || null, data.sortOrder || 0, data.createdBy]
+            [data.uid, data.name, data.shortName || null, data.description || null, sortOrder, data.createdBy]
         );
         return result.rows[0];
     }
 
-    async update(uid: string, data: { name?: string; shortName?: string; description?: string; sortOrder?: number; isActive?: number; updatedBy: string }): Promise<IProductUnit | null> {
+    async update(uid: string, data: { name?: string | undefined; shortName?: string | undefined; description?: string | undefined; sortOrder?: number | undefined; isActive?: number | undefined; updatedBy: string }): Promise<IProductUnit | null> {
         const fields: string[] = [];
         const values: any[] = [];
         let index = 1;

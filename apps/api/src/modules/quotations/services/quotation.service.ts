@@ -136,11 +136,12 @@ export class QuotationService {
             // 5. Resolve and save scope of work snapshot
             const createdSows: IQuotationScopeOfWorkItem[] = [];
             if (data.scopeOfWork && data.scopeOfWork.length > 0) {
-                for (const sowInput of data.scopeOfWork) {
+                for (let i = 0; i < data.scopeOfWork.length; i++) {
+                    const sowInput = data.scopeOfWork[i]!;
                     const createdSow = await this.repository.createScopeOfWorkItem(client, quotation.uid, {
                         title: sowInput.title,
                         value: sowInput.value,
-                        sortOrder: sowInput.sortOrder ?? 0
+                        sortOrder: sowInput.sortOrder ?? (i + 1)
                     }, createdBy);
                     createdSows.push(createdSow);
                 }
@@ -159,11 +160,12 @@ export class QuotationService {
             // 6. Resolve and save terms and conditions snapshot
             const createdTcs: IQuotationTermsConditionsItem[] = [];
             if (data.termsConditions && data.termsConditions.length > 0) {
-                for (const tcInput of data.termsConditions) {
+                for (let i = 0; i < data.termsConditions.length; i++) {
+                    const tcInput = data.termsConditions[i]!;
                     const createdTc = await this.repository.createTermsConditionsItem(client, quotation.uid, {
                         title: tcInput.title,
                         description: tcInput.description,
-                        sortOrder: tcInput.sortOrder ?? 0
+                        sortOrder: tcInput.sortOrder ?? (i + 1)
                     }, createdBy);
                     createdTcs.push(createdTc);
                 }
@@ -301,11 +303,12 @@ export class QuotationService {
             let sows: IQuotationScopeOfWorkItem[] = [];
             if (data.scopeOfWork !== undefined) {
                 await this.repository.deleteScopeOfWorkItemsByQuotationUid(client, updatedQuotation.uid);
-                for (const sowInput of data.scopeOfWork) {
+                for (let i = 0; i < data.scopeOfWork.length; i++) {
+                    const sowInput = data.scopeOfWork[i]!;
                     const createdSow = await this.repository.createScopeOfWorkItem(client, updatedQuotation.uid, {
                         title: sowInput.title,
                         value: sowInput.value,
-                        sortOrder: sowInput.sortOrder ?? 0
+                        sortOrder: sowInput.sortOrder ?? (i + 1)
                     }, updatedBy);
                     sows.push(createdSow);
                 }
@@ -317,11 +320,12 @@ export class QuotationService {
             let tcs: IQuotationTermsConditionsItem[] = [];
             if (data.termsConditions !== undefined) {
                 await this.repository.deleteTermsConditionsItemsByQuotationUid(client, updatedQuotation.uid);
-                for (const tcInput of data.termsConditions) {
+                for (let i = 0; i < data.termsConditions.length; i++) {
+                    const tcInput = data.termsConditions[i]!;
                     const createdTc = await this.repository.createTermsConditionsItem(client, updatedQuotation.uid, {
                         title: tcInput.title,
                         description: tcInput.description,
-                        sortOrder: tcInput.sortOrder ?? 0
+                        sortOrder: tcInput.sortOrder ?? (i + 1)
                     }, updatedBy);
                     tcs.push(createdTc);
                 }

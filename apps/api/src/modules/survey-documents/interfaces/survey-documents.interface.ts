@@ -94,7 +94,7 @@ export interface IUploadedFile {
 
 export interface IGroupedSurveyDocuments {
     documentTypeUid: string;
-    documentTypeName?: string;
+    documentTypeName?: string | undefined;
     files: IUploadedFile[];
 }
 

@@ -3,6 +3,7 @@ import type { ProjectStatusRepository } from "../repositories/project-status.rep
 import type { QuotationRepository } from "../../quotations/repositories/quotation.repository.js";
 import type { StateSubsidyRuleRepository } from "../../state-subsidy-rules/repositories/state-subsidy-rule.repository.js";
 import type { SubsidyRequiredDocumentRepository, ICombinedRequiredDocumentDetail } from "../../state-subsidy-rules/repositories/subsidy-required-document.repository.js";
+import type { ProjectSubsidyDocumentRepository, IProjectSubsidyDocument } from "../repositories/project-subsidy-document.repository.js";
 import type { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import type { ICreateProject, IUpdateProject, IProjectSafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/project.interface.js";
 import { toProjectSafe } from "../dto/project.dto.js";
@@ -17,11 +18,13 @@ export class ProjectService {
     private readonly quotationRepository: QuotationRepository;
     private readonly subsidyRuleRepository: StateSubsidyRuleRepository;
     private readonly requiredDocRepository: SubsidyRequiredDocumentRepository;
+    private readonly subsidyDocumentRepository: ProjectSubsidyDocumentRepository;
     private readonly auditLogService: AuditLogService;
 
     constructor(
         repository: ProjectRepository,
         statusRepository: ProjectStatusRepository,
+        subsidyDocumentRepository: ProjectSubsidyDocumentRepository,
         quotationRepository: QuotationRepository,
         subsidyRuleRepository: StateSubsidyRuleRepository,
         requiredDocRepository: SubsidyRequiredDocumentRepository,
@@ -29,6 +32,7 @@ export class ProjectService {
     ) {
         this.repository = repository;
         this.statusRepository = statusRepository;
+        this.subsidyDocumentRepository = subsidyDocumentRepository;
         this.quotationRepository = quotationRepository;
         this.subsidyRuleRepository = subsidyRuleRepository;
         this.requiredDocRepository = requiredDocRepository;
@@ -118,7 +122,7 @@ export class ProjectService {
         tenantUid: string,
         uid: string,
         subsidyUids?: string[]
-    ): Promise<ICombinedRequiredDocumentDetail[]> {
+    ): Promise<(ICombinedRequiredDocumentDetail & { isUploaded: boolean; fileUrl: string | null; uploadedByUid: string | null; uploadedByName: string | null; uploadedAt: Date | null })[]> {
         const projectInfo = await this.repository.getProjectLeadState(tenantUid, uid);
         if (!projectInfo) {
             throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
@@ -136,7 +140,20 @@ export class ProjectService {
             return [];
         }
 
-        return await this.requiredDocRepository.getCombinedRequiredDocuments(targetSubsidyUids);
+        const requiredDocs = await this.requiredDocRepository.getCombinedRequiredDocuments(targetSubsidyUids);
+        const uploadedDocs = await this.subsidyDocumentRepository.getByProjectUid(uid, tenantUid);
+
+        return requiredDocs.map(doc => {
+            const uploaded = uploadedDocs.find(u => u.documentTypeUid === doc.documentTypeUid);
+            return {
+                ...doc,
+                isUploaded: !!uploaded,
+                fileUrl: uploaded ? uploaded.fileUrl : null,
+                uploadedByUid: uploaded?.createdBy || null,
+                uploadedByName: uploaded?.createdByName || null,
+                uploadedAt: uploaded?.createdAt || null
+            };
+        });
     }
 
     async getProjectsPaginated(tenantUid: string, query: IPaginationQuery): Promise<IPaginatedResponse<IProjectSafe>> {
@@ -193,6 +210,42 @@ export class ProjectService {
             return toProjectSafe(updated);
         } catch (error) {
             logger.error("ProjectService.updateProject error", {
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined
+            });
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new CustomError(PROJECT_MESSAGES.UPDATE_FAILED, 500);
+        }
+    }
+
+    async assignProjectManager(tenantUid: string, uid: string, projectManagerUid: string, updatedBy: string, ipAddress?: string, userAgent?: string): Promise<IProjectSafe> {
+        const existing = await this.repository.getByUid(tenantUid, uid);
+        if (!existing) {
+            throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
+        }
+
+        try {
+            const updated = await this.repository.update(tenantUid, uid, { projectManagerUid }, updatedBy);
+            if (!updated) {
+                throw new CustomError(PROJECT_MESSAGES.UPDATE_FAILED, 500);
+            }
+
+            await this.auditLogService.log({
+                tenantUid,
+                module: "Project",
+                recordUid: uid,
+                action: AUDIT_LOG_ACTIONS.UPDATE,
+                message: `Assigned project manager to Project ${existing.projectNumber}.`,
+                ipAddress,
+                userAgent,
+                createdBy: updatedBy
+            });
+
+            return toProjectSafe(updated);
+        } catch (error) {
+            logger.error("ProjectService.assignProjectManager error", {
                 message: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : undefined
             });
@@ -281,5 +334,48 @@ export class ProjectService {
             userAgent,
             createdBy: updatedBy
         });
+    }
+
+    async addSubsidyDocument(
+        tenantUid: string,
+        projectUid: string,
+        data: {
+            documentTypeUid: string;
+            originalName: string;
+            fileName: string;
+            fileUrl: string;
+            mimeType: string;
+            fileSize: number;
+            remarks?: string;
+        },
+        createdBy: string,
+        ipAddress?: string,
+        userAgent?: string
+    ): Promise<IProjectSubsidyDocument> {
+        // Verify project exists
+        const project = await this.repository.getByUid(tenantUid, projectUid);
+        if (!project) {
+            throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const document = await this.subsidyDocumentRepository.create({
+            tenantUid,
+            projectUid,
+            ...data,
+            createdBy,
+        });
+
+        await this.auditLogService.log({
+            tenantUid,
+            module: "ProjectSubsidyDocument",
+            recordUid: document.uid,
+            action: AUDIT_LOG_ACTIONS.CREATE,
+            message: `Uploaded subsidy document for project ${project.projectNumber}.`,
+            ipAddress,
+            userAgent,
+            createdBy,
+        });
+
+        return document;
     }
 }

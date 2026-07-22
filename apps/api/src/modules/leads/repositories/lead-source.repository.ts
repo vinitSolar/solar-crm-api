@@ -28,7 +28,7 @@ export class LeadSourceRepository {
         let sortOrder = data.sortOrder;
         if (sortOrder === undefined || sortOrder === null) {
             const maxRes = await executor.query(
-                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM lead_sources WHERE tenant_uid = $1 AND is_deleted = 0`,
+                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM lead_sources WHERE tenant_uid::varchar = $1 AND is_deleted = 0`,
                 [tenantUid]
             );
             sortOrder = Number(maxRes.rows[0]?.max_sort || 0) + 1;
@@ -36,14 +36,14 @@ export class LeadSourceRepository {
 
         if (data.isDefault === 1) {
             await executor.query(
-                `UPDATE lead_sources SET is_default = 0 WHERE tenant_uid = $1 AND is_default = 1`,
+                `UPDATE lead_sources SET is_default = 0 WHERE tenant_uid::varchar = $1 AND is_default = 1`,
                 [tenantUid]
             );
         }
 
         const query = `
             INSERT INTO lead_sources (uid, tenant_uid, name, color, sort_order, is_default, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3, $4, $5::int, $6::smallint, $7)
             RETURNING ${LEAD_SOURCE_COLUMNS}
         `;
         const values = [
@@ -59,14 +59,14 @@ export class LeadSourceRepository {
     async getByUid(tenantUid: string, uid: string): Promise<ILeadSource | null> {
         const result = await this.pool.query(
             `SELECT ${LEAD_SOURCE_COLUMNS} FROM lead_sources 
-             WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0`,
+             WHERE uid::varchar = $1 AND tenant_uid::varchar = $2 AND is_deleted = 0`,
             [uid, tenantUid]
         );
         return result.rows.length > 0 ? (result.rows[0] as ILeadSource) : null;
     }
 
     async getAll(tenantUid: string, status: "active" | "deleted" | "all" = "active"): Promise<ILeadSource[]> {
-        let whereClause = "tenant_uid = $1";
+        let whereClause = "tenant_uid::varchar = $1";
         if (status === "active") whereClause += " AND is_deleted = 0";
         else if (status === "deleted") whereClause += " AND is_deleted = 1";
 
@@ -82,7 +82,7 @@ export class LeadSourceRepository {
     async update(tenantUid: string, uid: string, data: IUpdateLeadSource, updatedBy: string): Promise<ILeadSource | null> {
         if (data.isDefault === 1) {
             await this.pool.query(
-                `UPDATE lead_sources SET is_default = 0 WHERE tenant_uid = $1 AND is_default = 1 AND uid != $2`,
+                `UPDATE lead_sources SET is_default = 0 WHERE tenant_uid::varchar = $1 AND is_default = 1 AND uid::varchar != $2`,
                 [tenantUid, uid]
             );
         }
@@ -93,8 +93,8 @@ export class LeadSourceRepository {
 
         if (data.name !== undefined) { updates.push(`name = $${index++}`); values.push(data.name); }
         if (data.color !== undefined) { updates.push(`color = $${index++}`); values.push(data.color); }
-        if (data.sortOrder !== undefined) { updates.push(`sort_order = $${index++}`); values.push(data.sortOrder); }
-        if (data.isDefault !== undefined) { updates.push(`is_default = $${index++}`); values.push(data.isDefault); }
+        if (data.sortOrder !== undefined) { updates.push(`sort_order = $${index++}::int`); values.push(data.sortOrder); }
+        if (data.isDefault !== undefined) { updates.push(`is_default = $${index++}::smallint`); values.push(data.isDefault); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 
@@ -106,7 +106,7 @@ export class LeadSourceRepository {
 
         const result = await this.pool.query(
             `UPDATE lead_sources SET ${updates.join(", ")}
-             WHERE uid = $${index - 2} AND tenant_uid = $${index - 1} AND is_deleted = 0
+             WHERE uid::varchar = $${index} AND tenant_uid::varchar = $${index + 1} AND is_deleted = 0
              RETURNING ${LEAD_SOURCE_COLUMNS}`,
             values
         );
@@ -117,7 +117,7 @@ export class LeadSourceRepository {
         const result = await this.pool.query(
             `UPDATE lead_sources 
              SET is_deleted = 1, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 0`,
+             WHERE uid::varchar = $2 AND tenant_uid::varchar = $3 AND is_deleted = 0`,
             [deletedBy, uid, tenantUid]
         );
         return (result.rowCount ?? 0) > 0;
@@ -127,7 +127,7 @@ export class LeadSourceRepository {
         const result = await this.pool.query(
             `UPDATE lead_sources 
              SET is_deleted = 0, deleted_by = NULL, updated_by = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 1`,
+             WHERE uid::varchar = $2 AND tenant_uid::varchar = $3 AND is_deleted = 1`,
             [updatedBy, uid, tenantUid]
         );
         return (result.rowCount ?? 0) > 0;

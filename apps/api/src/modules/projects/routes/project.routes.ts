@@ -4,6 +4,8 @@ import { ProjectService } from "../services/project.service.js";
 import { ProjectRepository } from "../repositories/project.repository.js";
 import { ProjectStatusRepository } from "../repositories/project-status.repository.js";
 import { QuotationRepository } from "../../quotations/repositories/quotation.repository.js";
+import { StateSubsidyRuleRepository } from "../../state-subsidy-rules/repositories/state-subsidy-rule.repository.js";
+import { SubsidyRequiredDocumentRepository } from "../../state-subsidy-rules/repositories/subsidy-required-document.repository.js";
 import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
 import {
@@ -23,6 +25,8 @@ function createProjectRouter(): Router {
     const projectRepository = new ProjectRepository(pool);
     const statusRepository = new ProjectStatusRepository(pool);
     const quotationRepository = new QuotationRepository();
+    const subsidyRuleRepository = new StateSubsidyRuleRepository(pool);
+    const requiredDocRepository = new SubsidyRequiredDocumentRepository(pool);
     const auditLogRepo = new AuditLogRepository(pool);
     const auditLogService = new AuditLogService(auditLogRepo);
 
@@ -30,6 +34,8 @@ function createProjectRouter(): Router {
         projectRepository,
         statusRepository,
         quotationRepository,
+        subsidyRuleRepository,
+        requiredDocRepository,
         auditLogService
     );
     const controller = new ProjectController(service);
@@ -78,6 +84,40 @@ function createProjectRouter(): Router {
         "/list",
         validateProjectRequest(paginationSchema),
         controller.getProjectsPaginated,
+    );
+
+    /**
+     * @swagger
+     * /projects/{uid}/required-subsidy-documents:
+     *   get:
+     *     tags: [Projects]
+     *     summary: Automatically fetch deduplicated required subsidy documents for a project
+     *     description: Resolves applied subsidy schemes for the project (or accepts comma-separated subsidyUids) and returns unique required document types.
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Project UID
+     *       - in: query
+     *         name: subsidyUids
+     *         required: false
+     *         schema:
+     *           type: string
+     *         description: Optional comma-separated list of subsidy UIDs to override automatic resolution
+     *     responses:
+     *       200:
+     *         description: Deduplicated required subsidy document types fetched successfully
+     *       404:
+     *         description: Project not found
+     */
+    router.get(
+        "/:uid/required-subsidy-documents",
+        validateProjectRequest(getByUidSchema),
+        controller.getRequiredSubsidyDocuments,
     );
 
     /**

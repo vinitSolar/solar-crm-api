@@ -8,7 +8,7 @@ export const createSubsidyDocumentTypeSchema = z.object({
     description: z.string().optional().nullable(),
     allowMultiple: z.boolean().optional().default(false),
     isRequired: z.boolean().optional().default(false),
-    sortOrder: z.number().int().optional().default(0),
+    sortOrder: z.number().int().optional(),
 });
 
 export const updateSubsidyDocumentTypeSchema = z.object({

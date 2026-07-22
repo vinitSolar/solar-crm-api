@@ -1,7 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import type { IProject, ICreateProject, IUpdateProject } from "../interfaces/project.interface.js";
 import { v4 as uuidv4 } from "uuid";
-import dayjs from "dayjs";
 
 const PROJECT_COLUMNS = `
     p.id, p.uid, p.tenant_uid AS "tenantUid", p.lead_uid AS "leadUid", p.quotation_uid AS "quotationUid",
@@ -44,7 +43,7 @@ export class ProjectRepository {
         `;
         const values = [
             uid, tenantUid, data.leadUid, data.quotationUid, data.projectNumber, data.projectName, 
-            data.statusUid, data.projectManagerUid ?? null, data.projectDate ?? null, data.remarks ?? null, createdBy
+            data.statusUid, data.projectManagerUid || null, data.projectDate || null, data.remarks || null, createdBy
         ];
 
         const result = client 
@@ -62,7 +61,7 @@ export class ProjectRepository {
              SELECT ${PROJECT_COLUMNS}, ${PROJECT_RELATIONS_COLUMNS}
              FROM projects p
              LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid 
-             LEFT JOIN users u ON p.project_manager_uid = u.uid
+             LEFT JOIN users u ON p.project_manager_uid::varchar = u.uid
              LEFT JOIN leads l ON p.lead_uid = l.uid
              WHERE p.uid = $1 AND p.tenant_uid = $2 AND p.is_deleted = 0
         `;
@@ -70,6 +69,19 @@ export class ProjectRepository {
             ? await client.query(query, [uid, tenantUid])
             : await this.pool.query(query, [uid, tenantUid]);
         return result.rows.length > 0 ? (result.rows[0] as IProject) : null;
+    }
+
+    async getProjectLeadState(tenantUid: string, uid: string, client?: PoolClient): Promise<{ leadUid: string; state: string | null } | null> {
+        const query = `
+             SELECT p.lead_uid AS "leadUid", l.state
+             FROM projects p
+             LEFT JOIN leads l ON p.lead_uid = l.uid
+             WHERE p.uid = $1 AND p.tenant_uid = $2 AND p.is_deleted = 0
+        `;
+        const result = client
+            ? await client.query(query, [uid, tenantUid])
+            : await this.pool.query(query, [uid, tenantUid]);
+        return result.rows.length > 0 ? { leadUid: result.rows[0].leadUid, state: result.rows[0].state || null } : null;
     }
 
     async getActiveProjectByQuotationUid(tenantUid: string, quotationUid: string, client?: PoolClient): Promise<IProject | null> {
@@ -197,9 +209,9 @@ export class ProjectRepository {
 
         if (data.projectName !== undefined) { updates.push(`project_name = $${index++}`); values.push(data.projectName); }
         if (data.projectStatusUid !== undefined) { updates.push(`project_status_uid = $${index++}`); values.push(data.projectStatusUid); }
-        if (data.projectManagerUid !== undefined) { updates.push(`project_manager_uid = $${index++}`); values.push(data.projectManagerUid); }
+        if (data.projectManagerUid !== undefined) { updates.push(`project_manager_uid = $${index++}`); values.push(data.projectManagerUid || null); }
         if (data.projectDate !== undefined) { updates.push(`project_date = $${index++}`); values.push(data.projectDate || null); }
-        if (data.remarks !== undefined) { updates.push(`remarks = $${index++}`); values.push(data.remarks); }
+        if (data.remarks !== undefined) { updates.push(`remarks = $${index++}`); values.push(data.remarks || null); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 

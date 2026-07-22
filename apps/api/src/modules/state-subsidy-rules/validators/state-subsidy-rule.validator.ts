@@ -42,6 +42,15 @@ export const updateStateSubsidyRuleSchema = z.object({
 });
 
 /**
+ * Schema for fetching combined required documents across multiple subsidy schemes.
+ */
+export const combinedRequiredDocumentsSchema = z.object({
+    body: z.object({
+        subsidyUids: z.array(z.string().min(1, "Subsidy UID cannot be empty")).min(1, "At least one subsidy UID must be provided"),
+    }),
+});
+
+/**
  * Schema for paginated list requests.
  */
 export const paginationSchema = z.object({

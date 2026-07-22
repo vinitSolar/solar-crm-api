@@ -15,6 +15,22 @@ export class QuotationTermsConditionRepository {
         data: CreateQuotationTermsConditionDTO,
         createdBy: string
     ): Promise<IQuotationTermsCondition> {
+        let sortOrder = data.sortOrder;
+        if (sortOrder === undefined || sortOrder === null) {
+            const maxRes = await this.db.query(
+                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM quotation_terms_conditions WHERE tenant_uid = $1 AND is_deleted = 0`,
+                [tenantUid]
+            );
+            sortOrder = Number(maxRes.rows[0]?.max_sort || 0) + 1;
+        }
+
+        if (data.isDefault === 1) {
+            await this.db.query(
+                `UPDATE quotation_terms_conditions SET is_default = 0 WHERE tenant_uid = $1 AND is_default = 1`,
+                [tenantUid]
+            );
+        }
+
         const query = `
             INSERT INTO quotation_terms_conditions 
             (tenant_uid, title, description, sort_order, is_default, created_by, updated_by)
@@ -26,7 +42,7 @@ export class QuotationTermsConditionRepository {
             tenantUid,
             data.title,
             data.description,
-            data.sortOrder ?? 0,
+            sortOrder,
             data.isDefault ?? 0,
             createdBy,
             createdBy,
@@ -70,6 +86,13 @@ export class QuotationTermsConditionRepository {
         data: UpdateQuotationTermsConditionDTO,
         updatedBy: string
     ): Promise<IQuotationTermsCondition | null> {
+        if (data.isDefault === 1) {
+            await this.db.query(
+                `UPDATE quotation_terms_conditions SET is_default = 0 WHERE tenant_uid = $1 AND is_default = 1 AND uid != $2`,
+                [tenantUid, uid]
+            );
+        }
+
         const setClauses: string[] = [];
         const values: any[] = [];
         let paramIndex = 1;
@@ -85,6 +108,7 @@ export class QuotationTermsConditionRepository {
         addField("title", data.title);
         addField("description", data.description);
         addField("sort_order", data.sortOrder);
+        addField("is_default", data.isDefault);
         addField("is_active", data.isActive);
 
         if (setClauses.length === 0) {

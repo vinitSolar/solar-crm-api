@@ -23,19 +23,35 @@ export class LeadSourceRepository {
         client?: PoolClient
     ): Promise<ILeadSource> {
         const uid = uuidv4();
+        const executor = client || this.pool;
+
+        let sortOrder = data.sortOrder;
+        if (sortOrder === undefined || sortOrder === null) {
+            const maxRes = await executor.query(
+                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM lead_sources WHERE tenant_uid = $1 AND is_deleted = 0`,
+                [tenantUid]
+            );
+            sortOrder = Number(maxRes.rows[0]?.max_sort || 0) + 1;
+        }
+
+        if (data.isDefault === 1) {
+            await executor.query(
+                `UPDATE lead_sources SET is_default = 0 WHERE tenant_uid = $1 AND is_default = 1`,
+                [tenantUid]
+            );
+        }
+
         const query = `
             INSERT INTO lead_sources (uid, tenant_uid, name, color, sort_order, is_default, created_by)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING ${LEAD_SOURCE_COLUMNS}
         `;
         const values = [
-            uid, tenantUid, data.name, data.color ?? null, data.sortOrder ?? 0, 
+            uid, tenantUid, data.name, data.color ?? null, sortOrder, 
             data.isDefault ?? 0, createdBy
         ];
 
-        const result = client 
-            ? await client.query(query, values) 
-            : await this.pool.query(query, values);
+        const result = await executor.query(query, values);
             
         return result.rows[0] as ILeadSource;
     }
@@ -64,6 +80,13 @@ export class LeadSourceRepository {
     }
 
     async update(tenantUid: string, uid: string, data: IUpdateLeadSource, updatedBy: string): Promise<ILeadSource | null> {
+        if (data.isDefault === 1) {
+            await this.pool.query(
+                `UPDATE lead_sources SET is_default = 0 WHERE tenant_uid = $1 AND is_default = 1 AND uid != $2`,
+                [tenantUid, uid]
+            );
+        }
+
         const updates: string[] = [];
         const values: any[] = [];
         let index = 1;

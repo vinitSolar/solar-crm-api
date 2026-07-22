@@ -1,6 +1,8 @@
 import type { ProjectRepository } from "../repositories/project.repository.js";
 import type { ProjectStatusRepository } from "../repositories/project-status.repository.js";
 import type { QuotationRepository } from "../../quotations/repositories/quotation.repository.js";
+import type { StateSubsidyRuleRepository } from "../../state-subsidy-rules/repositories/state-subsidy-rule.repository.js";
+import type { SubsidyRequiredDocumentRepository, ICombinedRequiredDocumentDetail } from "../../state-subsidy-rules/repositories/subsidy-required-document.repository.js";
 import type { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import type { ICreateProject, IUpdateProject, IProjectSafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/project.interface.js";
 import { toProjectSafe } from "../dto/project.dto.js";
@@ -13,17 +15,23 @@ export class ProjectService {
     private readonly repository: ProjectRepository;
     private readonly statusRepository: ProjectStatusRepository;
     private readonly quotationRepository: QuotationRepository;
+    private readonly subsidyRuleRepository: StateSubsidyRuleRepository;
+    private readonly requiredDocRepository: SubsidyRequiredDocumentRepository;
     private readonly auditLogService: AuditLogService;
 
     constructor(
         repository: ProjectRepository,
         statusRepository: ProjectStatusRepository,
         quotationRepository: QuotationRepository,
+        subsidyRuleRepository: StateSubsidyRuleRepository,
+        requiredDocRepository: SubsidyRequiredDocumentRepository,
         auditLogService: AuditLogService
     ) {
         this.repository = repository;
         this.statusRepository = statusRepository;
         this.quotationRepository = quotationRepository;
+        this.subsidyRuleRepository = subsidyRuleRepository;
+        this.requiredDocRepository = requiredDocRepository;
         this.auditLogService = auditLogService;
     }
 
@@ -48,7 +56,13 @@ export class ProjectService {
         }
 
         // 3. Get default project status
-        const defaultStatus = await this.statusRepository.getDefault(tenantUid);
+        let defaultStatus = await this.statusRepository.getDefault(tenantUid);
+        if (!defaultStatus) {
+            const activeStatuses = await this.statusRepository.getAll(tenantUid, "active");
+            if (activeStatuses.length > 0 && activeStatuses[0]) {
+                defaultStatus = activeStatuses[0];
+            }
+        }
         if (!defaultStatus) {
             throw new CustomError("No default project status found. Please create one.", 400);
         }
@@ -81,7 +95,13 @@ export class ProjectService {
 
             return toProjectSafe(project);
         } catch (error) {
-            logger.error("ProjectService.createProject error", { error });
+            logger.error("ProjectService.createProject error", {
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined
+            });
+            if (error instanceof CustomError) {
+                throw error;
+            }
             throw new CustomError(PROJECT_MESSAGES.CREATION_FAILED, 500);
         }
     }
@@ -92,6 +112,31 @@ export class ProjectService {
             throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
         }
         return toProjectSafe(project);
+    }
+
+    async getProjectRequiredSubsidyDocuments(
+        tenantUid: string,
+        uid: string,
+        subsidyUids?: string[]
+    ): Promise<ICombinedRequiredDocumentDetail[]> {
+        const projectInfo = await this.repository.getProjectLeadState(tenantUid, uid);
+        if (!projectInfo) {
+            throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
+        }
+
+        let targetSubsidyUids = subsidyUids || [];
+
+        // Auto-resolve subsidy rules matching project's customer state if not explicitly specified
+        if (targetSubsidyUids.length === 0 && projectInfo.state) {
+            const rules = await this.subsidyRuleRepository.findByStateUidOrAll(projectInfo.state);
+            targetSubsidyUids = rules.map((r) => r.uid);
+        }
+
+        if (targetSubsidyUids.length === 0) {
+            return [];
+        }
+
+        return await this.requiredDocRepository.getCombinedRequiredDocuments(targetSubsidyUids);
     }
 
     async getProjectsPaginated(tenantUid: string, query: IPaginationQuery): Promise<IPaginatedResponse<IProjectSafe>> {
@@ -147,7 +192,13 @@ export class ProjectService {
 
             return toProjectSafe(updated);
         } catch (error) {
-            logger.error("ProjectService.updateProject error", { error });
+            logger.error("ProjectService.updateProject error", {
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined
+            });
+            if (error instanceof CustomError) {
+                throw error;
+            }
             throw new CustomError(PROJECT_MESSAGES.UPDATE_FAILED, 500);
         }
     }
@@ -180,7 +231,13 @@ export class ProjectService {
 
             return toProjectSafe(updated);
         } catch (error) {
-            logger.error("ProjectService.changeProjectStatus error", { error });
+            logger.error("ProjectService.changeProjectStatus error", {
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined
+            });
+            if (error instanceof CustomError) {
+                throw error;
+            }
             throw new CustomError(PROJECT_MESSAGES.UPDATE_FAILED, 500);
         }
     }

@@ -5,7 +5,7 @@ export const createQuotationTermsConditionSchema = z.object({
     body: z.object({
         title: z.string().min(1, QUOTATION_TERMS_CONDITION_VALIDATION_MESSAGES.TITLE_REQUIRED).max(255),
         description: z.string().min(1, QUOTATION_TERMS_CONDITION_VALIDATION_MESSAGES.DESCRIPTION_REQUIRED),
-        sortOrder: z.number().int().min(0).optional().default(0),
+        sortOrder: z.number().int().min(0).optional(),
         isDefault: z.number().int().min(0).max(1).optional().default(0)
     }),
 });

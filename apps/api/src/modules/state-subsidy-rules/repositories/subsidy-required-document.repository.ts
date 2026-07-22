@@ -27,6 +27,16 @@ export interface ISubsidyRequiredDocumentDetail {
     sortOrder: number;
 }
 
+export interface ICombinedRequiredDocumentDetail {
+    documentTypeUid: string;
+    name: string;
+    description: string | null;
+    allowMultiple: boolean;
+    isRequired: boolean;
+    sortOrder: number;
+    applicableSchemes: string[];
+}
+
 export class SubsidyRequiredDocumentRepository {
     private readonly pool: Pool;
 
@@ -100,6 +110,37 @@ export class SubsidyRequiredDocumentRepository {
             ORDER BY srd.sort_order ASC, sdt.name ASC
         `;
         const result = await executor.query<ISubsidyRequiredDocumentDetail>(query, [subsidyUid]);
+        return result.rows;
+    }
+
+    public async getCombinedRequiredDocuments(
+        subsidyUids: string[],
+        client?: PoolClient
+    ): Promise<ICombinedRequiredDocumentDetail[]> {
+        if (subsidyUids.length === 0) return [];
+
+        const executor = client || this.pool;
+        const query = `
+            SELECT 
+                sdt.uid AS "documentTypeUid",
+                sdt.name,
+                sdt.description,
+                sdt.allow_multiple = 1 AS "allowMultiple",
+                MAX(srd.is_mandatory) = 1 AS "isRequired",
+                MIN(srd.sort_order) AS "sortOrder",
+                ARRAY_AGG(DISTINCT COALESCE(ssr.scheme_name, 'Subsidy')) AS "applicableSchemes"
+            FROM subsidy_required_documents srd
+            JOIN subsidy_document_types sdt ON sdt.uid = srd.document_type_uid
+            LEFT JOIN state_subsidy_rules ssr ON ssr.uid = srd.subsidy_uid
+            WHERE srd.subsidy_uid = ANY($1::varchar[])
+              AND srd.is_deleted = 0
+              AND srd.is_active = 1
+              AND sdt.is_deleted = 0
+              AND sdt.is_active = 1
+            GROUP BY sdt.uid, sdt.name, sdt.description, sdt.allow_multiple
+            ORDER BY MIN(srd.sort_order) ASC, sdt.name ASC
+        `;
+        const result = await executor.query<ICombinedRequiredDocumentDetail>(query, [subsidyUids]);
         return result.rows;
     }
 

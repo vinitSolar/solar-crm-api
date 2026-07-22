@@ -1,5 +1,5 @@
 import type { StateSubsidyRuleRepository, IStateSubsidyRuleWithStateName } from "../repositories/state-subsidy-rule.repository.js";
-import type { SubsidyRequiredDocumentRepository } from "../repositories/subsidy-required-document.repository.js";
+import type { SubsidyRequiredDocumentRepository, ICombinedRequiredDocumentDetail } from "../repositories/subsidy-required-document.repository.js";
 import type { SubsidyDocumentTypeRepository } from "../../subsidy-document-types/repositories/subsidy-document-type.repository.js";
 import type { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import type { IStateSubsidyRule, IStateSubsidyRuleSafe, IStateSubsidyRuleDropdown } from "../interfaces/state-subsidy-rule.interface.js";
@@ -237,6 +237,13 @@ export class StateSubsidyRuleService {
         const sanitized = this.sanitize(rule);
         sanitized.requiredDocuments = await this.requiredDocRepository.findBySubsidyUid(uid);
         return sanitized;
+    }
+
+    public async getCombinedRequiredDocuments(subsidyUids: string[]): Promise<ICombinedRequiredDocumentDetail[]> {
+        if (!subsidyUids || subsidyUids.length === 0) {
+            return [];
+        }
+        return await this.requiredDocRepository.getCombinedRequiredDocuments(subsidyUids);
     }
 
     public async getRulesByStateUid(stateUid: string): Promise<IStateSubsidyRuleSafe[]> {

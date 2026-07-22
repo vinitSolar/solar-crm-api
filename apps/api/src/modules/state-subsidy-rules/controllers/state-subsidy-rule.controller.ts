@@ -75,6 +75,20 @@ export class StateSubsidyRuleController {
         }
     };
 
+    public getCombinedRequiredDocuments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const subsidyUids = (req.body.subsidyUids || []) as string[];
+            const docs = await this.service.getCombinedRequiredDocuments(subsidyUids);
+            res.status(200).json({
+                success: true,
+                message: STATE_SUBSIDY_RULE_MESSAGES.FETCHED,
+                data: docs,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     public getPaginatedRules = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const result = await this.service.getPaginatedRules(req.body);

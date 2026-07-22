@@ -9,11 +9,19 @@ export class ProductBrandRepository {
     }
 
     async create(data: { uid: string; name: string; description?: string; logo?: string; sortOrder?: number; createdBy: string }): Promise<IProductBrand> {
+        let sortOrder = data.sortOrder;
+        if (sortOrder === undefined || sortOrder === null) {
+            const maxRes = await this.pool.query(
+                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM product_brands WHERE is_deleted = 0`
+            );
+            sortOrder = Number(maxRes.rows[0]?.max_sort || 0) + 1;
+        }
+
         const result = await this.pool.query(
             `INSERT INTO product_brands (uid, name, description, logo, sort_order, created_by)
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING *`,
-            [data.uid, data.name, data.description || null, data.logo || null, data.sortOrder || 0, data.createdBy]
+            [data.uid, data.name, data.description || null, data.logo || null, sortOrder, data.createdBy]
         );
         return result.rows[0];
     }

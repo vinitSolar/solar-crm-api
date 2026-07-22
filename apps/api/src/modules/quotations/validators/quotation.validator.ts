@@ -19,12 +19,12 @@ export const createQuotationSchema = z.object({
         scopeOfWork: z.array(z.object({
             title: z.string().min(1).max(255),
             value: z.string().min(1),
-            sortOrder: z.number().int().min(0).optional().default(0)
+            sortOrder: z.number().int().min(0).optional()
         })).optional(),
         termsConditions: z.array(z.object({
             title: z.string().min(1).max(255),
             description: z.string().min(1),
-            sortOrder: z.number().int().min(0).optional().default(0)
+            sortOrder: z.number().int().min(0).optional()
         })).optional()
     })
 });
@@ -50,12 +50,12 @@ export const updateQuotationSchema = z.object({
         scopeOfWork: z.array(z.object({
             title: z.string().min(1).max(255),
             value: z.string().min(1),
-            sortOrder: z.number().int().min(0).optional().default(0)
+            sortOrder: z.number().int().min(0).optional()
         })).optional(),
         termsConditions: z.array(z.object({
             title: z.string().min(1).max(255),
             description: z.string().min(1),
-            sortOrder: z.number().int().min(0).optional().default(0)
+            sortOrder: z.number().int().min(0).optional()
         })).optional()
     })
 });

@@ -37,6 +37,16 @@ export class SubsidyDocumentTypeRepository {
         client?: PoolClient
     ): Promise<ISubsidyDocumentType> {
         const uid = uuidv4();
+        const executor = client || this.pool;
+
+        let sortOrder = data.sortOrder;
+        if (sortOrder === undefined || sortOrder === null) {
+            const maxRes = await executor.query(
+                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM subsidy_document_types WHERE is_deleted = 0`
+            );
+            sortOrder = Number(maxRes.rows[0]?.max_sort || 0) + 1;
+        }
+
         const query = `
             INSERT INTO subsidy_document_types (
                 uid, name, description, allow_multiple, is_required, sort_order, created_by, updated_by
@@ -50,12 +60,11 @@ export class SubsidyDocumentTypeRepository {
             data.description ?? null,
             data.allowMultiple ? 1 : 0,
             data.isRequired ? 1 : 0,
-            data.sortOrder ?? 0,
+            sortOrder,
             createdBy,
             createdBy,
         ];
 
-        const executor = client || this.pool;
         const result = await executor.query<ISubsidyDocumentType>(query, values);
         return result.rows[0] as ISubsidyDocumentType;
     }

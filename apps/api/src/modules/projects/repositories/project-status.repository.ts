@@ -23,19 +23,35 @@ export class ProjectStatusRepository {
         client?: PoolClient
     ): Promise<IProjectStatus> {
         const uid = uuidv4();
+        const executor = client || this.pool;
+
+        let sortOrder = data.sortOrder;
+        if (sortOrder === undefined || sortOrder === null) {
+            const maxRes = await executor.query(
+                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM project_statuses WHERE tenant_uid = $1 AND is_deleted = 0`,
+                [tenantUid]
+            );
+            sortOrder = Number(maxRes.rows[0]?.max_sort || 0) + 1;
+        }
+
+        if (data.isDefault === 1) {
+            await executor.query(
+                `UPDATE project_statuses SET is_default = 0 WHERE tenant_uid = $1 AND is_default = 1`,
+                [tenantUid]
+            );
+        }
+
         const query = `
             INSERT INTO project_statuses (uid, tenant_uid, name, color, sort_order, is_default, is_closed, description, created_by)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING ${PROJECT_STATUS_COLUMNS}
         `;
         const values = [
-            uid, tenantUid, data.name, data.color ?? null, data.sortOrder ?? 0, 
+            uid, tenantUid, data.name, data.color ?? null, sortOrder, 
             data.isDefault ?? 0, data.isClosed ?? 0, data.description ?? null, createdBy
         ];
 
-        const result = client 
-            ? await client.query(query, values) 
-            : await this.pool.query(query, values);
+        const result = await executor.query(query, values);
             
         return result.rows[0] as IProjectStatus;
     }
@@ -74,6 +90,13 @@ export class ProjectStatusRepository {
     }
 
     async update(tenantUid: string, uid: string, data: IUpdateProjectStatus, updatedBy: string): Promise<IProjectStatus | null> {
+        if (data.isDefault === 1) {
+            await this.pool.query(
+                `UPDATE project_statuses SET is_default = 0 WHERE tenant_uid = $1 AND is_default = 1 AND uid != $2`,
+                [tenantUid, uid]
+            );
+        }
+
         const updates: string[] = [];
         const values: any[] = [];
         let index = 1;

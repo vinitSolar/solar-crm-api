@@ -26,7 +26,7 @@ export class RolePermissionController {
     ): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const { roleUid } = req.params;
+            const roleUid = req.params.roleUid as string;
 
             logger.info("RolePermissionController.getMenuPermissions", {
                 roleUid,
@@ -34,7 +34,7 @@ export class RolePermissionController {
             });
 
             const permissions = await this.rolePermissionService.getMenuPermissions(
-                roleUid!,
+                roleUid,
                 authReq.tenantUid,
             );
 
@@ -58,7 +58,7 @@ export class RolePermissionController {
     ): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const { roleUid } = req.params;
+            const roleUid = req.params.roleUid as string;
             const { permissions } = req.body as { permissions: IUpsertRoleMenuPermission[] };
 
             logger.info("RolePermissionController.upsertMenuPermissions", {
@@ -68,7 +68,7 @@ export class RolePermissionController {
             });
 
             await this.rolePermissionService.upsertMenuPermissions(
-                roleUid!,
+                roleUid,
                 authReq.tenantUid,
                 permissions,
             );

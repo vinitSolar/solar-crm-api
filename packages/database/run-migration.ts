@@ -1,4 +1,4 @@
-import { pool } from '@packages/database/index.js';
+import { pool } from '../index.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

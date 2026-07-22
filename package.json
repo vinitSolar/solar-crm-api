@@ -10,7 +10,9 @@
     "dev": "tsx watch apps/api/src/server.ts",
     "start": "node dist/apps/api/src/server.js",
     "build": "tsc",
-    "seed:location": "tsx packages/database/seeds/seed_locations_from_json.ts"
+    "seed": "tsx packages/database/run-seed.ts",
+    "seed:location": "tsx packages/database/seeds/seed_locations_from_json.ts",
+    "seed:all": "tsx packages/database/run-seed.ts && tsx packages/database/seeds/seed_locations_from_json.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

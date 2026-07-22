@@ -51,10 +51,11 @@ export class LeadStatusController {
             const status = (req.query.status as "active" | "deleted" | "all") || "active";
 
             const leadStatuses = await this.service.getAllLeadStatuses(tenantUid, status);
+            const dataWithoutIsClosed = leadStatuses.map(({ isClosed, ...rest }) => rest);
             res.status(200).json({
                 success: true,
                 message: LEAD_STATUS_MESSAGES.FETCHED_SUCCESSFULLY,
-                data: leadStatuses,
+                data: dataWithoutIsClosed,
             });
         } catch (error) {
             next(error);

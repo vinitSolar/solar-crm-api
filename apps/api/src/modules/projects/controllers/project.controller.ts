@@ -1,4 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
+import fs from "fs";
+import path from "path";
 import type { ProjectService } from "../services/project.service.js";
 import { PROJECT_MESSAGES } from "../constants/project.constants.js";
 import type { IAuthenticatedRequest } from "../../auth/interfaces/auth.interface.js";
@@ -112,6 +114,27 @@ export class ProjectController {
         }
     };
 
+    assignProjectManager = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const uid = req.params.uid as string;
+            const { projectManagerUid } = req.body;
+            const ipAddress = req.ip || "Unknown";
+            const userAgent = req.headers["user-agent"] || "Unknown";
+
+            const project = await this.service.assignProjectManager(tenantUid, uid, projectManagerUid, userUid, ipAddress, userAgent);
+            res.status(200).json({
+                success: true,
+                message: PROJECT_MESSAGES.UPDATED,
+                data: project,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     changeStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
@@ -167,6 +190,57 @@ export class ProjectController {
                 success: true,
                 message: PROJECT_MESSAGES.RESTORED,
                 data: {},
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    addSubsidyDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const uid = req.params.uid as string;
+            const documentData = req.body;
+            const ipAddress = req.ip || "Unknown";
+            const userAgent = req.headers["user-agent"] || "Unknown";
+
+            if (!req.file) {
+                res.status(400).json({ success: false, message: "File is required" });
+                return;
+            }
+
+            const uploadDir = path.join(process.cwd(), "public", "uploads", "franchises", "projects", uid, "subsidy-docs");
+            await fs.promises.mkdir(uploadDir, { recursive: true });
+
+            const fileName = `${Date.now()}_${req.file.originalname}`;
+            const filePath = path.join(uploadDir, fileName);
+            await fs.promises.writeFile(filePath, req.file.buffer);
+
+            const fileUrl = `/uploads/franchises/projects/${uid}/subsidy-docs/${fileName}`;
+
+            const document = await this.service.addSubsidyDocument(
+                tenantUid,
+                uid,
+                {
+                    documentTypeUid: documentData.documentTypeUid,
+                    remarks: documentData.remarks,
+                    originalName: req.file.originalname,
+                    fileName: fileName,
+                    fileUrl: fileUrl,
+                    mimeType: req.file.mimetype,
+                    fileSize: req.file.size,
+                },
+                userUid,
+                ipAddress,
+                userAgent
+            );
+
+            res.status(201).json({
+                success: true,
+                message: "Subsidy document added successfully",
+                data: document,
             });
         } catch (error) {
             next(error);

@@ -213,7 +213,7 @@ export class LeadRepository {
 
         const result = await this.pool.query(
             `UPDATE leads SET ${updates.join(", ")}
-             WHERE uid = $${index - 2} AND tenant_uid = $${index - 1} AND is_deleted = 0
+             WHERE uid::varchar = $${index} AND tenant_uid::varchar = $${index + 1} AND is_deleted = 0
              RETURNING uid`,
             values
         );

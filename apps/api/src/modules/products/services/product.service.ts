@@ -62,7 +62,7 @@ export class ProductService {
             const docTypeMap = new Map(docTypes.map(t => [t.uid, t]));
 
             const productImagesType = docTypes.find(t => t.name.toLowerCase() === "product images");
-            const productImagesTypeUid = productImagesType?.uid || "8d6f51cb-1c09-411a-8260-249ebd7e8a15";
+            const productImagesTypeUid = productImagesType?.uid;
 
             // Map files to their target document type UIDs
             const documentItems: { file: Express.Multer.File; typeUid: string }[] = [];
@@ -86,10 +86,13 @@ export class ProductService {
 
             // Maintain backward compatibility for old images fieldname
             const oldImageFiles = files.filter(f => f.fieldname === "images");
+            if (oldImageFiles.length > 0 && !productImagesTypeUid) {
+                throw new CustomError("Product Images document type is not configured for this tenant.", 400);
+            }
             for (const file of oldImageFiles) {
                 documentItems.push({
                     file,
-                    typeUid: productImagesTypeUid,
+                    typeUid: productImagesTypeUid!,
                 });
             }
 
@@ -171,21 +174,21 @@ export class ProductService {
                 );
                 const storedFileName = path.basename(fileUrl) || item.file.originalname;
 
-                await this.documentRepository.create(
-                    tenantUid,
-                    productUid,
-                    docType.uid,
-                    item.file.originalname,
-                    storedFileName,
-                    fileUrl,
-                    item.file.mimetype,
-                    item.file.size,
-                    userUid,
-                    client
-                );
-
                 if (docType.uid === productImagesTypeUid) {
                     productImages.push(fileUrl);
+                } else {
+                    await this.documentRepository.create(
+                        tenantUid,
+                        productUid,
+                        docType.uid,
+                        item.file.originalname,
+                        storedFileName,
+                        fileUrl,
+                        item.file.mimetype,
+                        item.file.size,
+                        userUid,
+                        client
+                    );
                 }
             }
 
@@ -255,7 +258,7 @@ export class ProductService {
             const docTypeMap = new Map(docTypes.map(t => [t.uid, t]));
 
             const productImagesType = docTypes.find(t => t.name.toLowerCase() === "product images");
-            const productImagesTypeUid = productImagesType?.uid || "8d6f51cb-1c09-411a-8260-249ebd7e8a15";
+            const productImagesTypeUid = productImagesType?.uid;
 
             // Map files to their target document type UIDs
             const documentItems: { file: Express.Multer.File; typeUid: string }[] = [];
@@ -279,10 +282,13 @@ export class ProductService {
 
             // Maintain backward compatibility for old images fieldname
             const oldImageFiles = files.filter(f => f.fieldname === "images");
+            if (oldImageFiles.length > 0 && !productImagesTypeUid) {
+                throw new CustomError("Product Images document type is not configured for this tenant.", 400);
+            }
             for (const file of oldImageFiles) {
                 documentItems.push({
                     file,
-                    typeUid: productImagesTypeUid,
+                    typeUid: productImagesTypeUid!,
                 });
             }
 
@@ -339,21 +345,21 @@ export class ProductService {
                 );
                 const storedFileName = path.basename(fileUrl) || item.file.originalname;
 
-                await this.documentRepository.create(
-                    tenantUid,
-                    uid,
-                    docType.uid,
-                    item.file.originalname,
-                    storedFileName,
-                    fileUrl,
-                    item.file.mimetype,
-                    item.file.size,
-                    userUid,
-                    client
-                );
-
                 if (docType.uid === productImagesTypeUid) {
                     newProductImages.push(fileUrl);
+                } else {
+                    await this.documentRepository.create(
+                        tenantUid,
+                        uid,
+                        docType.uid,
+                        item.file.originalname,
+                        storedFileName,
+                        fileUrl,
+                        item.file.mimetype,
+                        item.file.size,
+                        userUid,
+                        client
+                    );
                 }
             }
 

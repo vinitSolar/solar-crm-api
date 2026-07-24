@@ -49,6 +49,8 @@ export interface IProductSafe {
     createdAt: Date;
     updatedAt: Date;
     brandName?: string | undefined;
+    categoryName?: string | undefined;
+    unitName?: string | undefined;
     documents?: IProductDocumentSafe[];
     height: number | null;
     width: number | null;
@@ -84,6 +86,8 @@ export const toProductSafe = (product: IProduct, documents?: IProductDocument[])
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
         brandName: product.brandName,
+        categoryName: product.categoryName,
+        unitName: product.unitName,
         documents: documents ? documents.map(toProductDocumentSafe) : [],
         height: product.height !== null ? Number(product.height) : null,
         width: product.width !== null ? Number(product.width) : null,
@@ -107,6 +111,9 @@ export interface IProductDropdown {
     gstPercentage: number;
     unitUid: string;
     modelNumber: string | null;
+    brandName?: string | undefined;
+    categoryName?: string | undefined;
+    unitName?: string | undefined;
 }
 
 export const toProductDropdown = (product: IProduct): IProductDropdown => {
@@ -118,5 +125,8 @@ export const toProductDropdown = (product: IProduct): IProductDropdown => {
         gstPercentage: Number(product.gstPercentage),
         unitUid: product.unitUid,
         modelNumber: product.modelNumber,
+        brandName: product.brandName,
+        categoryName: product.categoryName,
+        unitName: product.unitName,
     };
 };

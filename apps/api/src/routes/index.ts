@@ -11,6 +11,7 @@ import { siteSurveyRoutes } from "../modules/site-surveys/index.js";
 import { surveyDocumentTypeRoutes } from "../modules/survey-documents/index.js";
 import { productDocumentTypeRoutes } from "../modules/product-document-types/index.js";
 import { subsidyDocumentTypeRoutes } from "../modules/subsidy-document-types/index.js";
+import { installationMilestoneRoutes } from "../modules/installation-milestones/index.js";
 import { productCategoryRoutes } from "../modules/product-categories/index.js";
 import { productBrandRoutes } from "../modules/product-brands/index.js";
 import { productUnitRoutes } from "../modules/product-units/index.js";
@@ -23,6 +24,7 @@ import { franchiseDocumentTypeRoutes } from "../modules/franchise-document-types
 import { locationsRoutes } from "../modules/locations/index.js";
 import { auditLogRoutes } from "../modules/audit-logs/index.js";
 import { projectRoutes, projectStatusRoutes } from "../modules/projects/index.js";
+import { subsidyTrackerRoutes } from "../modules/subsidy-trackers/index.js";
 
 const apiRouter = Router();
 
@@ -32,6 +34,7 @@ apiRouter.use("/roles", rolePermissionRoutes);
 apiRouter.use("/users", userRoutes);
 apiRouter.use("/users", userPermissionRoutes);
 apiRouter.use("/franchises", franchiseRoutes);
+apiRouter.use("/installation-milestones", installationMilestoneRoutes);
 apiRouter.use("/menus", menuRoutes);
 apiRouter.use("/leads", leadRoutes);
 apiRouter.use("/lead-sources", leadSourceRoutes);
@@ -51,6 +54,7 @@ apiRouter.use("/quotation-scope-of-work", quotationScopeOfWorkRoutes);
 apiRouter.use("/quotations", quotationRoutes);
 apiRouter.use("/locations", locationsRoutes);
 apiRouter.use("/audit-logs", auditLogRoutes);
+apiRouter.use("/subsidy-trackers", subsidyTrackerRoutes);
 apiRouter.use("/project-statuses", projectStatusRoutes);
 apiRouter.use("/projects", projectRoutes);
 

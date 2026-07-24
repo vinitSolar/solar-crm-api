@@ -22,6 +22,8 @@ export class ProductRepository {
             modelNumber: row.model_number,
             images: row.images || [],
             brandName: row.brand_name,
+            categoryName: row.category_name,
+            unitName: row.unit_name,
             height: row.height,
             width: row.width,
             depth: row.depth,
@@ -74,7 +76,7 @@ export class ProductRepository {
                 price_per_unit, gst_percentage, capacity, capacity_unit, 
                 warranty, description, model_number, images, created_by
              )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::varchar, $10::varchar, $11::varchar, $12::text, $13::varchar, $14::text[], $15)
              RETURNING *`;
             const productValues = [
                 data.uid, data.categoryUid, data.brandUid, data.unitUid, data.name, data.productCode,
@@ -89,7 +91,7 @@ export class ProductRepository {
                 uid, product_uid, height, width, depth, max_power, 
                 pallet_length, pallet_width, pallet_height, pallet_weight, 
                 pallet_dimension, quantity_per_pallet, cell_technology, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`;
+            ) VALUES ($1, $2, $3::numeric, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::varchar, $12::integer, $13::varchar, $14)`;
             
             const getVal = (val: any) => val !== undefined ? val : null;
             const specValues = [
@@ -162,7 +164,10 @@ export class ProductRepository {
         if (data.warranty !== undefined) pushField('warranty', data.warranty);
         if (data.description !== undefined) pushField('description', data.description);
         if (data.modelNumber !== undefined) pushField('model_number', data.modelNumber);
-        if (data.images !== undefined) pushField('images', data.images);
+        if (data.images !== undefined) {
+            fields.push(`images = $${index++}::text[]`);
+            values.push(data.images);
+        }
         if (data.isActive !== undefined) pushField('is_active', data.isActive);
 
         const specFields: string[] = [];
@@ -195,41 +200,30 @@ export class ProductRepository {
             if (!client) await dbClient.query("BEGIN");
 
             if (fields.length > 0) {
-                pushField('updated_by', data.updatedBy);
-                // Pop updated_at and updated_by to handle CURRENT_TIMESTAMP properly
-                fields.pop(); 
-                values.pop();
                 fields.push(`updated_at = CURRENT_TIMESTAMP`);
                 fields.push(`updated_by = $${index++}`);
                 values.push(data.updatedBy);
-                values.push(uid);
 
                 const query = `UPDATE products
                      SET ${fields.join(", ")}
                      WHERE uid = $${index}`;
+                values.push(uid);
+                
                 await dbClient.query(query, values);
             }
 
             if (specFields.length > 0) {
                 const checkResult = await dbClient.query(`SELECT 1 FROM product_specifications WHERE product_uid = $1`, [uid]);
                 if (checkResult.rows.length > 0) {
-                    pushSpecField('updated_by', data.updatedBy);
-                    // Pop updated_at and updated_by to handle CURRENT_TIMESTAMP properly
-                    specFields.push(`updated_at = CURRENT_TIMESTAMP`);
-                    specValues.push(uid);
-
-                    specValues.push(data.updatedBy);
-                    specFields.pop();
-                    specValues.pop();
                     specFields.push(`updated_at = CURRENT_TIMESTAMP`);
                     specFields.push(`updated_by = $${specIndex++}`);
                     specValues.push(data.updatedBy);
-                    specValues.push(uid);
 
-                    const query = `UPDATE product_specifications
+                    const specUpdateQuery = `UPDATE product_specifications
                          SET ${specFields.join(", ")}
                          WHERE product_uid = $${specIndex}`;
-                    await dbClient.query(query, specValues);
+                    specValues.push(uid);
+                    await dbClient.query(specUpdateQuery, specValues);
                 } else {
                     const specUid = uuidv4();
                     const getVal = (val: any) => val !== undefined ? val : null;
@@ -237,7 +231,7 @@ export class ProductRepository {
                         uid, product_uid, height, width, depth, max_power,
                         pallet_length, pallet_width, pallet_height, pallet_weight,
                         pallet_dimension, quantity_per_pallet, cell_technology, created_by
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`;
+                    ) VALUES ($1, $2, $3::numeric, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::varchar, $12::integer, $13::varchar, $14)`;
                     const insertSpecValues = [
                         specUid, uid,
                         getVal(data.height), getVal(data.width), getVal(data.depth), getVal(data.maxPower),
@@ -261,8 +255,11 @@ export class ProductRepository {
     }
 
     async findByUid(uid: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
+             LEFT JOIN product_brands b ON p.brand_uid = b.uid 
+             LEFT JOIN product_categories c ON p.category_uid = c.uid 
+             LEFT JOIN product_units u ON p.unit_uid = u.uid 
              LEFT JOIN product_specifications s ON p.uid = s.product_uid 
              WHERE p.uid = $1`;
         const result = client
@@ -273,8 +270,11 @@ export class ProductRepository {
     }
 
     async findByName(name: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
+             LEFT JOIN product_brands b ON p.brand_uid = b.uid 
+             LEFT JOIN product_categories c ON p.category_uid = c.uid 
+             LEFT JOIN product_units u ON p.unit_uid = u.uid 
              LEFT JOIN product_specifications s ON p.uid = s.product_uid 
              WHERE p.name = $1`;
         const result = client
@@ -285,8 +285,11 @@ export class ProductRepository {
     }
 
     async findByCode(code: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
+             LEFT JOIN product_brands b ON p.brand_uid = b.uid 
+             LEFT JOIN product_categories c ON p.category_uid = c.uid 
+             LEFT JOIN product_units u ON p.unit_uid = u.uid 
              LEFT JOIN product_specifications s ON p.uid = s.product_uid 
              WHERE p.product_code = $1`;
         const result = client
@@ -297,8 +300,11 @@ export class ProductRepository {
     }
 
     async findAll(status?: "active" | "deleted" | "all"): Promise<IProduct[]> {
-        let query = `SELECT p.*, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        let query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
+             LEFT JOIN product_brands b ON p.brand_uid = b.uid 
+             LEFT JOIN product_categories c ON p.category_uid = c.uid 
+             LEFT JOIN product_units u ON p.unit_uid = u.uid 
              LEFT JOIN product_specifications s ON p.uid = s.product_uid`;
         const conditions: string[] = [];
 
@@ -359,9 +365,11 @@ export class ProductRepository {
         const offsetIndex = index++;
 
         const result = await this.pool.query(
-            `SELECT p.*, b.name as brand_name, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+            `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.depth, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
+             LEFT JOIN product_categories c ON p.category_uid = c.uid 
+             LEFT JOIN product_units u ON p.unit_uid = u.uid 
              LEFT JOIN product_specifications s ON p.uid = s.product_uid
              ${whereClause} 
              ORDER BY p.name ASC, p.created_at DESC 

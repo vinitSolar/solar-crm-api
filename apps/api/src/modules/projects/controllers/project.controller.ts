@@ -246,4 +246,73 @@ export class ProjectController {
             next(error);
         }
     };
+
+    // --- INSTALLATION MILESTONES ---
+
+    getProjectMilestones = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const projectUid = req.params.projectUid as string;
+
+            const milestones = await this.service.getProjectMilestones(tenantUid, projectUid);
+            res.status(200).json({
+                success: true,
+                message: "Project milestones fetched successfully",
+                data: milestones,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    uploadMilestoneDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const projectUid = req.params.projectUid as string;
+            const milestoneUid = req.params.milestoneUid as string;
+            const userUid = authReq.user.uid;
+
+            if (!req.file) {
+                res.status(400).json({ success: false, message: "File is required", errors: [] });
+                return;
+            }
+
+            const document = await this.service.uploadMilestoneDocument(tenantUid, projectUid, milestoneUid, req.file, userUid);
+            res.status(201).json({
+                success: true,
+                message: "Document uploaded successfully",
+                data: document,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    updateMilestoneStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const projectUid = req.params.projectUid as string;
+            const milestoneUid = req.params.milestoneUid as string;
+            const userUid = authReq.user.uid;
+            const status = req.body.status;
+            const remarks = req.body.remarks || null;
+
+            if (status === undefined) {
+                res.status(400).json({ success: false, message: "Status is required", errors: [] });
+                return;
+            }
+
+            const result = await this.service.updateMilestoneStatus(tenantUid, projectUid, milestoneUid, status, remarks, userUid);
+            res.status(200).json({
+                success: true,
+                message: "Milestone status updated successfully",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

@@ -5,9 +5,13 @@ import { ProjectService } from "../services/project.service.js";
 import { ProjectRepository } from "../repositories/project.repository.js";
 import { ProjectStatusRepository } from "../repositories/project-status.repository.js";
 import { ProjectSubsidyDocumentRepository } from "../repositories/project-subsidy-document.repository.js";
+import { ProjectInstallationMilestoneRepository } from "../repositories/project-installation-milestone.repository.js";
+import { ProjectInstallationMilestoneDocumentRepository } from "../repositories/project-milestone-document.repository.js";
 import { QuotationRepository } from "../../quotations/repositories/quotation.repository.js";
 import { StateSubsidyRuleRepository } from "../../state-subsidy-rules/repositories/state-subsidy-rule.repository.js";
 import { SubsidyRequiredDocumentRepository } from "../../state-subsidy-rules/repositories/subsidy-required-document.repository.js";
+import { LeadRepository } from "../../leads/repositories/lead.repository.js";
+import { SubsidyTrackerRepository } from "../../subsidy-trackers/repositories/subsidy-tracker.repository.js";
 import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
 import {
@@ -32,9 +36,13 @@ function createProjectRouter(): Router {
     const projectRepository = new ProjectRepository(pool);
     const statusRepository = new ProjectStatusRepository(pool);
     const subsidyDocumentRepository = new ProjectSubsidyDocumentRepository(pool);
+    const milestoneRepository = new ProjectInstallationMilestoneRepository(pool);
+    const milestoneDocumentRepository = new ProjectInstallationMilestoneDocumentRepository(pool);
     const quotationRepository = new QuotationRepository();
     const subsidyRuleRepository = new StateSubsidyRuleRepository(pool);
     const requiredDocRepository = new SubsidyRequiredDocumentRepository(pool);
+    const leadRepository = new LeadRepository(pool);
+    const subsidyTrackerRepository = new SubsidyTrackerRepository(pool);
     const auditLogRepo = new AuditLogRepository(pool);
     const auditLogService = new AuditLogService(auditLogRepo);
 
@@ -42,9 +50,13 @@ function createProjectRouter(): Router {
         projectRepository,
         statusRepository,
         subsidyDocumentRepository,
+        milestoneRepository,
+        milestoneDocumentRepository,
         quotationRepository,
         subsidyRuleRepository,
         requiredDocRepository,
+        leadRepository,
+        subsidyTrackerRepository,
         auditLogService
     );
     const controller = new ProjectController(service);
@@ -459,6 +471,23 @@ function createProjectRouter(): Router {
         "/:uid/restore",
         validateProjectRequest(getByUidSchema),
         controller.restoreProject,
+    );
+
+    // --- MILESTONES ---
+    router.get(
+        "/:projectUid/milestones",
+        controller.getProjectMilestones,
+    );
+
+    router.post(
+        "/:projectUid/milestones/:milestoneUid/upload",
+        upload.single("file"),
+        controller.uploadMilestoneDocument,
+    );
+
+    router.put(
+        "/:projectUid/milestones/:milestoneUid/status",
+        controller.updateMilestoneStatus,
     );
 
     return router;

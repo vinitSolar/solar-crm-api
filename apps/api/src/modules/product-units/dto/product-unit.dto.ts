@@ -6,8 +6,6 @@ export interface IProductUnitSafe {
     shortName: string | null;
     description: string | null;
     sortOrder: number;
-    isActive: boolean;
-    isDeleted: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -19,8 +17,6 @@ export const toProductUnitSafe = (unit: IProductUnit): IProductUnitSafe => {
         shortName: unit.shortName,
         description: unit.description,
         sortOrder: unit.sortOrder,
-        isActive: unit.isActive === 1,
-        isDeleted: unit.isDeleted === 1,
         createdAt: unit.createdAt,
         updatedAt: unit.updatedAt,
     };

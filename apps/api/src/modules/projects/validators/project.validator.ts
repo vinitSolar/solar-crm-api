@@ -29,7 +29,7 @@ export const updateProjectStatusSchema = z.object({
 export const createProjectSchema = z.object({
     body: z.object({
         quotationUid: z.string({ message: "Quotation UID is required" }).uuid("Invalid quotation UID format"),
-        projectName: z.string({ message: "Project name is required" }).min(2, "Project name must be at least 2 characters"),
+        projectName: z.string().min(2, "Project name must be at least 2 characters").optional(),
         projectManagerUid: z.string().uuid("Invalid project manager UID format").optional().nullable().or(z.literal("")),
         projectDate: z.string().optional(),
         remarks: z.string().optional(),

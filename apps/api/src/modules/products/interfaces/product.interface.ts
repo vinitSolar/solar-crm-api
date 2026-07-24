@@ -23,6 +23,8 @@ export interface IProduct {
     updatedBy: string | null;
     deletedBy: string | null;
     brandName?: string | undefined;
+    categoryName?: string | undefined;
+    unitName?: string | undefined;
     height: string | number | null;
     width: string | number | null;
     depth: string | number | null;

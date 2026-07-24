@@ -5,6 +5,7 @@ export interface IProductCategory {
     description: string | null;
     image: string | null;
     sortOrder: number;
+    isDynamic: number;
     isActive: number;
     isDeleted: number;
     deletedAt: Date | null;

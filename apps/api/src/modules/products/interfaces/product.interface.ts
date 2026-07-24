@@ -27,7 +27,6 @@ export interface IProduct {
     unitName?: string | undefined;
     height: string | number | null;
     width: string | number | null;
-    depth: string | number | null;
     maxPower: string | number | null;
     palletLength: string | number | null;
     palletWidth: string | number | null;
@@ -55,7 +54,6 @@ export interface ICreateProductRequest {
     documentTypeUids?: string[] | undefined;
     height?: number | null | undefined;
     width?: number | null | undefined;
-    depth?: number | null | undefined;
     maxPower?: number | null | undefined;
     palletLength?: number | null | undefined;
     palletWidth?: number | null | undefined;
@@ -86,7 +84,6 @@ export interface IUpdateProductRequest {
     documentTypeUids?: string[] | undefined;
     height?: number | null | undefined;
     width?: number | null | undefined;
-    depth?: number | null | undefined;
     maxPower?: number | null | undefined;
     palletLength?: number | null | undefined;
     palletWidth?: number | null | undefined;

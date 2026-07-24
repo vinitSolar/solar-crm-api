@@ -4,6 +4,10 @@ import type { QuotationRepository } from "../../quotations/repositories/quotatio
 import type { StateSubsidyRuleRepository } from "../../state-subsidy-rules/repositories/state-subsidy-rule.repository.js";
 import type { SubsidyRequiredDocumentRepository, ICombinedRequiredDocumentDetail } from "../../state-subsidy-rules/repositories/subsidy-required-document.repository.js";
 import type { ProjectSubsidyDocumentRepository, IProjectSubsidyDocument } from "../repositories/project-subsidy-document.repository.js";
+import type { ProjectInstallationMilestoneRepository } from "../repositories/project-installation-milestone.repository.js";
+import type { ProjectInstallationMilestoneDocumentRepository } from "../repositories/project-milestone-document.repository.js";
+import type { LeadRepository } from "../../leads/repositories/lead.repository.js";
+import type { SubsidyTrackerRepository } from "../../subsidy-trackers/repositories/subsidy-tracker.repository.js";
 import type { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import type { ICreateProject, IUpdateProject, IProjectSafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/project.interface.js";
 import { toProjectSafe } from "../dto/project.dto.js";
@@ -15,27 +19,39 @@ import { logger } from "@packages/logger/index.js";
 export class ProjectService {
     private readonly repository: ProjectRepository;
     private readonly statusRepository: ProjectStatusRepository;
-    private readonly quotationRepository: QuotationRepository;
     private readonly subsidyRuleRepository: StateSubsidyRuleRepository;
     private readonly requiredDocRepository: SubsidyRequiredDocumentRepository;
     private readonly subsidyDocumentRepository: ProjectSubsidyDocumentRepository;
+    private readonly milestoneRepository: ProjectInstallationMilestoneRepository;
+    private readonly milestoneDocumentRepository: ProjectInstallationMilestoneDocumentRepository;
+    private readonly quotationRepository: QuotationRepository;
+    private readonly leadRepository: LeadRepository;
+    private readonly subsidyTrackerRepository: SubsidyTrackerRepository;
     private readonly auditLogService: AuditLogService;
 
     constructor(
         repository: ProjectRepository,
         statusRepository: ProjectStatusRepository,
         subsidyDocumentRepository: ProjectSubsidyDocumentRepository,
+        milestoneRepository: ProjectInstallationMilestoneRepository,
+        milestoneDocumentRepository: ProjectInstallationMilestoneDocumentRepository,
         quotationRepository: QuotationRepository,
         subsidyRuleRepository: StateSubsidyRuleRepository,
         requiredDocRepository: SubsidyRequiredDocumentRepository,
+        leadRepository: LeadRepository,
+        subsidyTrackerRepository: SubsidyTrackerRepository,
         auditLogService: AuditLogService
     ) {
         this.repository = repository;
         this.statusRepository = statusRepository;
         this.subsidyDocumentRepository = subsidyDocumentRepository;
+        this.milestoneRepository = milestoneRepository;
+        this.milestoneDocumentRepository = milestoneDocumentRepository;
         this.quotationRepository = quotationRepository;
         this.subsidyRuleRepository = subsidyRuleRepository;
         this.requiredDocRepository = requiredDocRepository;
+        this.leadRepository = leadRepository;
+        this.subsidyTrackerRepository = subsidyTrackerRepository;
         this.auditLogService = auditLogService;
     }
 
@@ -74,9 +90,22 @@ export class ProjectService {
         // 4. Generate Project Number
         const projectNumber = await this.repository.generateProjectNumber(tenantUid);
 
-        // 5. Insert Project
+        // 5. Fetch Lead to generate Project Name
+        const lead = await this.leadRepository.getByUid(tenantUid, quotation.leadUid);
+        if (!lead) {
+            throw new CustomError("Lead associated with this quotation was not found.", 404);
+        }
+
+        const firstName = lead.firstName ? lead.firstName.trim() : "Customer";
+        const lastName = lead.lastName ? ` ${lead.lastName.trim()}` : "";
+        const fullName = `${firstName}${lastName}`;
+        const systemSize = lead.systemSize || "0";
+        const projectName = `${fullName} - ${systemSize}kW - ${projectNumber}`;
+
+        // 6. Insert Project
         const createData = {
             ...data,
+            projectName,
             leadUid: quotation.leadUid,
             statusUid: defaultStatus.uid,
             projectNumber
@@ -84,6 +113,16 @@ export class ProjectService {
 
         try {
             const project = await this.repository.create(tenantUid, createData, createdBy);
+
+            // Generate Milestones from Templates
+            await this.milestoneRepository.bulkInsertFromTemplates(tenantUid, project.uid, createdBy);
+
+            // Auto-create Subsidy Tracker
+            await this.subsidyTrackerRepository.create(tenantUid, {
+                projectUid: project.uid,
+                leadUid: project.leadUid,
+                name: project.projectName,
+            }, createdBy);
 
             // Audit Log
             await this.auditLogService.log({
@@ -377,5 +416,112 @@ export class ProjectService {
         });
 
         return document;
+    }
+
+    // --- INSTALLATION MILESTONES ---
+
+    async getProjectMilestones(tenantUid: string, projectUid: string) {
+        const project = await this.repository.getByUid(tenantUid, projectUid);
+        if (!project) throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
+
+        const milestones = await this.milestoneRepository.getByProjectUid(tenantUid, projectUid);
+        // Map documents for each milestone
+        const enriched = await Promise.all(milestones.map(async m => {
+            const documents = await this.milestoneDocumentRepository.getDocumentsByMilestoneUid(tenantUid, m.uid);
+            return {
+                ...m,
+                documents
+            };
+        }));
+        return enriched;
+    }
+
+    async uploadMilestoneDocument(tenantUid: string, projectUid: string, milestoneUid: string, file: any, createdBy: string) {
+        const project = await this.repository.getByUid(tenantUid, projectUid);
+        if (!project) throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
+
+        const milestone = await this.milestoneRepository.getByUid(tenantUid, milestoneUid);
+        if (!milestone || milestone.projectUid !== projectUid) {
+            throw new CustomError("Milestone not found for this project", 404);
+        }
+
+        const templateRules = await this.milestoneRepository.getMilestoneTemplateRules(tenantUid, milestone.milestoneUid);
+        if (templateRules?.allowMultipleImages === 0) {
+            const count = await this.milestoneDocumentRepository.getCountByMilestoneUid(tenantUid, milestoneUid);
+            if (count > 0) {
+                throw new CustomError("Multiple images are not allowed for this milestone", 400);
+            }
+        }
+
+        const filePath = `public/uploads/milestones/${tenantUid}/${projectUid}/${Date.now()}_${file.originalname.replace(/\s+/g, "_")}`;
+        const imageUrl = `/${filePath}`;
+        
+        // Ensure directory exists
+        const fs = await import("fs");
+        const path = await import("path");
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        
+        fs.writeFileSync(filePath, file.buffer);
+
+        const document = await this.milestoneDocumentRepository.addDocument(tenantUid, milestoneUid, {
+            imageName: file.originalname,
+            imagePath: filePath,
+            imageUrl: imageUrl,
+            mimeType: file.mimetype,
+            fileSize: file.size,
+        }, createdBy);
+
+        await this.auditLogService.log({
+            tenantUid,
+            module: "Project",
+            recordUid: projectUid,
+            action: AUDIT_LOG_ACTIONS.UPDATE,
+            message: `Document uploaded for milestone: ${milestone.title}`,
+            createdBy
+        });
+
+        return document;
+    }
+
+    async updateMilestoneStatus(tenantUid: string, projectUid: string, milestoneUid: string, status: number, remarks: string | null, updatedBy: string) {
+        const project = await this.repository.getByUid(tenantUid, projectUid);
+        if (!project) throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
+
+        const milestone = await this.milestoneRepository.getByUid(tenantUid, milestoneUid);
+        if (!milestone || milestone.projectUid !== projectUid) {
+            throw new CustomError("Milestone not found for this project", 404);
+        }
+
+        // If completing, check document requirement
+        if (status === 2) {
+            const templateRules = await this.milestoneRepository.getMilestoneTemplateRules(tenantUid, milestone.milestoneUid);
+            if (templateRules?.requiresDocument === 1) {
+                const count = await this.milestoneDocumentRepository.getCountByMilestoneUid(tenantUid, milestoneUid);
+                if (count === 0) {
+                    throw new CustomError("A document is required to complete this milestone", 400);
+                }
+            }
+        }
+
+        // Update the milestone status
+        await this.milestoneRepository.updateMilestoneStatus(tenantUid, milestoneUid, status, remarks, updatedBy);
+
+        let hasNext = false;
+        // Start next milestone if marked as complete
+        if (status === 2) {
+            hasNext = await this.milestoneRepository.startNextMilestone(tenantUid, projectUid, milestone.sequenceNo, updatedBy);
+        }
+
+        await this.auditLogService.log({
+            tenantUid,
+            module: "Project",
+            recordUid: projectUid,
+            action: AUDIT_LOG_ACTIONS.UPDATE,
+            message: `Milestone '${milestone.title}' status updated to ${status}`,
+            createdBy: updatedBy
+        });
+
+        return { updated: true, nextStarted: hasNext };
     }
 }

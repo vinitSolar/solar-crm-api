@@ -61,7 +61,7 @@ export interface IUpdateProjectStatus extends Partial<ICreateProjectStatus> {}
 
 export interface ICreateProject {
     quotationUid: string;
-    projectName: string;
+    projectName?: string;
     projectManagerUid?: string;
     projectDate?: Date | string;
     remarks?: string;
@@ -132,4 +132,47 @@ export interface IPaginatedResponse<T> {
         limit: number;
         totalPages: number;
     };
+}
+
+export interface IProjectInstallationMilestone {
+    id: string;
+    uid: string;
+    tenantUid: string;
+    projectUid: string;
+    milestoneUid: string;
+    title: string;
+    description: string | null;
+    sequenceNo: number;
+    status: number; // 0=Pending, 1=InProgress, 2=Completed, 3=Skipped, 4=Cancelled
+    startedAt: Date | null;
+    completedAt: Date | null;
+    completedBy: string | null;
+    remarks: string | null;
+    isActive: number;
+    isDeleted: number;
+    createdAt: Date;
+    updatedAt: Date;
+    createdBy: string | null;
+    updatedBy: string | null;
+    deletedBy: string | null;
+}
+
+export interface IProjectInstallationMilestoneDocument {
+    id: string;
+    uid: string;
+    tenantUid: string;
+    projectMilestoneUid: string;
+    imageName: string | null;
+    imagePath: string;
+    imageUrl: string;
+    mimeType: string | null;
+    fileSize: number | null;
+    remarks: string | null;
+    isActive: number;
+    isDeleted: number;
+    createdAt: Date;
+    updatedAt: Date;
+    createdBy: string | null;
+    updatedBy: string | null;
+    deletedBy: string | null;
 }

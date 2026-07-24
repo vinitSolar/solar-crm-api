@@ -39,20 +39,20 @@ export async function seed(pool: Pool) {
             logger.info("🌱 Seeding product categories...");
             await client.query("BEGIN");
             const defaultCategories = [
-                { name: "Solar Panels", description: "Photovoltaic solar panels", sortOrder: 1 },
-                { name: "Inverters", description: "Solar inverters", sortOrder: 2 },
-                { name: "Batteries", description: "Energy storage batteries", sortOrder: 3 },
-                { name: "Mounting Structures", description: "Structures for mounting solar panels", sortOrder: 4 },
-                { name: "Cables & Wires", description: "Electrical cables and wires", sortOrder: 5 },
-                { name: "Accessories", description: "Other solar accessories", sortOrder: 6 },
+                { name: "Solar Panels", description: "Photovoltaic solar panels", sortOrder: 1, isDynamic: 0 },
+                { name: "Inverters", description: "Solar inverters", sortOrder: 2, isDynamic: 0 },
+                { name: "Batteries", description: "Energy storage batteries", sortOrder: 3, isDynamic: 0 },
+                { name: "Mounting Structures", description: "Structures for mounting solar panels", sortOrder: 4, isDynamic: 1 },
+                { name: "Cables & Wires", description: "Electrical cables and wires", sortOrder: 5, isDynamic: 1 },
+                { name: "Accessories", description: "Other solar accessories", sortOrder: 6, isDynamic: 1 },
             ];
 
             for (const category of defaultCategories) {
                 await client.query(
-                    `INSERT INTO product_categories (uid, name, description, sort_order, is_active)
-                     VALUES ($1, $2, $3, $4, 1)
+                    `INSERT INTO product_categories (uid, name, description, sort_order, is_active, is_dynamic)
+                     VALUES ($1, $2, $3, $4, 1, $5)
                      ON CONFLICT (name) DO NOTHING`,
-                    [uuidv4(), category.name, category.description, category.sortOrder]
+                    [uuidv4(), category.name, category.description, category.sortOrder, category.isDynamic]
                 );
             }
             await client.query("COMMIT");

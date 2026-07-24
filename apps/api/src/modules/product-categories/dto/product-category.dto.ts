@@ -6,6 +6,7 @@ export interface IProductCategorySafe {
     description: string | null;
     image: string | null;
     sortOrder: number;
+    isDynamic: boolean;
     isActive: boolean;
     isDeleted: boolean;
     createdAt: Date;
@@ -19,6 +20,7 @@ export const toProductCategorySafe = (category: IProductCategory): IProductCateg
         description: category.description,
         image: category.image,
         sortOrder: category.sortOrder,
+        isDynamic: (category.isDynamic === 1 || (category as any).is_dynamic === 1),
         isActive: category.isActive === 1,
         isDeleted: category.isDeleted === 1,
         createdAt: category.createdAt,
@@ -29,11 +31,13 @@ export const toProductCategorySafe = (category: IProductCategory): IProductCateg
 export interface IProductCategoryDropdown {
     uid: string;
     name: string;
+    isDynamic?: boolean;
 }
 
 export const toProductCategoryDropdown = (category: IProductCategory): IProductCategoryDropdown => {
     return {
         uid: category.uid,
         name: category.name,
+        isDynamic: (category.isDynamic === 1 || (category as any).is_dynamic === 1),
     };
 };

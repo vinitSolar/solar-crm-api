@@ -107,6 +107,8 @@ router.use(authenticate);
  *                         type: number
  *                       width:
  *                         type: number
+ *                       length:
+ *                         type: number
 
  *                       maxPower:
  *                         type: number

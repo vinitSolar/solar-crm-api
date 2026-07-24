@@ -54,7 +54,6 @@ export interface IProductSafe {
     documents?: IProductDocumentSafe[];
     height: number | null;
     width: number | null;
-    depth: number | null;
     maxPower: number | null;
     palletLength: number | null;
     palletWidth: number | null;
@@ -91,7 +90,6 @@ export const toProductSafe = (product: IProduct, documents?: IProductDocument[])
         documents: documents ? documents.map(toProductDocumentSafe) : [],
         height: product.height !== null ? Number(product.height) : null,
         width: product.width !== null ? Number(product.width) : null,
-        depth: product.depth !== null ? Number(product.depth) : null,
         maxPower: product.maxPower !== null ? Number(product.maxPower) : null,
         palletLength: product.palletLength !== null ? Number(product.palletLength) : null,
         palletWidth: product.palletWidth !== null ? Number(product.palletWidth) : null,

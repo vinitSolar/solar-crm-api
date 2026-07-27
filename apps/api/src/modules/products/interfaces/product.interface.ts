@@ -25,17 +25,9 @@ export interface IProduct {
     brandName?: string | undefined;
     categoryName?: string | undefined;
     unitName?: string | undefined;
-    height: string | number | null;
-    width: string | number | null;
-    length: string | number | null;
-
-    palletLength: string | number | null;
-    palletWidth: string | number | null;
-    palletHeight: string | number | null;
-    palletWeight: string | number | null;
-    palletDimension: string | null;
-    quantityPerPallet: number | null;
-    cellTechnology: string | null;
+    cellTechnologyUid: string | null;
+    cellTechnologyName?: string | null;
+    specifications?: { specificationUid: string; value: string; specificationName?: string; }[];
 }
 
 export interface ICreateProductRequest {
@@ -53,17 +45,8 @@ export interface ICreateProductRequest {
     modelNumber?: string | undefined;
     images?: string[] | undefined;
     documentTypeUids?: string[] | undefined;
-    height?: number | null | undefined;
-    width?: number | null | undefined;
-    length?: number | null | undefined;
-
-    palletLength?: number | null | undefined;
-    palletWidth?: number | null | undefined;
-    palletHeight?: number | null | undefined;
-    palletWeight?: number | null | undefined;
-    palletDimension?: string | null | undefined;
-    quantityPerPallet?: number | null | undefined;
-    cellTechnology?: string | null | undefined;
+    cellTechnologyUid?: string | null | undefined;
+    specifications?: { specificationUid: string; value: string; }[] | undefined;
 }
 
 export interface IUpdateProductRequest {
@@ -84,17 +67,8 @@ export interface IUpdateProductRequest {
     isActive?: number | undefined;
     deleteDocumentUids?: string[] | undefined;
     documentTypeUids?: string[] | undefined;
-    height?: number | null | undefined;
-    width?: number | null | undefined;
-    length?: number | null | undefined;
-
-    palletLength?: number | null | undefined;
-    palletWidth?: number | null | undefined;
-    palletHeight?: number | null | undefined;
-    palletWeight?: number | null | undefined;
-    palletDimension?: string | null | undefined;
-    quantityPerPallet?: number | null | undefined;
-    cellTechnology?: string | null | undefined;
+    cellTechnologyUid?: string | null | undefined;
+    specifications?: { specificationUid: string; value: string; }[] | undefined;
 }
 
 export interface IProductPaginationQuery {

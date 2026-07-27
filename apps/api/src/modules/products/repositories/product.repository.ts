@@ -24,18 +24,32 @@ export class ProductRepository {
             brandName: row.brand_name,
             categoryName: row.category_name,
             unitName: row.unit_name,
-            height: row.height,
-            width: row.width,
-            length: row.length,
-
-            palletLength: row.pallet_length,
-            palletWidth: row.pallet_width,
-            palletHeight: row.pallet_height,
-            palletWeight: row.pallet_weight,
-            palletDimension: row.pallet_dimension,
-            quantityPerPallet: row.quantity_per_pallet !== null && row.quantity_per_pallet !== undefined ? Number(row.quantity_per_pallet) : null,
-            cellTechnology: row.cell_technology,
+            cellTechnologyUid: row.cell_technology_uid,
+            cellTechnologyName: row.cell_technology_name,
         };
+    }
+
+    private mapRowToSpecValue(row: any): { specificationUid: string; value: string; specificationName?: string; } {
+        return {
+            specificationUid: row.specification_uid,
+            value: row.value,
+            specificationName: row.specification_name,
+        };
+    }
+
+    async getProductSpecifications(productUid: string, client?: PoolClient): Promise<{ specificationUid: string; value: string; specificationName?: string; }[]> {
+        const query = `
+            SELECT v.specification_uid, v.value, s.title as specification_name 
+            FROM product_specification_values v
+            JOIN product_specifications s ON v.specification_uid = s.uid
+            JOIN products p ON v.product_uid = p.uid
+            LEFT JOIN product_category_specifications pcs ON pcs.category_uid = p.category_uid AND pcs.specification_uid = v.specification_uid AND pcs.is_deleted = 0
+            WHERE v.product_uid = $1 AND v.is_deleted = 0
+            ORDER BY pcs.sort_order ASC, s.title ASC
+        `;
+        const dbClient = client || this.pool;
+        const result = await dbClient.query(query, [productUid]);
+        return result.rows.map(this.mapRowToSpecValue);
     }
 
     async create(data: {
@@ -53,55 +67,36 @@ export class ProductRepository {
         description?: string | undefined;
         modelNumber?: string | undefined;
         images?: string[] | undefined;
-        height?: number | null | undefined;
-        width?: number | null | undefined;
-        length?: number | null | undefined;
-
-        palletLength?: number | null | undefined;
-        palletWidth?: number | null | undefined;
-        palletHeight?: number | null | undefined;
-        palletWeight?: number | null | undefined;
-        palletDimension?: string | null | undefined;
-        quantityPerPallet?: number | null | undefined;
-        cellTechnology?: string | null | undefined;
+        cellTechnologyUid?: string | null | undefined;
+        specifications?: { specificationUid: string; value: string; }[] | undefined;
         createdBy: string;
     }, client?: PoolClient): Promise<IProduct> {
         const dbClient = client || await this.pool.connect();
         try {
             if (!client) await dbClient.query("BEGIN");
 
-            // 1. Insert into products
             const productQuery = `INSERT INTO products (
                 uid, category_uid, brand_uid, unit_uid, name, product_code, 
                 price_per_unit, gst_percentage, capacity, capacity_unit, 
-                warranty, description, model_number, images, created_by
+                warranty, description, model_number, images, cell_technology_uid, created_by
              )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::varchar, $10::varchar, $11::varchar, $12::text, $13::varchar, $14::text[], $15)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::varchar, $10::varchar, $11::varchar, $12::text, $13::varchar, $14::text[], $15, $16)
              RETURNING *`;
             const productValues = [
                 data.uid, data.categoryUid, data.brandUid, data.unitUid, data.name, data.productCode,
                 data.pricePerUnit, data.gstPercentage, data.capacity || null, data.capacityUnit || null,
-                data.warranty || null, data.description || null, data.modelNumber || null, data.images || [], data.createdBy
+                data.warranty || null, data.description || null, data.modelNumber || null, data.images || [], data.cellTechnologyUid || null, data.createdBy
             ];
             await dbClient.query(productQuery, productValues);
             
-            // 2. Insert into product_specifications
-            const specUid = uuidv4();
-            const specQuery = `INSERT INTO product_specifications (
-                uid, product_uid, height, width, length,
-                pallet_length, pallet_width, pallet_height, pallet_weight, 
-                pallet_dimension, quantity_per_pallet, cell_technology, created_by
-            ) VALUES ($1, $2, $3::numeric, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::varchar, $12::integer, $13::varchar, $14)`;
-            
-            const getVal = (val: any) => val !== undefined ? val : null;
-            const specValues = [
-                specUid, data.uid,
-                getVal(data.height), getVal(data.width), getVal(data.length),
-                getVal(data.palletLength), getVal(data.palletWidth), getVal(data.palletHeight), getVal(data.palletWeight),
-                getVal(data.palletDimension), getVal(data.quantityPerPallet), getVal(data.cellTechnology),
-                data.createdBy
-            ];
-            await dbClient.query(specQuery, specValues);
+            if (data.specifications && data.specifications.length > 0) {
+                for (const spec of data.specifications) {
+                    await dbClient.query(`
+                        INSERT INTO product_specification_values (uid, product_uid, specification_uid, value, created_by)
+                        VALUES ($1, $2, $3, $4, $5)
+                    `, [uuidv4(), data.uid, spec.specificationUid, spec.value, data.createdBy]);
+                }
+            }
 
             if (!client) await dbClient.query("COMMIT");
 
@@ -130,17 +125,8 @@ export class ProductRepository {
         modelNumber?: string | null | undefined;
         images?: string[] | undefined;
         isActive?: number | undefined;
-        height?: number | null | undefined;
-        width?: number | null | undefined;
-        length?: number | null | undefined;
-
-        palletLength?: number | null | undefined;
-        palletWidth?: number | null | undefined;
-        palletHeight?: number | null | undefined;
-        palletWeight?: number | null | undefined;
-        palletDimension?: string | null | undefined;
-        quantityPerPallet?: number | null | undefined;
-        cellTechnology?: string | null | undefined;
+        cellTechnologyUid?: string | null | undefined;
+        specifications?: { specificationUid: string; value: string; }[] | undefined;
         updatedBy: string;
     }, client?: PoolClient): Promise<IProduct | null> {
         const fields: string[] = [];
@@ -168,33 +154,8 @@ export class ProductRepository {
             fields.push(`images = $${index++}::text[]`);
             values.push(data.images);
         }
+        if (data.cellTechnologyUid !== undefined) pushField('cell_technology_uid', data.cellTechnologyUid);
         if (data.isActive !== undefined) pushField('is_active', data.isActive);
-
-        const specFields: string[] = [];
-        const specValues: any[] = [];
-        let specIndex = 1;
-
-        const pushSpecField = (dbField: string, value: any) => {
-            specFields.push(`${dbField} = $${specIndex++}`);
-            specValues.push(value);
-        };
-
-        if (data.height !== undefined) pushSpecField('height', data.height);
-        if (data.width !== undefined) pushSpecField('width', data.width);
-        if (data.length !== undefined) pushSpecField('length', data.length);
-
-
-        if (data.palletLength !== undefined) pushSpecField('pallet_length', data.palletLength);
-        if (data.palletWidth !== undefined) pushSpecField('pallet_width', data.palletWidth);
-        if (data.palletHeight !== undefined) pushSpecField('pallet_height', data.palletHeight);
-        if (data.palletWeight !== undefined) pushSpecField('pallet_weight', data.palletWeight);
-        if (data.palletDimension !== undefined) pushSpecField('pallet_dimension', data.palletDimension);
-        if (data.quantityPerPallet !== undefined) pushSpecField('quantity_per_pallet', data.quantityPerPallet);
-        if (data.cellTechnology !== undefined) pushSpecField('cell_technology', data.cellTechnology);
-
-        if (fields.length === 0 && specFields.length === 0) {
-            return this.findByUid(uid, client);
-        }
 
         const dbClient = client || await this.pool.connect();
         try {
@@ -213,34 +174,41 @@ export class ProductRepository {
                 await dbClient.query(query, values);
             }
 
-            if (specFields.length > 0) {
-                const checkResult = await dbClient.query(`SELECT 1 FROM product_specifications WHERE product_uid = $1`, [uid]);
-                if (checkResult.rows.length > 0) {
-                    specFields.push(`updated_at = CURRENT_TIMESTAMP`);
-                    specFields.push(`updated_by = $${specIndex++}`);
-                    specValues.push(data.updatedBy);
+            if (data.specifications !== undefined) {
+                // Soft delete existing specifications not in the new list, update existing, insert new
+                const existingSpecsRes = await dbClient.query(`
+                    SELECT uid, specification_uid FROM product_specification_values WHERE product_uid = $1 AND is_deleted = 0
+                `, [uid]);
+                
+                const existingSpecs = existingSpecsRes.rows;
+                const newSpecUids = data.specifications.map(s => s.specificationUid);
 
-                    const specUpdateQuery = `UPDATE product_specifications
-                         SET ${specFields.join(", ")}
-                         WHERE product_uid = $${specIndex}`;
-                    specValues.push(uid);
-                    await dbClient.query(specUpdateQuery, specValues);
-                } else {
-                    const specUid = uuidv4();
-                    const getVal = (val: any) => val !== undefined ? val : null;
-                    const specQuery = `INSERT INTO product_specifications (
-                        uid, product_uid, height, width, length,
-                        pallet_length, pallet_width, pallet_height, pallet_weight,
-                        pallet_dimension, quantity_per_pallet, cell_technology, created_by
-                    ) VALUES ($1, $2, $3::numeric, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::varchar, $12::integer, $13::varchar, $14)`;
-                    const insertSpecValues = [
-                        specUid, uid,
-                        getVal(data.height), getVal(data.width), getVal(data.length),
-                        getVal(data.palletLength), getVal(data.palletWidth), getVal(data.palletHeight), getVal(data.palletWeight),
-                        getVal(data.palletDimension), getVal(data.quantityPerPallet), getVal(data.cellTechnology),
-                        data.updatedBy
-                    ];
-                    await dbClient.query(specQuery, insertSpecValues);
+                // Soft delete specs that are removed
+                for (const existing of existingSpecs) {
+                    if (!newSpecUids.includes(existing.specification_uid)) {
+                        await dbClient.query(`
+                            UPDATE product_specification_values 
+                            SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1
+                            WHERE uid = $2
+                        `, [data.updatedBy, existing.uid]);
+                    }
+                }
+
+                // Insert or Update provided specs
+                for (const spec of data.specifications) {
+                    const existing = existingSpecs.find(e => e.specification_uid === spec.specificationUid);
+                    if (existing) {
+                        await dbClient.query(`
+                            UPDATE product_specification_values 
+                            SET value = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+                            WHERE uid = $3
+                        `, [spec.value, data.updatedBy, existing.uid]);
+                    } else {
+                        await dbClient.query(`
+                            INSERT INTO product_specification_values (uid, product_uid, specification_uid, value, created_by)
+                            VALUES ($1, $2, $3, $4, $5)
+                        `, [uuidv4(), uid, spec.specificationUid, spec.value, data.updatedBy]);
+                    }
                 }
             }
 
@@ -256,57 +224,66 @@ export class ProductRepository {
     }
 
     async findByUid(uid: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_specifications s ON p.uid = s.product_uid 
+             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid 
              WHERE p.uid = $1`;
         const result = client
             ? await client.query(query, [uid])
             : await this.pool.query(query, [uid]);
         if (!result.rows[0]) return null;
-        return this.mapRowToProduct(result.rows[0]);
+        
+        const product = this.mapRowToProduct(result.rows[0]);
+        product.specifications = await this.getProductSpecifications(uid, client);
+        return product;
     }
 
     async findByName(name: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_specifications s ON p.uid = s.product_uid 
+             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid 
              WHERE p.name = $1`;
         const result = client
             ? await client.query(query, [name])
             : await this.pool.query(query, [name]);
         if (!result.rows[0]) return null;
-        return this.mapRowToProduct(result.rows[0]);
+        
+        const product = this.mapRowToProduct(result.rows[0]);
+        product.specifications = await this.getProductSpecifications(product.uid, client);
+        return product;
     }
 
     async findByCode(code: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_specifications s ON p.uid = s.product_uid 
+             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid 
              WHERE p.product_code = $1`;
         const result = client
             ? await client.query(query, [code])
             : await this.pool.query(query, [code]);
         if (!result.rows[0]) return null;
-        return this.mapRowToProduct(result.rows[0]);
+        
+        const product = this.mapRowToProduct(result.rows[0]);
+        product.specifications = await this.getProductSpecifications(product.uid, client);
+        return product;
     }
 
     async findAll(status?: "active" | "deleted" | "all"): Promise<IProduct[]> {
-        let query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        let query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_specifications s ON p.uid = s.product_uid`;
+             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid`;
         const conditions: string[] = [];
 
         if (status === "active") {
@@ -322,7 +299,13 @@ export class ProductRepository {
         query += ` ORDER BY p.created_at DESC`;
 
         const result = await this.pool.query(query);
-        return result.rows.map(row => this.mapRowToProduct(row));
+        const products = result.rows.map(row => this.mapRowToProduct(row));
+        
+        // Fetch specs for all
+        for (const product of products) {
+             product.specifications = await this.getProductSpecifications(product.uid);
+        }
+        return products;
     }
 
     async findPaginated(page: number, limit: number, search?: string, categoryUid?: string, brandUid?: string, status: "active" | "deleted" | "all" = "active"): Promise<{ products: IProduct[]; total: number }> {
@@ -366,12 +349,12 @@ export class ProductRepository {
         const offsetIndex = index++;
 
         const result = await this.pool.query(
-            `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+            `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_specifications s ON p.uid = s.product_uid
+             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid 
              ${whereClause} 
              ORDER BY p.name ASC, p.created_at DESC 
              LIMIT $${limitIndex} OFFSET $${offsetIndex}`,
@@ -379,6 +362,9 @@ export class ProductRepository {
         );
 
         const products = result.rows.map(row => this.mapRowToProduct(row));
+        for (const product of products) {
+            product.specifications = await this.getProductSpecifications(product.uid);
+        }
 
         return { products, total };
     }

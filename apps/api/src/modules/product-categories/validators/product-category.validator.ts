@@ -6,6 +6,7 @@ export const createProductCategorySchema = z.object({
     name: z.string({ message: "Name is required" }).min(1, "Name is required").max(255),
     description: z.string().optional(),
     sortOrder: z.coerce.number().optional(),
+    hasCellCategory: z.coerce.number().min(0).max(1).optional(),
 });
 
 export const updateProductCategorySchema = z.object({
@@ -13,6 +14,7 @@ export const updateProductCategorySchema = z.object({
     description: z.string().optional(),
     sortOrder: z.coerce.number().optional(),
     isActive: z.coerce.number().min(0).max(1).optional(),
+    hasCellCategory: z.coerce.number().min(0).max(1).optional(),
 });
 
 export const paginationSchema = z.object({

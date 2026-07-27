@@ -522,6 +522,7 @@ export class QuotationRepository {
             uid: row.uid,
             tenantUid: row.tenant_uid,
             leadUid: row.lead_uid,
+            packageUid: row.package_uid,
             quotationNumber: row.quotation_number,
             systemSize: Number(row.system_size),
             validTill: row.valid_till,

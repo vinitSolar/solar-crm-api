@@ -1,0 +1,20 @@
+export const PACKAGE_MESSAGES = {
+    CREATED_SUCCESS: "Package created successfully",
+    UPDATED_SUCCESS: "Package updated successfully",
+    DELETED_SUCCESS: "Package deleted successfully",
+    RESTORED_SUCCESS: "Package restored successfully",
+    FETCHED_SUCCESS: "Package details fetched successfully",
+    LIST_FETCHED_SUCCESS: "Packages fetched successfully",
+    
+    ERROR_NOT_FOUND: "Package not found",
+    ERROR_ALREADY_EXISTS_NAME: "Package with this name already exists",
+    ERROR_ALREADY_EXISTS_CODE: "Package with this code already exists",
+    ERROR_INVALID_PRODUCTS: "One or more selected products are invalid, inactive, or duplicated",
+    ERROR_EMPTY_PRODUCTS: "A package must contain at least one product",
+    ERROR_CREATING_PACKAGE: "Error creating package",
+    ERROR_UPDATING_PACKAGE: "Error updating package",
+    ERROR_DELETING_PACKAGE: "Error deleting package",
+    ERROR_RESTORING_PACKAGE: "Error restoring package",
+    ERROR_FETCHING_PACKAGE: "Error fetching package details",
+    ERROR_FETCHING_LIST: "Error fetching packages list",
+};

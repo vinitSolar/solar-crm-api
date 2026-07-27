@@ -191,6 +191,7 @@ export class QuotationRepository {
 
     async update(client: PoolClient, tenantUid: string, uid: string, data: {
         leadUid?: string;
+        packageUid?: string;
         systemSize?: number;
         validTill?: string;
         status?: number;
@@ -209,6 +210,7 @@ export class QuotationRepository {
         };
 
         addField("lead_uid", data.leadUid);
+        addField("package_uid", data.packageUid);
         addField("system_size", data.systemSize);
         addField("valid_till", data.validTill);
         addField("status", data.status);
@@ -500,9 +502,10 @@ export class QuotationRepository {
         maximumSubsidyAmount: number;
     } | null> {
         const query = `
-            SELECT subsidy_per_kw, maximum_subsidy_amount
-            FROM state_subsidy_rules
-            WHERE LOWER(state) = LOWER($1) AND is_active = 1 AND is_deleted = 0
+            SELECT ssr.subsidy_per_kw, ssr.maximum_subsidy_amount
+            FROM state_subsidy_rules ssr
+            JOIN states s ON s.uid::text = ssr.state_uid::text
+            WHERE LOWER(s.name) = LOWER($1) AND ssr.is_active = 1 AND ssr.is_deleted = 0
             LIMIT 1
         `;
         const result = await this.pool.query(query, [state]);

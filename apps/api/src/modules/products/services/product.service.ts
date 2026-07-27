@@ -150,7 +150,7 @@ export class ProductService {
                 images: [],
                 height: data.height,
                 width: data.width,
-                maxPower: data.maxPower,
+
                 palletLength: data.palletLength,
                 palletWidth: data.palletWidth,
                 palletHeight: data.palletHeight,

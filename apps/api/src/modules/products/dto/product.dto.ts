@@ -29,6 +29,12 @@ export const toProductDocumentSafe = (doc: IProductDocument): IProductDocumentSa
     };
 };
 
+export interface IProductSpecificationValueSafe {
+    specificationUid: string;
+    value: string;
+    specificationName?: string | undefined;
+}
+
 export interface IProductSafe {
     uid: string;
     categoryUid: string;
@@ -52,17 +58,9 @@ export interface IProductSafe {
     categoryName?: string | undefined;
     unitName?: string | undefined;
     documents?: IProductDocumentSafe[];
-    height: number | null;
-    width: number | null;
-    length: number | null;
-
-    palletLength: number | null;
-    palletWidth: number | null;
-    palletHeight: number | null;
-    palletWeight: number | null;
-    palletDimension: string | null;
-    quantityPerPallet: number | null;
-    cellTechnology: string | null;
+    cellTechnologyUid: string | null;
+    cellTechnologyName?: string | null | undefined;
+    specifications?: IProductSpecificationValueSafe[];
 }
 
 export const toProductSafe = (product: IProduct, documents?: IProductDocument[]): IProductSafe => {
@@ -89,17 +87,13 @@ export const toProductSafe = (product: IProduct, documents?: IProductDocument[])
         categoryName: product.categoryName,
         unitName: product.unitName,
         documents: documents ? documents.map(toProductDocumentSafe) : [],
-        height: product.height !== null ? Number(product.height) : null,
-        width: product.width !== null ? Number(product.width) : null,
-        length: product.length !== null && product.length !== undefined ? Number(product.length) : null,
-
-        palletLength: product.palletLength !== null ? Number(product.palletLength) : null,
-        palletWidth: product.palletWidth !== null ? Number(product.palletWidth) : null,
-        palletHeight: product.palletHeight !== null ? Number(product.palletHeight) : null,
-        palletWeight: product.palletWeight !== null ? Number(product.palletWeight) : null,
-        palletDimension: product.palletDimension,
-        quantityPerPallet: product.quantityPerPallet,
-        cellTechnology: product.cellTechnology,
+        cellTechnologyUid: product.cellTechnologyUid,
+        cellTechnologyName: product.cellTechnologyName,
+        specifications: product.specifications?.map(s => ({
+            specificationUid: s.specificationUid,
+            value: s.value,
+            specificationName: s.specificationName,
+        })) || [],
     };
 };
 

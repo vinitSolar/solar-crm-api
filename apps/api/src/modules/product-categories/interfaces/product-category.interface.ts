@@ -14,6 +14,7 @@ export interface IProductCategory {
     createdBy: string | null;
     updatedBy: string | null;
     deletedBy: string | null;
+    hasCellCategory: number;
 }
 
 export interface ICreateProductCategoryRequest {
@@ -21,6 +22,7 @@ export interface ICreateProductCategoryRequest {
     description?: string;
     image?: string;
     sortOrder?: number;
+    hasCellCategory?: number;
 }
 
 export interface IUpdateProductCategoryRequest {
@@ -29,6 +31,7 @@ export interface IUpdateProductCategoryRequest {
     image?: string;
     sortOrder?: number;
     isActive?: number;
+    hasCellCategory?: number;
 }
 
 export interface IProductCategoryPaginationQuery {

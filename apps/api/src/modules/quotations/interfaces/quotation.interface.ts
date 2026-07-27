@@ -3,6 +3,7 @@ export interface IQuotation {
     uid: string;
     tenantUid: string;
     leadUid: string;
+    packageUid: string | null;
     quotationNumber: string;
     systemSize: number;
     validTill: Date;

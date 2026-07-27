@@ -8,7 +8,7 @@ export class ProductCategoryRepository {
         this.pool = pool;
     }
 
-    async create(data: { uid: string; name: string; description?: string; image?: string; sortOrder?: number; createdBy: string }): Promise<IProductCategory> {
+    async create(data: { uid: string; name: string; description?: string; image?: string; sortOrder?: number; hasCellCategory?: number; createdBy: string }): Promise<IProductCategory> {
         let sortOrder = data.sortOrder;
         if (sortOrder === undefined || sortOrder === null) {
             const maxRes = await this.pool.query(
@@ -18,15 +18,15 @@ export class ProductCategoryRepository {
         }
 
         const result = await this.pool.query(
-            `INSERT INTO product_categories (uid, name, description, image, sort_order, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO product_categories (uid, name, description, image, sort_order, has_cell_category, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
-            [data.uid, data.name, data.description || null, data.image || null, sortOrder, data.createdBy]
+            [data.uid, data.name, data.description || null, data.image || null, sortOrder, data.hasCellCategory || 0, data.createdBy]
         );
         return result.rows[0];
     }
 
-    async update(uid: string, data: { name?: string; description?: string; image?: string; sortOrder?: number; isActive?: number; updatedBy: string }): Promise<IProductCategory | null> {
+    async update(uid: string, data: { name?: string; description?: string; image?: string; sortOrder?: number; isActive?: number; hasCellCategory?: number; updatedBy: string }): Promise<IProductCategory | null> {
         const fields: string[] = [];
         const values: any[] = [];
         let index = 1;
@@ -50,6 +50,10 @@ export class ProductCategoryRepository {
         if (data.isActive !== undefined) {
             fields.push(`is_active = $${index++}`);
             values.push(data.isActive);
+        }
+        if (data.hasCellCategory !== undefined) {
+            fields.push(`has_cell_category = $${index++}`);
+            values.push(data.hasCellCategory);
         }
 
         if (fields.length === 0) {

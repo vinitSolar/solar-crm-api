@@ -6,6 +6,8 @@ import { ProductBrandRepository } from "../../product-brands/repositories/produc
 import { ProductUnitRepository } from "../../product-units/repositories/product-unit.repository.js";
 import { ProductDocumentRepository } from "../repositories/product-document.repository.js";
 import { ProductDocumentTypeRepository } from "../../product-document-types/repositories/product-document-type.repository.js";
+import { ProductCellTechnologyRepository } from "../../product-cell-technologies/repositories/product-cell-technology.repository.js";
+import { ProductSpecificationRepository } from "../../product-specifications/repositories/product-specification.repository.js";
 import type { ICreateProductRequest, IUpdateProductRequest, IProductPaginationQuery } from "../interfaces/product.interface.js";
 import { toProductSafe, toProductDropdown, type IProductSafe, type IProductDropdown } from "../dto/product.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
@@ -21,6 +23,8 @@ export class ProductService {
     private readonly unitRepo: ProductUnitRepository;
     private readonly documentRepository: ProductDocumentRepository;
     private readonly documentTypeRepository: ProductDocumentTypeRepository;
+    private readonly cellTechRepo: ProductCellTechnologyRepository;
+    private readonly specRepo: ProductSpecificationRepository;
 
     constructor(repository: ProductRepository) {
         this.repository = repository;
@@ -29,6 +33,8 @@ export class ProductService {
         this.unitRepo = new ProductUnitRepository(pool);
         this.documentRepository = new ProductDocumentRepository(pool);
         this.documentTypeRepository = new ProductDocumentTypeRepository(pool);
+        this.cellTechRepo = new ProductCellTechnologyRepository();
+        this.specRepo = new ProductSpecificationRepository(pool);
     }
 
     async createProduct(data: ICreateProductRequest, files: Express.Multer.File[], tenantUid: string, userUid: string): Promise<IProductSafe> {
@@ -52,6 +58,39 @@ export class ProductService {
         if (!category) throw new CustomError(PRODUCT_MESSAGES.CATEGORY_NOT_FOUND, 400);
         if (!brand) throw new CustomError(PRODUCT_MESSAGES.BRAND_NOT_FOUND, 400);
         if (!unit) throw new CustomError(PRODUCT_MESSAGES.UNIT_NOT_FOUND, 400);
+
+        if (data.cellTechnologyUid) {
+            if (category.hasCellCategory !== 1 && (category as any).has_cell_category !== 1) {
+                data.cellTechnologyUid = null;
+            } else {
+                const cellTech = await this.cellTechRepo.findById(data.cellTechnologyUid);
+                if (!cellTech || cellTech.isActive === 0) {
+                    throw new CustomError("Invalid or inactive Cell Technology UID", 400);
+                }
+            }
+        }
+
+        // Validate Required Specifications
+        const { specifications: categorySpecs } = await this.specRepo.findPaginated(1, 1000, undefined, data.categoryUid, "active");
+        const requiredSpecUids = categorySpecs.filter(s => s.isRequired === 1).map(s => s.uid);
+        
+        const providedSpecUids = data.specifications?.map(s => s.specificationUid) || [];
+        for (const reqUid of requiredSpecUids) {
+            if (!providedSpecUids.includes(reqUid)) {
+                const spec = categorySpecs.find(s => s.uid === reqUid);
+                throw new CustomError(`Specification '${spec?.title}' is required.`, 400);
+            }
+        }
+        
+        // Also ensure all provided specs actually belong to this category and exist
+        if (data.specifications) {
+            for (const spec of data.specifications) {
+                const catSpec = categorySpecs.find(s => s.uid === spec.specificationUid);
+                if (!catSpec) {
+                    throw new CustomError(`Invalid specification UID for this category: ${spec.specificationUid}`, 400);
+                }
+            }
+        }
 
         const client = await pool.connect();
         try {
@@ -148,16 +187,8 @@ export class ProductService {
                 ...(data.description !== undefined ? { description: data.description } : {}),
                 modelNumber: data.modelNumber,
                 images: [],
-                height: data.height,
-                width: data.width,
-
-                palletLength: data.palletLength,
-                palletWidth: data.palletWidth,
-                palletHeight: data.palletHeight,
-                palletWeight: data.palletWeight,
-                palletDimension: data.palletDimension,
-                quantityPerPallet: data.quantityPerPallet,
-                cellTechnology: data.cellTechnology,
+                cellTechnologyUid: data.cellTechnologyUid,
+                specifications: data.specifications,
                 createdBy: userUid,
             }, client);
 
@@ -233,9 +264,17 @@ export class ProductService {
             if (existing) throw new CustomError(PRODUCT_MESSAGES.CODE_EXISTS, 400);
         }
 
+        let currentCategoryHasCellCategory: number | undefined;
+        let finalCategoryUid = product.categoryUid;
+        
         if (data.categoryUid && data.categoryUid !== product.categoryUid) {
             const category = await this.categoryRepo.findByUid(data.categoryUid);
             if (!category) throw new CustomError(PRODUCT_MESSAGES.CATEGORY_NOT_FOUND, 400);
+            currentCategoryHasCellCategory = category.hasCellCategory || (category as any).has_cell_category;
+            finalCategoryUid = data.categoryUid;
+        } else {
+            const category = await this.categoryRepo.findByUid(product.categoryUid);
+            currentCategoryHasCellCategory = category?.hasCellCategory || (category as any)?.has_cell_category;
         }
 
         if (data.brandUid && data.brandUid !== product.brandUid) {
@@ -246,6 +285,45 @@ export class ProductService {
         if (data.unitUid && data.unitUid !== product.unitUid) {
             const unit = await this.unitRepo.findByUid(data.unitUid);
             if (!unit) throw new CustomError(PRODUCT_MESSAGES.UNIT_NOT_FOUND, 400);
+        }
+
+        if (data.cellTechnologyUid !== undefined) {
+            if (data.cellTechnologyUid === null) {
+                // Do nothing
+            } else if (currentCategoryHasCellCategory !== 1) {
+                data.cellTechnologyUid = null;
+            } else {
+                const cellTech = await this.cellTechRepo.findById(data.cellTechnologyUid);
+                if (!cellTech || cellTech.isActive === 0) {
+                    throw new CustomError("Invalid or inactive Cell Technology UID", 400);
+                }
+            }
+        }
+
+        if (data.specifications !== undefined) {
+            // Validate Required Specifications
+            const { specifications: categorySpecs } = await this.specRepo.findPaginated(1, 1000, undefined, finalCategoryUid, "active");
+            const requiredSpecUids = categorySpecs.filter(s => s.isRequired === 1).map(s => s.uid);
+            
+            const providedSpecUids = data.specifications.map(s => s.specificationUid) || [];
+            
+            for (const reqUid of requiredSpecUids) {
+                // Check if provided OR already exists
+                const alreadyExists = product.specifications?.find(s => s.specificationUid === reqUid && s.value);
+                const provided = data.specifications.find(s => s.specificationUid === reqUid);
+                
+                if (!provided && !alreadyExists) {
+                    const spec = categorySpecs.find(s => s.uid === reqUid);
+                    throw new CustomError(`Specification '${spec?.title}' is required.`, 400);
+                }
+            }
+            
+            for (const spec of data.specifications) {
+                const catSpec = categorySpecs.find(s => s.uid === spec.specificationUid);
+                if (!catSpec) {
+                    throw new CustomError(`Invalid specification UID for this category: ${spec.specificationUid}`, 400);
+                }
+            }
         }
 
         const client = await pool.connect();

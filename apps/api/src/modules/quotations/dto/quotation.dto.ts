@@ -47,6 +47,7 @@ export interface SafeQuotationTermsConditionsItemResponse {
 export interface SafeQuotationResponse {
     uid: string;
     leadUid: string;
+    packageUid: string | null;
     quotationNumber: string;
     systemSize: number;
     validTill: Date;
@@ -134,6 +135,7 @@ export const toSafeQuotation = (
     return {
         uid: quotation.uid,
         leadUid: quotation.leadUid,
+        packageUid: quotation.packageUid,
         quotationNumber: quotation.quotationNumber,
         systemSize: Number(quotation.systemSize),
         validTill: quotation.validTill,

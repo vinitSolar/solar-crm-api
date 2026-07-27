@@ -107,22 +107,37 @@ export class QuotationService {
 
             // 4. Resolve and save products snapshot
             const createdItems: IQuotationItem[] = [];
+            if (!data.products || data.products.length === 0) {
+                throw new CustomError("Quotation must have at least one product.", 400);
+            }
+
             for (const itemInput of data.products) {
+                let productName = itemInput.productName;
+                let pricePerUnit = itemInput.pricePerUnit;
+                let gstPercentage = itemInput.gstPercentage;
+                let brandName = "Generic";
+                let unitName = "Units";
+
                 const catalogProduct = await this.repository.getCatalogProductDetails(itemInput.productUid);
-                if (!catalogProduct) {
-                    throw new CustomError(`${QUOTATION_VALIDATION_MESSAGES.PRODUCT_NOT_FOUND}: ${itemInput.productUid}`, 400);
+                if (catalogProduct) {
+                    productName = productName ?? catalogProduct.name;
+                    pricePerUnit = pricePerUnit ?? catalogProduct.pricePerUnit;
+                    gstPercentage = gstPercentage ?? catalogProduct.gstPercentage;
+                    brandName = catalogProduct.brandName;
+                    unitName = catalogProduct.unitName;
                 }
 
-                const productName = itemInput.productName ?? catalogProduct.name;
-                const pricePerUnit = itemInput.pricePerUnit !== undefined ? itemInput.pricePerUnit : catalogProduct.pricePerUnit;
-                const gstPercentage = itemInput.gstPercentage !== undefined ? itemInput.gstPercentage : catalogProduct.gstPercentage;
+                if (!productName || pricePerUnit === undefined || gstPercentage === undefined) {
+                    throw new CustomError(`Product details missing for ${itemInput.productUid}`, 400);
+                }
+
                 const lineTotal = Math.round(itemInput.quantity * pricePerUnit * 100) / 100;
 
                 const createdItem = await this.repository.createItem(client, quotation.uid, {
                     productUid: itemInput.productUid,
                     productName,
-                    brandName: catalogProduct.brandName,
-                    unitName: catalogProduct.unitName,
+                    brandName,
+                    unitName,
                     quantity: itemInput.quantity,
                     pricePerUnit,
                     gstPercentage,
@@ -270,22 +285,38 @@ export class QuotationService {
             let items: IQuotationItem[] = [];
             if (data.products !== undefined) {
                 await this.repository.deleteItemsByQuotationUid(client, updatedQuotation.uid);
+                
+                if (data.products.length === 0) {
+                    throw new CustomError("Quotation must have at least one product.", 400);
+                }
+
                 for (const itemInput of data.products) {
+                    let productName = itemInput.productName;
+                    let pricePerUnit = itemInput.pricePerUnit;
+                    let gstPercentage = itemInput.gstPercentage;
+                    let brandName = "Generic";
+                    let unitName = "Units";
+
                     const catalogProduct = await this.repository.getCatalogProductDetails(itemInput.productUid);
-                    if (!catalogProduct) {
-                        throw new CustomError(`${QUOTATION_VALIDATION_MESSAGES.PRODUCT_NOT_FOUND}: ${itemInput.productUid}`, 400);
+                    if (catalogProduct) {
+                        productName = productName ?? catalogProduct.name;
+                        pricePerUnit = pricePerUnit ?? catalogProduct.pricePerUnit;
+                        gstPercentage = gstPercentage ?? catalogProduct.gstPercentage;
+                        brandName = catalogProduct.brandName;
+                        unitName = catalogProduct.unitName;
                     }
 
-                    const productName = itemInput.productName ?? catalogProduct.name;
-                    const pricePerUnit = itemInput.pricePerUnit !== undefined ? itemInput.pricePerUnit : catalogProduct.pricePerUnit;
-                    const gstPercentage = itemInput.gstPercentage !== undefined ? itemInput.gstPercentage : catalogProduct.gstPercentage;
+                    if (!productName || pricePerUnit === undefined || gstPercentage === undefined) {
+                        throw new CustomError(`Product details missing for ${itemInput.productUid}`, 400);
+                    }
+
                     const lineTotal = Math.round(itemInput.quantity * pricePerUnit * 100) / 100;
 
                     const createdItem = await this.repository.createItem(client, updatedQuotation.uid, {
                         productUid: itemInput.productUid,
                         productName,
-                        brandName: catalogProduct.brandName,
-                        unitName: catalogProduct.unitName,
+                        brandName,
+                        unitName,
                         quantity: itemInput.quantity,
                         pricePerUnit,
                         gstPercentage,

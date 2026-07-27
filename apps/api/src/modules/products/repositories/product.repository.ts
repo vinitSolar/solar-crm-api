@@ -27,7 +27,7 @@ export class ProductRepository {
             height: row.height,
             width: row.width,
             length: row.length,
-            maxPower: row.max_power,
+
             palletLength: row.pallet_length,
             palletWidth: row.pallet_width,
             palletHeight: row.pallet_height,
@@ -56,7 +56,7 @@ export class ProductRepository {
         height?: number | null | undefined;
         width?: number | null | undefined;
         length?: number | null | undefined;
-        maxPower?: number | null | undefined;
+
         palletLength?: number | null | undefined;
         palletWidth?: number | null | undefined;
         palletHeight?: number | null | undefined;
@@ -88,15 +88,15 @@ export class ProductRepository {
             // 2. Insert into product_specifications
             const specUid = uuidv4();
             const specQuery = `INSERT INTO product_specifications (
-                uid, product_uid, height, width, length, max_power,
+                uid, product_uid, height, width, length,
                 pallet_length, pallet_width, pallet_height, pallet_weight, 
                 pallet_dimension, quantity_per_pallet, cell_technology, created_by
-            ) VALUES ($1, $2, $3::numeric, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::numeric, $12::varchar, $13::integer, $14::varchar, $15)`;
+            ) VALUES ($1, $2, $3::numeric, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::varchar, $12::integer, $13::varchar, $14)`;
             
             const getVal = (val: any) => val !== undefined ? val : null;
             const specValues = [
                 specUid, data.uid,
-                getVal(data.height), getVal(data.width), getVal(data.length), getVal(data.maxPower),
+                getVal(data.height), getVal(data.width), getVal(data.length),
                 getVal(data.palletLength), getVal(data.palletWidth), getVal(data.palletHeight), getVal(data.palletWeight),
                 getVal(data.palletDimension), getVal(data.quantityPerPallet), getVal(data.cellTechnology),
                 data.createdBy
@@ -133,7 +133,7 @@ export class ProductRepository {
         height?: number | null | undefined;
         width?: number | null | undefined;
         length?: number | null | undefined;
-        maxPower?: number | null | undefined;
+
         palletLength?: number | null | undefined;
         palletWidth?: number | null | undefined;
         palletHeight?: number | null | undefined;
@@ -183,7 +183,7 @@ export class ProductRepository {
         if (data.width !== undefined) pushSpecField('width', data.width);
         if (data.length !== undefined) pushSpecField('length', data.length);
 
-        if (data.maxPower !== undefined) pushSpecField('max_power', data.maxPower);
+
         if (data.palletLength !== undefined) pushSpecField('pallet_length', data.palletLength);
         if (data.palletWidth !== undefined) pushSpecField('pallet_width', data.palletWidth);
         if (data.palletHeight !== undefined) pushSpecField('pallet_height', data.palletHeight);
@@ -229,13 +229,13 @@ export class ProductRepository {
                     const specUid = uuidv4();
                     const getVal = (val: any) => val !== undefined ? val : null;
                     const specQuery = `INSERT INTO product_specifications (
-                        uid, product_uid, height, width, length, max_power,
+                        uid, product_uid, height, width, length,
                         pallet_length, pallet_width, pallet_height, pallet_weight,
                         pallet_dimension, quantity_per_pallet, cell_technology, created_by
-                    ) VALUES ($1, $2, $3::numeric, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::numeric, $12::varchar, $13::integer, $14::varchar, $15)`;
+                    ) VALUES ($1, $2, $3::numeric, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8::numeric, $9::numeric, $10::numeric, $11::varchar, $12::integer, $13::varchar, $14)`;
                     const insertSpecValues = [
                         specUid, uid,
-                        getVal(data.height), getVal(data.width), getVal(data.length), getVal(data.maxPower),
+                        getVal(data.height), getVal(data.width), getVal(data.length),
                         getVal(data.palletLength), getVal(data.palletWidth), getVal(data.palletHeight), getVal(data.palletWeight),
                         getVal(data.palletDimension), getVal(data.quantityPerPallet), getVal(data.cellTechnology),
                         data.updatedBy
@@ -256,7 +256,7 @@ export class ProductRepository {
     }
 
     async findByUid(uid: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
@@ -271,7 +271,7 @@ export class ProductRepository {
     }
 
     async findByName(name: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
@@ -286,7 +286,7 @@ export class ProductRepository {
     }
 
     async findByCode(code: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
@@ -301,7 +301,7 @@ export class ProductRepository {
     }
 
     async findAll(status?: "active" | "deleted" | "all"): Promise<IProduct[]> {
-        let query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+        let query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
@@ -366,7 +366,7 @@ export class ProductRepository {
         const offsetIndex = index++;
 
         const result = await this.pool.query(
-            `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.max_power, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
+            `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, s.height, s.width, s.length, s.pallet_length, s.pallet_width, s.pallet_height, s.pallet_weight, s.pallet_dimension, s.quantity_per_pallet, s.cell_technology 
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 

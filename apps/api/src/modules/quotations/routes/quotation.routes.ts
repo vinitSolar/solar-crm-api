@@ -105,7 +105,6 @@ router.post("/list", validateRequest(listQuotationSchema), listQuotations);
  *             type: object
  *             required:
  *               - leadUid
- *               - systemSize
  *               - validTill
  *               - products
  *             properties:

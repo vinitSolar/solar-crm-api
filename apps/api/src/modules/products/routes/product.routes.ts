@@ -110,8 +110,7 @@ router.use(authenticate);
  *                       length:
  *                         type: number
 
- *                       maxPower:
- *                         type: number
+
  *                       palletLength:
  *                         type: number
  *                       palletWidth:
@@ -246,8 +245,7 @@ router.get("/:uid", controller.getProductByUid);
  *               width:
  *                 type: number
 
- *               maxPower:
- *                 type: number
+
  *               palletLength:
  *                 type: number
  *               palletWidth:
@@ -337,8 +335,7 @@ router.post("/", upload.any(), validateProductRequest(createProductSchema), cont
  *               width:
  *                 type: number
 
- *               maxPower:
- *                 type: number
+
  *               palletLength:
  *                 type: number
  *               palletWidth:

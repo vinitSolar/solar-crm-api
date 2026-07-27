@@ -17,7 +17,7 @@ export const createProductSchema = z.object({
     height: z.coerce.number().min(0, "Height must be greater than or equal to 0").optional().nullable(),
     width: z.coerce.number().min(0, "Width must be greater than or equal to 0").optional().nullable(),
     length: z.coerce.number().min(0, "Length must be greater than or equal to 0").optional().nullable(),
-    maxPower: z.coerce.number().min(0, "Max power must be greater than or equal to 0").optional().nullable(),
+
     palletLength: z.coerce.number().min(0, "Pallet length must be greater than or equal to 0").optional().nullable(),
     palletWidth: z.coerce.number().min(0, "Pallet width must be greater than or equal to 0").optional().nullable(),
     palletHeight: z.coerce.number().min(0, "Pallet height must be greater than or equal to 0").optional().nullable(),
@@ -56,7 +56,7 @@ export const updateProductSchema = z.object({
     height: z.coerce.number().min(0, "Height must be greater than or equal to 0").optional().nullable(),
     width: z.coerce.number().min(0, "Width must be greater than or equal to 0").optional().nullable(),
     length: z.coerce.number().min(0, "Length must be greater than or equal to 0").optional().nullable(),
-    maxPower: z.coerce.number().min(0, "Max power must be greater than or equal to 0").optional().nullable(),
+
     palletLength: z.coerce.number().min(0, "Pallet length must be greater than or equal to 0").optional().nullable(),
     palletWidth: z.coerce.number().min(0, "Pallet width must be greater than or equal to 0").optional().nullable(),
     palletHeight: z.coerce.number().min(0, "Pallet height must be greater than or equal to 0").optional().nullable(),

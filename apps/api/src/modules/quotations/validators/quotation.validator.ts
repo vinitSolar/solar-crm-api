@@ -6,16 +6,16 @@ export const createQuotationSchema = z.object({
     body: z.object({
         leadUid: z.string().uuid(QUOTATION_VALIDATION_MESSAGES.INVALID_LEAD_UID),
         systemSize: z.number().positive(QUOTATION_VALIDATION_MESSAGES.SYSTEM_SIZE_POSITIVE).optional(),
-                validTill: z.string().min(1, QUOTATION_VALIDATION_MESSAGES.VALID_TILL_REQUIRED),
+        validTill: z.string().min(1, QUOTATION_VALIDATION_MESSAGES.VALID_TILL_REQUIRED),
         notes: z.string().max(1000, QUOTATION_VALIDATION_MESSAGES.NOTES_MAX).optional().nullable(),
         products: z.array(z.object({
-            productUid: z.string().uuid(QUOTATION_VALIDATION_MESSAGES.INVALID_PRODUCT_UID),
-            quantity: z.number().positive(QUOTATION_VALIDATION_MESSAGES.QUANTITY_POSITIVE),
-            productName: z.string().min(1).max(255).optional(),
-            pricePerUnit: z.number().positive(QUOTATION_VALIDATION_MESSAGES.PRICE_POSITIVE).optional(),
-            gstPercentage: z.number().min(0).max(100, QUOTATION_VALIDATION_MESSAGES.GST_PERCENTAGE_INVALID).optional(),
-            description: z.string().optional().nullable()
-        })).min(1, QUOTATION_VALIDATION_MESSAGES.PRODUCTS_REQUIRED),
+            productUid: z.string().uuid(),
+            quantity: z.number().positive(),
+            productName: z.string().optional(),
+            pricePerUnit: z.number().optional(),
+            gstPercentage: z.number().optional(),
+            description: z.string().optional()
+        })).min(1),
         scopeOfWork: z.array(z.object({
             title: z.string().min(1).max(255),
             value: z.string().min(1),
@@ -40,12 +40,12 @@ export const updateQuotationSchema = z.object({
         notes: z.string().max(1000, QUOTATION_VALIDATION_MESSAGES.NOTES_MAX).optional().nullable(),
         status: z.number().int().min(0).max(4).optional(),
         products: z.array(z.object({
-            productUid: z.string().uuid(QUOTATION_VALIDATION_MESSAGES.INVALID_PRODUCT_UID),
-            quantity: z.number().positive(QUOTATION_VALIDATION_MESSAGES.QUANTITY_POSITIVE),
-            productName: z.string().min(1).max(255).optional(),
-            pricePerUnit: z.number().positive(QUOTATION_VALIDATION_MESSAGES.PRICE_POSITIVE).optional(),
-            gstPercentage: z.number().min(0).max(100, QUOTATION_VALIDATION_MESSAGES.GST_PERCENTAGE_INVALID).optional(),
-            description: z.string().optional().nullable()
+            productUid: z.string().uuid(),
+            quantity: z.number().positive(),
+            productName: z.string().optional(),
+            pricePerUnit: z.number().optional(),
+            gstPercentage: z.number().optional(),
+            description: z.string().optional()
         })).min(1).optional(),
         scopeOfWork: z.array(z.object({
             title: z.string().min(1).max(255),

@@ -25,6 +25,7 @@ import { locationsRoutes } from "../modules/locations/index.js";
 import { auditLogRoutes } from "../modules/audit-logs/index.js";
 import { projectRoutes, projectStatusRoutes } from "../modules/projects/index.js";
 import { subsidyTrackerRoutes } from "../modules/subsidy-trackers/index.js";
+import { packageRoutes } from "../modules/packages/index.js";
 
 const apiRouter = Router();
 
@@ -48,6 +49,7 @@ apiRouter.use("/product-categories", productCategoryRoutes);
 apiRouter.use("/product-brands", productBrandRoutes);
 apiRouter.use("/product-units", productUnitRoutes);
 apiRouter.use("/products", productRoutes);
+apiRouter.use("/packages", packageRoutes);
 apiRouter.use("/state-subsidy-rules", stateSubsidyRuleRoutes);
 apiRouter.use("/quotation-terms-conditions", quotationTermsConditionRoutes);
 apiRouter.use("/quotation-scope-of-work", quotationScopeOfWorkRoutes);

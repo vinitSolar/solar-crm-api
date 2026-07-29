@@ -58,8 +58,6 @@ export interface IProductSafe {
     categoryName?: string | undefined;
     unitName?: string | undefined;
     documents?: IProductDocumentSafe[];
-    cellTechnologyUid: string | null;
-    cellTechnologyName?: string | null | undefined;
     specifications?: IProductSpecificationValueSafe[];
 }
 
@@ -87,8 +85,6 @@ export const toProductSafe = (product: IProduct, documents?: IProductDocument[])
         categoryName: product.categoryName,
         unitName: product.unitName,
         documents: documents ? documents.map(toProductDocumentSafe) : [],
-        cellTechnologyUid: product.cellTechnologyUid,
-        cellTechnologyName: product.cellTechnologyName,
         specifications: product.specifications?.map(s => ({
             specificationUid: s.specificationUid,
             value: s.value,

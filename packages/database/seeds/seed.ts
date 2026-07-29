@@ -120,100 +120,128 @@ export async function seed(pool: Pool) {
         await seedProductSpecifications(pool);
 
         // Check if admin user already exists to avoid unnecessary hashing
-        const checkRes = await client.query("SELECT 1 FROM users WHERE email = $1", ["admin@sunselect.com"]);
-        if (checkRes.rowCount && checkRes.rowCount > 0) {
-            logger.info("🎉 Database already seeded with admin user.");
-            return;
-        }
-
-        const password = "Admin@123";
-        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
-        const tenantUid = uuidv4();
-        const roleUid = uuidv4();
-        const userUid = uuidv4();
-
-        logger.info("🌱 Starting admin user seed...");
+        const checkRes = await client.query("SELECT uid, tenant_uid, role_uid FROM users WHERE email = $1", ["admin@sunselect.com"]);
+        
+        let tenantUid = "";
+        let roleUid = "";
+        let userUid = "";
 
         await client.query("BEGIN");
 
-        // 2. Tenant: Head Office
-        await client.query(
-            `INSERT INTO tenants (uid, code, name, type, email, timezone, is_active, is_deleted, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (code) DO NOTHING`,
-            [
-                tenantUid,
-                "HO",
-                "SunSelect Solar India",
-                0,
-                "admin@sunselect.com",
-                "Asia/Kolkata",
-                1,
-                0,
-                "SYSTEM",
-            ]
-        );
-        logger.info(`✅ Tenant: SunSelect Solar India (Head Office) — ${tenantUid}`);
+        if (checkRes.rowCount && checkRes.rowCount > 0) {
+            logger.info("🎉 Database already seeded with admin user. Syncing new menu permissions...");
+            userUid = checkRes.rows[0].uid;
+            tenantUid = checkRes.rows[0].tenant_uid;
+            roleUid = checkRes.rows[0].role_uid;
+        } else {
+            logger.info("🌱 Starting admin user seed...");
+            const password = "Admin@123";
+            const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-        // 3. Role: Master
-        await client.query(
-            `INSERT INTO roles (uid, tenant_uid, name, description, is_system, is_active, is_deleted, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             ON CONFLICT (uid) DO NOTHING`,
-            [
-                roleUid,
-                tenantUid,
-                "Master",
-                "Super administrator role with full system access. This is a system-defined role and cannot be modified or deleted.",
-                1,
-                1,
-                0,
-                "SYSTEM",
-            ]
-        );
-        logger.info(`✅ Role: Master (System Role) — ${roleUid}`);
+            tenantUid = uuidv4();
+            roleUid = uuidv4();
+            userUid = uuidv4();
 
-        // 4. User: Admin
-        await client.query(
-            `INSERT INTO users (uid, tenant_uid, role_uid, first_name, last_name, email, password, is_active, is_deleted, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-             ON CONFLICT (email) DO NOTHING`,
-            [
-                userUid,
-                tenantUid,
-                roleUid,
-                "Admin",
-                "User",
-                "admin@sunselect.com",
-                hashedPassword,
-                1,
-                0,
-                "SYSTEM",
-            ]
-        );
-        logger.info(`✅ User: admin@sunselect.com (Admin@123) — ${userUid}`);
+            // 2. Tenant: Head Office
+            await client.query(
+                `INSERT INTO tenants (uid, code, name, type, email, timezone, is_active, is_deleted, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                 ON CONFLICT (code) DO NOTHING`,
+                [
+                    tenantUid,
+                    "HO",
+                    "SunSelect Solar India",
+                    0,
+                    "admin@sunselect.com",
+                    "Asia/Kolkata",
+                    1,
+                    0,
+                    "SYSTEM",
+                ]
+            );
+            logger.info(`✅ Tenant: SunSelect Solar India (Head Office) — ${tenantUid}`);
+
+            // 3. Role: Master
+            await client.query(
+                `INSERT INTO roles (uid, tenant_uid, name, description, is_system, is_active, is_deleted, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 ON CONFLICT (uid) DO NOTHING`,
+                [
+                    roleUid,
+                    tenantUid,
+                    "Master",
+                    "Super administrator role with full system access. This is a system-defined role and cannot be modified or deleted.",
+                    1,
+                    1,
+                    0,
+                    "SYSTEM",
+                ]
+            );
+            logger.info(`✅ Role: Master (System Role) — ${roleUid}`);
+
+            // 4. User: Admin
+            await client.query(
+                `INSERT INTO users (uid, tenant_uid, role_uid, first_name, last_name, email, password, is_active, is_deleted, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 ON CONFLICT (email) DO NOTHING`,
+                [
+                    userUid,
+                    tenantUid,
+                    roleUid,
+                    "Admin",
+                    "User",
+                    "admin@sunselect.com",
+                    hashedPassword,
+                    1,
+                    0,
+                    "SYSTEM",
+                ]
+            );
+            logger.info(`✅ User: admin@sunselect.com (Admin@123) — ${userUid}`);
+        }
 
         // 5. Grant full access to Master role
         const allMenusRes = await client.query("SELECT uid FROM menus");
         for (const menuRow of allMenusRes.rows) {
+            // Update if exists
+            await client.query(
+                `UPDATE role_menu_permissions 
+                 SET can_view = 1, can_create = 1, can_edit = 1, can_delete = 1 
+                 WHERE role_uid = $1 AND menu_uid = $2`,
+                [roleUid, menuRow.uid]
+            );
+            // Insert if not exists
             await client.query(
                 `INSERT INTO role_menu_permissions (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete)
-                 VALUES ($1, $2, $3, 1, 1, 1, 1)`,
+                 SELECT $1::varchar, $2::varchar, $3::varchar, 1, 1, 1, 1
+                 WHERE NOT EXISTS (
+                     SELECT 1 FROM role_menu_permissions WHERE role_uid = $2 AND menu_uid = $3
+                 )`,
                 [tenantUid, roleUid, menuRow.uid]
             );
         }
-        logger.info(`✅ Granted full menu access to Master role.`);
+        logger.info(`✅ Synced full menu access to Master role.`);
 
         // 6. Grant full user-specific access to Admin user
         for (const menuRow of allMenusRes.rows) {
+            // Update if exists
+            await client.query(
+                `UPDATE user_menu_permissions 
+                 SET can_view = 1, can_create = 1, can_edit = 1, can_delete = 1 
+                 WHERE user_uid = $1 AND menu_uid = $2`,
+                [userUid, menuRow.uid]
+            );
+            // Insert if not exists
             await client.query(
                 `INSERT INTO user_menu_permissions (tenant_uid, user_uid, menu_uid, can_view, can_create, can_edit, can_delete)
-                 VALUES ($1, $2, $3, 1, 1, 1, 1)`,
+                 SELECT $1::varchar, $2::varchar, $3::varchar, 1, 1, 1, 1
+                 WHERE NOT EXISTS (
+                     SELECT 1 FROM user_menu_permissions WHERE user_uid = $2 AND menu_uid = $3
+                 )`,
                 [tenantUid, userUid, menuRow.uid]
             );
         }
-        logger.info(`✅ Granted full user-specific menu access to Admin user.`);
+        logger.info(`✅ Synced full user-specific menu access to Admin user.`);
 
         await client.query("COMMIT");
 

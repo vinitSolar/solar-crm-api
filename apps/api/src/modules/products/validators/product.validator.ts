@@ -14,7 +14,6 @@ export const createProductSchema = z.object({
     warranty: z.string().max(255).optional(),
     description: z.string().optional(),
     modelNumber: z.string().max(255).optional(),
-    cellTechnologyUid: z.string().uuid("Invalid Cell Technology UID").optional().nullable(),
     specifications: z.preprocess((val) => {
         if (val === undefined || val === null || val === "") return [];
         if (typeof val === "string") {
@@ -53,7 +52,6 @@ export const updateProductSchema = z.object({
     warranty: z.string().max(255).optional().nullable(),
     description: z.string().optional().nullable(),
     modelNumber: z.string().max(255).optional().nullable(),
-    cellTechnologyUid: z.string().uuid("Invalid Cell Technology UID").optional().nullable(),
     specifications: z.preprocess((val) => {
         if (val === undefined || val === null || val === "") return undefined;
         if (typeof val === "string") {

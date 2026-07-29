@@ -86,8 +86,8 @@ export async function seedProductSpecifications(pool: Pool) {
         } else {
             solarPanelCategoryUid = uuidv4();
             await client.query(
-                `INSERT INTO product_categories (uid, name, description, sort_order, is_active, is_dynamic, has_cell_category)
-                 VALUES ($1, $2, $3, $4, 1, 0, 1)`,
+                `INSERT INTO product_categories (uid, name, description, sort_order, is_active, is_dynamic)
+                 VALUES ($1, $2, $3, $4, 1, 0)`,
                 [solarPanelCategoryUid, "Solar Panels", "Photovoltaic solar panels", 1]
             );
         }

@@ -41,20 +41,20 @@ export async function seed(pool: Pool) {
             logger.info("🌱 Seeding product categories...");
             await client.query("BEGIN");
             const defaultCategories = [
-                { name: "Solar Panels", description: "Photovoltaic solar panels", sortOrder: 1, isDynamic: 0, hasCellCategory: 1 },
-                { name: "Inverters", description: "Solar inverters", sortOrder: 2, isDynamic: 0, hasCellCategory: 0 },
-                { name: "Batteries", description: "Energy storage batteries", sortOrder: 3, isDynamic: 0, hasCellCategory: 0 },
-                { name: "Mounting Structures", description: "Structures for mounting solar panels", sortOrder: 4, isDynamic: 1, hasCellCategory: 0 },
-                { name: "Cables & Wires", description: "Electrical cables and wires", sortOrder: 5, isDynamic: 1, hasCellCategory: 0 },
-                { name: "Accessories", description: "Other solar accessories", sortOrder: 6, isDynamic: 1, hasCellCategory: 0 },
+                { name: "Solar Panels", description: "Photovoltaic solar panels", sortOrder: 1, isDynamic: 0 },
+                { name: "Inverters", description: "Solar inverters", sortOrder: 2, isDynamic: 0 },
+                { name: "Batteries", description: "Energy storage batteries", sortOrder: 3, isDynamic: 0 },
+                { name: "Mounting Structures", description: "Structures for mounting solar panels", sortOrder: 4, isDynamic: 0 },
+                { name: "Cables & Wires", description: "Electrical cables and wires", sortOrder: 5, isDynamic: 0 },
+                { name: "Accessories", description: "Other solar accessories", sortOrder: 6, isDynamic: 0 },
             ];
 
             for (const category of defaultCategories) {
                 await client.query(
-                    `INSERT INTO product_categories (uid, name, description, sort_order, is_active, is_dynamic, has_cell_category)
-                     VALUES ($1, $2, $3, $4, 1, $5, $6)
+                    `INSERT INTO product_categories (uid, name, description, sort_order, is_active, is_dynamic)
+                     VALUES ($1, $2, $3, $4, 1, $5)
                      ON CONFLICT (name) DO NOTHING`,
-                    [uuidv4(), category.name, category.description, category.sortOrder, category.isDynamic, category.hasCellCategory]
+                    [uuidv4(), category.name, category.description, category.sortOrder, category.isDynamic]
                 );
             }
             await client.query("COMMIT");
@@ -87,34 +87,7 @@ export async function seed(pool: Pool) {
             logger.info(`✅ Product units seeded: ${defaultUnits.map(u => u.name).join(", ")}`);
         }
 
-        // Seed Product Cell Technologies
-        const cellTechCheck = await client.query("SELECT COUNT(*) FROM product_cell_technologies");
-        if (parseInt(cellTechCheck.rows[0].count) === 0) {
-            logger.info("🌱 Seeding product cell technologies...");
-            await client.query("BEGIN");
-            const defaultCellTechs = [
-                { name: "Monocrystalline", sortOrder: 1 },
-                { name: "Monocrystalline PERC", sortOrder: 2 },
-                { name: "TOPCon", sortOrder: 3 },
-                { name: "N-Type TOPCon", sortOrder: 4 },
-                { name: "HJT", sortOrder: 5 },
-                { name: "IBC", sortOrder: 6 },
-                { name: "Bifacial", sortOrder: 7 },
-                { name: "Polycrystalline", sortOrder: 8 },
-                { name: "Thin Film", sortOrder: 9 },
-            ];
 
-            for (const tech of defaultCellTechs) {
-                await client.query(
-                    `INSERT INTO product_cell_technologies (uid, name, sort_order, is_active)
-                     VALUES ($1, $2, $3, 1)
-                     ON CONFLICT (name) DO NOTHING`,
-                    [uuidv4(), tech.name, tech.sortOrder]
-                );
-            }
-            await client.query("COMMIT");
-            logger.info(`✅ Product cell technologies seeded: ${defaultCellTechs.map(t => t.name).join(", ")}`);
-        }
 
         // Run independent seeders
         await seedProductSpecifications(pool);

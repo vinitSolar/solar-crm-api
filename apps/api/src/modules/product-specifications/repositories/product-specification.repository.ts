@@ -211,6 +211,34 @@ export class ProductSpecificationRepository {
         }
     }
 
+    async getMappingsByCategory(categoryUid: string, client?: PoolClient): Promise<IProductCategorySpecification[]> {
+        const query = `
+            SELECT * FROM product_category_specifications 
+            WHERE category_uid = $1 AND is_deleted = 0
+        `;
+        const dbClient = client || await this.pool.connect();
+        try {
+            const result = await dbClient.query(query, [categoryUid]);
+            return result.rows.map(row => this.mapRowToMapping(row));
+        } finally {
+            if (!client) (dbClient as any).release();
+        }
+    }
+
+    async softDeleteMapping(categoryUid: string, specificationUid: string, deletedBy: string, client?: PoolClient): Promise<void> {
+        const dbClient = client || await this.pool.connect();
+        try {
+            await dbClient.query(
+                `UPDATE product_category_specifications 
+                 SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1 
+                 WHERE category_uid = $2 AND specification_uid = $3 AND is_deleted = 0`,
+                [deletedBy, categoryUid, specificationUid]
+            );
+        } finally {
+            if (!client) (dbClient as any).release();
+        }
+    }
+
     async update(uid: string, data: {
         title?: string | undefined;
         valueType?: number | undefined;

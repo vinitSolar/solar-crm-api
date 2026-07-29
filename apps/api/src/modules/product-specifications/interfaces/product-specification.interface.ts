@@ -67,11 +67,6 @@ export interface ICreateProductSpecificationRequest {
     valueType: number;
     unitUid?: string | null;
     options?: ICreateProductSpecificationOptionRequest[];
-    
-    // Optional category mapping info if created from category context
-    categoryUid?: string;
-    sortOrder?: number;
-    isRequired?: number;
 }
 
 export interface IUpdateProductSpecificationRequest {

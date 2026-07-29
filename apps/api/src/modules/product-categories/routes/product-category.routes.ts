@@ -121,6 +121,11 @@ router.get("/:uid", controller.getCategoryByUid);
  *                 format: binary
  *               sortOrder:
  *                 type: integer
+ *               hasCellCategory:
+ *                 type: integer
+ *               specifications:
+ *                 type: string
+ *                 description: JSON string of specifications array (e.g. '[{"specificationUid":"uuid", "isRequired":1, "sortOrder":1}]')
  *     responses:
  *       201:
  *         description: Product category created successfully
@@ -160,6 +165,9 @@ router.post("/", upload.single("image"), validateProductCategoryRequest(createPr
  *               isActive:
  *                 type: boolean
  *                 description: Provide as string "true" or "false" if multipart
+ *               specifications:
+ *                 type: string
+ *                 description: JSON string of specifications array (e.g. '[{"specificationUid":"uuid", "isRequired":1, "sortOrder":1}]')
  *     responses:
  *       200:
  *         description: Product category updated successfully

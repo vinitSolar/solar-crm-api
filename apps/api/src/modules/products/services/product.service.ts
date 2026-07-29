@@ -6,7 +6,6 @@ import { ProductBrandRepository } from "../../product-brands/repositories/produc
 import { ProductUnitRepository } from "../../product-units/repositories/product-unit.repository.js";
 import { ProductDocumentRepository } from "../repositories/product-document.repository.js";
 import { ProductDocumentTypeRepository } from "../../product-document-types/repositories/product-document-type.repository.js";
-import { ProductCellTechnologyRepository } from "../../product-cell-technologies/repositories/product-cell-technology.repository.js";
 import { ProductSpecificationRepository } from "../../product-specifications/repositories/product-specification.repository.js";
 import type { ICreateProductRequest, IUpdateProductRequest, IProductPaginationQuery } from "../interfaces/product.interface.js";
 import { toProductSafe, toProductDropdown, type IProductSafe, type IProductDropdown } from "../dto/product.dto.js";
@@ -23,7 +22,6 @@ export class ProductService {
     private readonly unitRepo: ProductUnitRepository;
     private readonly documentRepository: ProductDocumentRepository;
     private readonly documentTypeRepository: ProductDocumentTypeRepository;
-    private readonly cellTechRepo: ProductCellTechnologyRepository;
     private readonly specRepo: ProductSpecificationRepository;
 
     constructor(repository: ProductRepository) {
@@ -33,7 +31,6 @@ export class ProductService {
         this.unitRepo = new ProductUnitRepository(pool);
         this.documentRepository = new ProductDocumentRepository(pool);
         this.documentTypeRepository = new ProductDocumentTypeRepository(pool);
-        this.cellTechRepo = new ProductCellTechnologyRepository();
         this.specRepo = new ProductSpecificationRepository(pool);
     }
 
@@ -58,17 +55,6 @@ export class ProductService {
         if (!category) throw new CustomError(PRODUCT_MESSAGES.CATEGORY_NOT_FOUND, 400);
         if (!brand) throw new CustomError(PRODUCT_MESSAGES.BRAND_NOT_FOUND, 400);
         if (!unit) throw new CustomError(PRODUCT_MESSAGES.UNIT_NOT_FOUND, 400);
-
-        if (data.cellTechnologyUid) {
-            if (category.hasCellCategory !== 1 && (category as any).has_cell_category !== 1) {
-                data.cellTechnologyUid = null;
-            } else {
-                const cellTech = await this.cellTechRepo.findById(data.cellTechnologyUid);
-                if (!cellTech || cellTech.isActive === 0) {
-                    throw new CustomError("Invalid or inactive Cell Technology UID", 400);
-                }
-            }
-        }
 
         // Validate Required Specifications
         const { specifications: categorySpecs } = await this.specRepo.findPaginated(1, 1000, undefined, data.categoryUid, "active");
@@ -187,7 +173,6 @@ export class ProductService {
                 ...(data.description !== undefined ? { description: data.description } : {}),
                 modelNumber: data.modelNumber,
                 images: [],
-                cellTechnologyUid: data.cellTechnologyUid,
                 specifications: data.specifications,
                 createdBy: userUid,
             }, client);
@@ -264,17 +249,12 @@ export class ProductService {
             if (existing) throw new CustomError(PRODUCT_MESSAGES.CODE_EXISTS, 400);
         }
 
-        let currentCategoryHasCellCategory: number | undefined;
         let finalCategoryUid = product.categoryUid;
         
         if (data.categoryUid && data.categoryUid !== product.categoryUid) {
             const category = await this.categoryRepo.findByUid(data.categoryUid);
             if (!category) throw new CustomError(PRODUCT_MESSAGES.CATEGORY_NOT_FOUND, 400);
-            currentCategoryHasCellCategory = category.hasCellCategory || (category as any).has_cell_category;
             finalCategoryUid = data.categoryUid;
-        } else {
-            const category = await this.categoryRepo.findByUid(product.categoryUid);
-            currentCategoryHasCellCategory = category?.hasCellCategory || (category as any)?.has_cell_category;
         }
 
         if (data.brandUid && data.brandUid !== product.brandUid) {
@@ -285,19 +265,6 @@ export class ProductService {
         if (data.unitUid && data.unitUid !== product.unitUid) {
             const unit = await this.unitRepo.findByUid(data.unitUid);
             if (!unit) throw new CustomError(PRODUCT_MESSAGES.UNIT_NOT_FOUND, 400);
-        }
-
-        if (data.cellTechnologyUid !== undefined) {
-            if (data.cellTechnologyUid === null) {
-                // Do nothing
-            } else if (currentCategoryHasCellCategory !== 1) {
-                data.cellTechnologyUid = null;
-            } else {
-                const cellTech = await this.cellTechRepo.findById(data.cellTechnologyUid);
-                if (!cellTech || cellTech.isActive === 0) {
-                    throw new CustomError("Invalid or inactive Cell Technology UID", 400);
-                }
-            }
         }
 
         if (data.specifications !== undefined) {

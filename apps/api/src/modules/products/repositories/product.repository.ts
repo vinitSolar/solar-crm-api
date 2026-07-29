@@ -24,8 +24,6 @@ export class ProductRepository {
             brandName: row.brand_name,
             categoryName: row.category_name,
             unitName: row.unit_name,
-            cellTechnologyUid: row.cell_technology_uid,
-            cellTechnologyName: row.cell_technology_name,
         };
     }
 
@@ -67,7 +65,6 @@ export class ProductRepository {
         description?: string | undefined;
         modelNumber?: string | undefined;
         images?: string[] | undefined;
-        cellTechnologyUid?: string | null | undefined;
         specifications?: { specificationUid: string; value: string; }[] | undefined;
         createdBy: string;
     }, client?: PoolClient): Promise<IProduct> {
@@ -78,14 +75,14 @@ export class ProductRepository {
             const productQuery = `INSERT INTO products (
                 uid, category_uid, brand_uid, unit_uid, name, product_code, 
                 price_per_unit, gst_percentage, capacity, capacity_unit, 
-                warranty, description, model_number, images, cell_technology_uid, created_by
+                warranty, description, model_number, images, created_by
              )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::varchar, $10::varchar, $11::varchar, $12::text, $13::varchar, $14::text[], $15, $16)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::varchar, $10::varchar, $11::varchar, $12::text, $13::varchar, $14::text[], $15)
              RETURNING *`;
             const productValues = [
                 data.uid, data.categoryUid, data.brandUid, data.unitUid, data.name, data.productCode,
                 data.pricePerUnit, data.gstPercentage, data.capacity || null, data.capacityUnit || null,
-                data.warranty || null, data.description || null, data.modelNumber || null, data.images || [], data.cellTechnologyUid || null, data.createdBy
+                data.warranty || null, data.description || null, data.modelNumber || null, data.images || [], data.createdBy
             ];
             await dbClient.query(productQuery, productValues);
             
@@ -125,7 +122,6 @@ export class ProductRepository {
         modelNumber?: string | null | undefined;
         images?: string[] | undefined;
         isActive?: number | undefined;
-        cellTechnologyUid?: string | null | undefined;
         specifications?: { specificationUid: string; value: string; }[] | undefined;
         updatedBy: string;
     }, client?: PoolClient): Promise<IProduct | null> {
@@ -154,7 +150,6 @@ export class ProductRepository {
             fields.push(`images = $${index++}::text[]`);
             values.push(data.images);
         }
-        if (data.cellTechnologyUid !== undefined) pushField('cell_technology_uid', data.cellTechnologyUid);
         if (data.isActive !== undefined) pushField('is_active', data.isActive);
 
         const dbClient = client || await this.pool.connect();
@@ -224,12 +219,11 @@ export class ProductRepository {
     }
 
     async findByUid(uid: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid 
              WHERE p.uid = $1`;
         const result = client
             ? await client.query(query, [uid])
@@ -242,12 +236,11 @@ export class ProductRepository {
     }
 
     async findByName(name: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid 
              WHERE p.name = $1`;
         const result = client
             ? await client.query(query, [name])
@@ -260,12 +253,11 @@ export class ProductRepository {
     }
 
     async findByCode(code: string, client?: PoolClient): Promise<IProduct | null> {
-        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid 
              WHERE p.product_code = $1`;
         const result = client
             ? await client.query(query, [code])
@@ -278,12 +270,11 @@ export class ProductRepository {
     }
 
     async findAll(status?: "active" | "deleted" | "all"): Promise<IProduct[]> {
-        let query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
+        let query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
-             LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid`;
+             LEFT JOIN product_units u ON p.unit_uid = u.uid`;
         const conditions: string[] = [];
 
         if (status === "active") {
@@ -349,12 +340,11 @@ export class ProductRepository {
         const offsetIndex = index++;
 
         const result = await this.pool.query(
-            `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name, pct.name as cell_technology_name
+            `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             LEFT JOIN product_cell_technologies pct ON p.cell_technology_uid = pct.uid 
              ${whereClause} 
              ORDER BY p.name ASC, p.created_at DESC 
              LIMIT $${limitIndex} OFFSET $${offsetIndex}`,

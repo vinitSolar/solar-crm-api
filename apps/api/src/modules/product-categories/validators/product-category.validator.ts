@@ -6,7 +6,6 @@ export const createProductCategorySchema = z.object({
     name: z.string({ message: "Name is required" }).min(1, "Name is required").max(255),
     description: z.string().optional(),
     sortOrder: z.coerce.number().optional(),
-    hasCellCategory: z.coerce.number().min(0).max(1).optional(),
     specifications: z.preprocess((val) => {
         if (val === undefined || val === null || val === "") return [];
         if (typeof val === "string") {
@@ -25,7 +24,6 @@ export const updateProductCategorySchema = z.object({
     description: z.string().optional(),
     sortOrder: z.coerce.number().optional(),
     isActive: z.coerce.number().min(0).max(1).optional(),
-    hasCellCategory: z.coerce.number().min(0).max(1).optional(),
     specifications: z.preprocess((val) => {
         if (val === undefined || val === null || val === "") return undefined;
         if (typeof val === "string") {

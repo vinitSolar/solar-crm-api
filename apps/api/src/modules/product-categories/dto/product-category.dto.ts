@@ -9,7 +9,6 @@ export interface IProductCategorySafe {
     isDynamic: boolean;
     isActive: boolean;
     isDeleted: boolean;
-    hasCellCategory: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -24,7 +23,6 @@ export const toProductCategorySafe = (category: IProductCategory): IProductCateg
         isDynamic: (category.isDynamic === 1 || (category as any).is_dynamic === 1),
         isActive: category.isActive === 1,
         isDeleted: category.isDeleted === 1,
-        hasCellCategory: (category.hasCellCategory === 1 || (category as any).has_cell_category === 1),
         createdAt: category.createdAt,
         updatedAt: category.updatedAt,
     };
@@ -34,7 +32,6 @@ export interface IProductCategoryDropdown {
     uid: string;
     name: string;
     isDynamic?: boolean;
-    hasCellCategory?: boolean;
 }
 
 export const toProductCategoryDropdown = (category: IProductCategory): IProductCategoryDropdown => {
@@ -42,6 +39,5 @@ export const toProductCategoryDropdown = (category: IProductCategory): IProductC
         uid: category.uid,
         name: category.name,
         isDynamic: (category.isDynamic === 1 || (category as any).is_dynamic === 1),
-        hasCellCategory: (category.hasCellCategory === 1 || (category as any).has_cell_category === 1),
     };
 };

@@ -7,6 +7,17 @@ export const createProductCategorySchema = z.object({
     description: z.string().optional(),
     sortOrder: z.coerce.number().optional(),
     hasCellCategory: z.coerce.number().min(0).max(1).optional(),
+    specifications: z.preprocess((val) => {
+        if (val === undefined || val === null || val === "") return [];
+        if (typeof val === "string") {
+            try { return JSON.parse(val); } catch { return []; }
+        }
+        return val;
+    }, z.array(z.object({
+        specificationUid: z.string().uuid("Invalid Specification UID"),
+        isRequired: z.coerce.number().min(0).max(1).optional().default(0),
+        sortOrder: z.coerce.number().optional().default(0),
+    }))).optional(),
 });
 
 export const updateProductCategorySchema = z.object({
@@ -15,6 +26,17 @@ export const updateProductCategorySchema = z.object({
     sortOrder: z.coerce.number().optional(),
     isActive: z.coerce.number().min(0).max(1).optional(),
     hasCellCategory: z.coerce.number().min(0).max(1).optional(),
+    specifications: z.preprocess((val) => {
+        if (val === undefined || val === null || val === "") return undefined;
+        if (typeof val === "string") {
+            try { return JSON.parse(val); } catch { return undefined; }
+        }
+        return val;
+    }, z.array(z.object({
+        specificationUid: z.string().uuid("Invalid Specification UID"),
+        isRequired: z.coerce.number().min(0).max(1).optional().default(0),
+        sortOrder: z.coerce.number().optional().default(0),
+    }))).optional(),
 });
 
 export const paginationSchema = z.object({

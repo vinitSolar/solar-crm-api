@@ -32,11 +32,6 @@ export const createProductSpecificationSchema = z.object({
     valueType: z.coerce.number().min(0).max(6),
     unitUid: z.preprocess(sanitizeFilterUid, z.string().uuid("Invalid Unit UID").optional().nullable()),
     options: z.array(optionSchema).optional(),
-    
-    // Optional mapping fields
-    categoryUid: z.preprocess(sanitizeFilterUid, z.string().uuid("Invalid Category UID").optional()),
-    sortOrder: z.coerce.number().optional(),
-    isRequired: z.coerce.number().min(0).max(1).optional(),
 });
 
 export const updateProductSpecificationSchema = z.object({

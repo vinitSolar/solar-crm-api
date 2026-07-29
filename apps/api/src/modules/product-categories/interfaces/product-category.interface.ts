@@ -23,6 +23,11 @@ export interface ICreateProductCategoryRequest {
     image?: string;
     sortOrder?: number;
     hasCellCategory?: number;
+    specifications?: {
+        specificationUid: string;
+        isRequired?: number;
+        sortOrder?: number;
+    }[];
 }
 
 export interface IUpdateProductCategoryRequest {
@@ -32,6 +37,11 @@ export interface IUpdateProductCategoryRequest {
     sortOrder?: number;
     isActive?: number;
     hasCellCategory?: number;
+    specifications?: {
+        specificationUid: string;
+        isRequired?: number;
+        sortOrder?: number;
+    }[];
 }
 
 export interface IProductCategoryPaginationQuery {

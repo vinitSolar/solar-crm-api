@@ -140,8 +140,8 @@ export async function seedProductSpecifications(pool: Pool) {
             
             if (mappingCheck.rowCount === 0) {
                 await client.query(
-                    `INSERT INTO product_category_specifications (uid, category_uid, specification_uid, sort_order, is_required, default_visible, created_by)
-                     VALUES ($1, $2, $3, $4, 0, 1, 'SYSTEM')`,
+                    `INSERT INTO product_category_specifications (uid, category_uid, specification_uid, sort_order, is_required, created_by)
+                     VALUES ($1, $2, $3, $4, 0, 'SYSTEM')`,
                     [uuidv4(), solarPanelCategoryUid, specUid, sortOrder]
                 );
             }

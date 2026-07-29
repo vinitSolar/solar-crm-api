@@ -70,26 +70,7 @@ export class ProductSpecificationService {
                     options.push(createdOpt);
                 }
             }
-            
-            // Map to category if categoryUid is provided (e.g. created from category context)
-            if (data.categoryUid) {
-                const category = await this.categoryRepo.findByUid(data.categoryUid);
-                if (!category) {
-                    throw new CustomError("Product category not found.", 404);
-                }
-                const mapping = await this.repository.mapToCategory({
-                    uid: uuidv4(),
-                    categoryUid: data.categoryUid,
-                    specificationUid: specUid,
-                    sortOrder: data.sortOrder,
-                    isRequired: data.isRequired,
-                    createdBy: userUid,
-                }, client);
-                
-                spec.mappingUid = mapping.uid;
-                spec.sortOrder = mapping.sortOrder;
-                spec.isRequired = mapping.isRequired;
-            }
+
 
             await client.query("COMMIT");
             return toProductSpecificationSafe(spec, options);

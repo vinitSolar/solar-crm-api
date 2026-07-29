@@ -6,12 +6,16 @@ import { CustomError } from "../../../middlewares/error.middleware.js";
 import { PRODUCT_CATEGORY_MESSAGES } from "../constants/product-category.constants.js";
 import { storageService } from "@packages/storage/index.js";
 import { logger } from "@packages/logger/index.js";
+import { ProductSpecificationRepository } from "../../product-specifications/repositories/product-specification.repository.js";
+import pool from "@packages/connection.js";
 
 export class ProductCategoryService {
     private readonly repository: ProductCategoryRepository;
+    private readonly specRepo: ProductSpecificationRepository;
 
     constructor(repository: ProductCategoryRepository) {
         this.repository = repository;
+        this.specRepo = new ProductSpecificationRepository(pool);
     }
 
     async createCategory(data: ICreateProductCategoryRequest, file: Express.Multer.File | undefined, userUid: string): Promise<IProductCategorySafe> {
@@ -41,6 +45,19 @@ export class ProductCategoryService {
             ...(data.hasCellCategory !== undefined ? { hasCellCategory: data.hasCellCategory } : {}),
             createdBy: userUid,
         });
+
+        if (data.specifications && data.specifications.length > 0) {
+            for (const spec of data.specifications) {
+                await this.specRepo.mapToCategory({
+                    uid: uuidv4(),
+                    categoryUid: categoryUid,
+                    specificationUid: spec.specificationUid,
+                    isRequired: spec.isRequired,
+                    sortOrder: spec.sortOrder,
+                    createdBy: userUid,
+                });
+            }
+        }
 
         return toProductCategorySafe(category);
     }
@@ -76,6 +93,43 @@ export class ProductCategoryService {
 
         if (!updated) {
             throw new CustomError(PRODUCT_CATEGORY_MESSAGES.NOT_FOUND, 404);
+        }
+
+        if (data.specifications !== undefined) {
+            const existingMappings = await this.specRepo.getMappingsByCategory(uid);
+            
+            const specsMap = new Map();
+            for (const spec of data.specifications) {
+                specsMap.set(spec.specificationUid, spec);
+            }
+            
+            // Delete missing mappings
+            for (const existing of existingMappings) {
+                if (!specsMap.has(existing.specificationUid)) {
+                    await this.specRepo.softDeleteMapping(uid, existing.specificationUid, userUid);
+                }
+            }
+            
+            // Update or create mappings
+            for (const spec of data.specifications) {
+                const existing = existingMappings.find(m => m.specificationUid === spec.specificationUid);
+                if (existing) {
+                    await this.specRepo.updateMapping(uid, spec.specificationUid, {
+                        ...(spec.isRequired !== undefined ? { isRequired: spec.isRequired } : {}),
+                        ...(spec.sortOrder !== undefined ? { sortOrder: spec.sortOrder } : {}),
+                        updatedBy: userUid,
+                    });
+                } else {
+                    await this.specRepo.mapToCategory({
+                        uid: uuidv4(),
+                        categoryUid: uid,
+                        specificationUid: spec.specificationUid,
+                        isRequired: spec.isRequired,
+                        sortOrder: spec.sortOrder,
+                        createdBy: userUid,
+                    });
+                }
+            }
         }
 
         return toProductCategorySafe(updated);

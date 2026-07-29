@@ -25,8 +25,6 @@ export interface IProduct {
     brandName?: string | undefined;
     categoryName?: string | undefined;
     unitName?: string | undefined;
-    cellTechnologyUid: string | null;
-    cellTechnologyName?: string | null;
     specifications?: { specificationUid: string; value: string; specificationName?: string; }[];
 }
 
@@ -45,7 +43,6 @@ export interface ICreateProductRequest {
     modelNumber?: string | undefined;
     images?: string[] | undefined;
     documentTypeUids?: string[] | undefined;
-    cellTechnologyUid?: string | null | undefined;
     specifications?: { specificationUid: string; value: string; }[] | undefined;
 }
 
@@ -67,7 +64,6 @@ export interface IUpdateProductRequest {
     isActive?: number | undefined;
     deleteDocumentUids?: string[] | undefined;
     documentTypeUids?: string[] | undefined;
-    cellTechnologyUid?: string | null | undefined;
     specifications?: { specificationUid: string; value: string; }[] | undefined;
 }
 

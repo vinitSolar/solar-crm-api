@@ -42,7 +42,6 @@ export class ProductCategoryService {
             ...(data.description !== undefined ? { description: data.description } : {}),
             ...(imageUrl !== undefined ? { image: imageUrl } : {}),
             ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
-            ...(data.hasCellCategory !== undefined ? { hasCellCategory: data.hasCellCategory } : {}),
             createdBy: userUid,
         });
 

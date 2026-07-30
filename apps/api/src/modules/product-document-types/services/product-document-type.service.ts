@@ -34,6 +34,27 @@ export class ProductDocumentTypeService {
                 allowedExtensions: "pdf,jpg,jpeg,png",
                 allowMultiple: 0,
                 isRequired: 0,
+            },
+            {
+                name: "Installation Manual",
+                description: "Guide for installing and configuring the product",
+                allowedExtensions: "pdf",
+                allowMultiple: 0,
+                isRequired: 0,
+            },
+            {
+                name: "Technical Drawing",
+                description: "Engineering drawings or schematics",
+                allowedExtensions: "pdf,dwg,dxf,jpg,png",
+                allowMultiple: 1,
+                isRequired: 0,
+            },
+            {
+                name: "Product Images",
+                description: "Marketing or reference images of the product",
+                allowedExtensions: "jpg,jpeg,png,webp",
+                allowMultiple: 1,
+                isRequired: 0,
             }
         ];
 

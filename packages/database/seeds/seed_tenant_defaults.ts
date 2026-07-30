@@ -100,7 +100,7 @@ export async function seedTenantDefaults(client: PoolClient, tenantUid: string, 
     ];
     for (const docType of productDocTypes) {
         const existing = await client.query(
-            "SELECT 1 FROM product_document_types WHERE tenant_uid = $1 AND name = $2 AND is_deleted = 0",
+            "SELECT uid, is_deleted FROM product_document_types WHERE tenant_uid = $1 AND name = $2",
             [tenantUid, docType.name]
         );
         if (existing.rowCount === 0) {
@@ -108,6 +108,13 @@ export async function seedTenantDefaults(client: PoolClient, tenantUid: string, 
                 `INSERT INTO product_document_types (uid, tenant_uid, name, description, allowed_extensions, allow_multiple, is_required, created_by)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
                 [uuidv4(), tenantUid, docType.name, docType.description, docType.allowedExtensions, docType.allowMultiple, docType.isRequired, createdBy]
+            );
+        } else if (existing.rows[0].is_deleted === 1) {
+            await client.query(
+                `UPDATE product_document_types 
+                 SET is_deleted = 0, is_active = 1, updated_at = CURRENT_TIMESTAMP, updated_by = $1 
+                 WHERE uid = $2`,
+                [createdBy, existing.rows[0].uid]
             );
         }
     }

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { logger } from "../../logger/index.js";
 import { seedProductSpecifications } from "./seed_product_specifications.js";
 import { seedTenantDefaults } from "./seed_tenant_defaults.js";
+import { seedProducts } from "./seed_products.js";
 
 const SALT_ROUNDS = 10;
 
@@ -221,6 +222,9 @@ export async function seed(pool: Pool) {
         await seedTenantDefaults(client, tenantUid);
 
         await client.query("COMMIT");
+
+        // 9. Seed products and their specifications
+        await seedProducts(pool);
 
         logger.info("🎉 Database seed completed successfully!");
 

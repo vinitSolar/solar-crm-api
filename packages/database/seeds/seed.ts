@@ -3,6 +3,7 @@ import { Pool } from "pg";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "../../logger/index.js";
 import { seedProductSpecifications } from "./seed_product_specifications.js";
+import { seedTenantDefaults } from "./seed_tenant_defaults.js";
 
 const SALT_ROUNDS = 10;
 
@@ -215,6 +216,9 @@ export async function seed(pool: Pool) {
             );
         }
         logger.info(`✅ Synced full user-specific menu access to Admin user.`);
+
+        // Seed default settings/document types for Head Office tenant
+        await seedTenantDefaults(client, tenantUid);
 
         await client.query("COMMIT");
 

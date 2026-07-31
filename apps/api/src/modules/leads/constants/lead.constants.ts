@@ -9,6 +9,8 @@ export const LEAD_MESSAGES = {
     DELETE_FAILED: "Failed to delete lead",
     RESTORE_FAILED: "Failed to restore lead",
     FETCHED_SUCCESSFULLY: "Leads fetched successfully",
+    USER_NOT_FOUND: "Assigned user not found or does not belong to this tenant.",
+    VALIDATION_FAILED: "Validation failed",
 };
 
 export const LEAD_SOURCE_MESSAGES = {

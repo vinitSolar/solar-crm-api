@@ -8,10 +8,12 @@ import { logger } from "@packages/logger/index.js";
  */
 export class CustomError extends Error {
     public statusCode: number;
+    public errors: Array<{ field: string; message: string }>;
 
-    constructor(message: string, statusCode: number = 500) {
+    constructor(message: string, statusCode: number = 500, errors: Array<{ field: string; message: string }> = []) {
         super(message);
         this.statusCode = statusCode;
+        this.errors = errors;
         this.name = this.constructor.name;
         Error.captureStackTrace(this, this.constructor);
     }
@@ -47,7 +49,7 @@ export const globalErrorHandler = (
         res.status(err.statusCode).json({
             success: false,
             message: err.message,
-            errors: [],
+            errors: err.errors || [],
         });
         return;
     }

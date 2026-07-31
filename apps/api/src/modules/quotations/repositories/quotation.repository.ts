@@ -470,6 +470,7 @@ export class QuotationRepository {
         firstName: string;
         lastName: string | null;
         mobileNumber: string;
+        email: string | null;
         address: string | null;
         city: string | null;
         state: string | null;
@@ -477,7 +478,7 @@ export class QuotationRepository {
         systemSize: number | null;
     } | null> {
         const query = `
-            SELECT first_name, last_name, mobile_number, address, city, state, pin_code, system_size
+            SELECT first_name, last_name, mobile_number, email, address, city, state, pin_code, system_size
             FROM leads
             WHERE tenant_uid = $1 AND uid = $2 AND is_deleted = 0
             LIMIT 1
@@ -489,6 +490,7 @@ export class QuotationRepository {
             firstName: row.first_name,
             lastName: row.last_name,
             mobileNumber: row.mobile_number,
+            email: row.email,
             address: row.address,
             city: row.city,
             state: row.state,

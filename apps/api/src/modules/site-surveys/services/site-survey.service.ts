@@ -44,7 +44,12 @@ export class SiteSurveyService {
         // Validate assigned user exists and belongs to tenant
         const user = await this.userRepository.getUserByUid(data.assignedTo, tenantUid);
         if (!user) {
-            throw new CustomError(SITE_SURVEY_MESSAGES.USER_NOT_FOUND, 400);
+            throw new CustomError(SITE_SURVEY_MESSAGES.VALIDATION_FAILED, 400, [
+                {
+                    field: "body.assignedTo",
+                    message: SITE_SURVEY_MESSAGES.USER_NOT_FOUND,
+                }
+            ]);
         }
 
         try {
@@ -111,7 +116,12 @@ export class SiteSurveyService {
         if (data.assignedTo && data.assignedTo !== existing.assignedTo) {
             const user = await this.userRepository.getUserByUid(data.assignedTo, tenantUid);
             if (!user) {
-                throw new CustomError(SITE_SURVEY_MESSAGES.USER_NOT_FOUND, 400);
+                throw new CustomError(SITE_SURVEY_MESSAGES.VALIDATION_FAILED, 400, [
+                    {
+                        field: "body.assignedTo",
+                        message: SITE_SURVEY_MESSAGES.USER_NOT_FOUND,
+                    }
+                ]);
             }
         }
 

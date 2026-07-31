@@ -19,6 +19,7 @@ import { logger } from "@packages/logger/logger.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { notificationService, NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -205,6 +206,12 @@ export class QuotationService {
                 const pdfResult = await this.generatePdf(tenantUid, quotation.uid, createdBy);
                 pdfUrl = pdfResult.pdfUrl;
                 pdfPath = pdfResult.pdfPath;
+
+                if (pdfUrl) {
+                    this.sendQuotationEmailBackground(tenantUid, quotation.uid, pdfUrl, createdBy).catch(err => {
+                        logger.error(`Failed to trigger background quotation email sending:`, err);
+                    });
+                }
             } catch (err) {
                 logger.error(`Failed to auto-generate PDF for Quote: ${quotation.uid}`, err);
             }
@@ -712,5 +719,97 @@ export class QuotationService {
         await this.repository.updatePdfInfo(quotation.uid, pdfUrl, pdfPath, createdBy);
 
         return { pdfUrl, pdfPath };
+    }
+
+    /**
+     * Sends the quotation generated email to the customer asynchronously in the background.
+     */
+    private async sendQuotationEmailBackground(
+        tenantUid: string,
+        quotationUid: string,
+        pdfUrl: string,
+        createdBy: string
+    ): Promise<void> {
+        try {
+            logger.info(`Starting notification dispatch for Quotation UID: ${quotationUid}`);
+
+            // 1. Fetch complete quotation
+            const quotation = await this.repository.findByUid(tenantUid, quotationUid);
+            if (!quotation) {
+                logger.error(`Failed to send quotation notification: Quotation not found [UID: ${quotationUid}]`);
+                return;
+            }
+
+            // 2. Fetch Lead details
+            const lead = await this.repository.getLeadDetails(tenantUid, quotation.leadUid);
+            if (!lead) {
+                logger.warn(`Skipping quotation notification: Lead not found for Lead UID: ${quotation.leadUid}`);
+                return;
+            }
+
+            if (!lead.email || !lead.email.trim()) {
+                logger.warn(`Skipping quotation notification: Customer email is empty for Lead UID: ${quotation.leadUid}`);
+                return;
+            }
+
+            // 3. Fetch Franchise details
+            const franchise = await this.repository.getFranchiseDetails(tenantUid);
+            if (!franchise) {
+                logger.error(`Failed to send quotation notification: Franchise not found for Tenant UID: ${tenantUid}`);
+                return;
+            }
+
+            // 4. Calculate total amount
+            const items = await this.repository.findItemsByQuotationUid(quotation.uid);
+            let subtotal = 0;
+            let gstAmount = 0;
+            for (const item of items) {
+                const lineTotal = Number(item.lineTotal);
+                subtotal += lineTotal;
+                gstAmount += lineTotal * (Number(item.gstPercentage) / 100);
+            }
+            const grandTotal = Math.round((subtotal + gstAmount) * 100) / 100;
+
+            // Formatter helpers
+            const formatDate = (date: Date) => {
+                return new Date(date).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric"
+                });
+            };
+            const formatINR = (amount: number) => {
+                return "\u20B9" + Number(amount).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            };
+
+            // 5. Send via NotificationService (auto-selects BullMQ or Direct fallback)
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.EMAIL,
+                template: NOTIFICATION_TEMPLATE.QUOTATION_GENERATED,
+                recipient: lead.email,
+                module: "quotation",
+                referenceUid: quotation.uid,
+                tenantUid,
+                createdBy,
+                variables: {
+                    customer_name: `${lead.firstName} ${lead.lastName || ""}`.trim(),
+                    quotation_number: quotation.quotationNumber,
+                    quotation_date: formatDate(quotation.createdAt),
+                    quotation_amount: formatINR(grandTotal),
+                    project_capacity: Number(quotation.systemSize).toString(),
+                    valid_until: formatDate(quotation.validTill),
+                    company_name: franchise.name,
+                    company_logo: franchise.logo || "",
+                    company_email: franchise.email || "",
+                    company_phone: franchise.mobile || "",
+                    quotation_download_link: pdfUrl
+                }
+            });
+        } catch (error) {
+            logger.error(`Error in quotation notification dispatch:`, error);
+        }
     }
 }

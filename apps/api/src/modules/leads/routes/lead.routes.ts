@@ -4,6 +4,7 @@ import { LeadService } from "../services/lead.service.js";
 import { LeadRepository } from "../repositories/lead.repository.js";
 import { LeadSourceRepository } from "../repositories/lead-source.repository.js";
 import { LeadStatusRepository } from "../repositories/lead-status.repository.js";
+import { UserRepository } from "../../users/repositories/user.repository.js";
 import {
     createLeadSchema,
     updateLeadSchema,
@@ -21,8 +22,9 @@ function createLeadRouter(): Router {
     const repository = new LeadRepository(pool);
     const sourceRepository = new LeadSourceRepository(pool);
     const statusRepository = new LeadStatusRepository(pool);
+    const userRepository = new UserRepository(pool);
     
-    const service = new LeadService(repository, sourceRepository, statusRepository);
+    const service = new LeadService(repository, sourceRepository, statusRepository, userRepository);
     const controller = new LeadController(service);
 
     router.use(authenticate);

@@ -1,6 +1,7 @@
 import type { LeadRepository } from "../repositories/lead.repository.js";
 import type { LeadSourceRepository } from "../repositories/lead-source.repository.js";
 import type { LeadStatusRepository } from "../repositories/lead-status.repository.js";
+import type { UserRepository } from "../../users/repositories/user.repository.js";
 import type { ICreateLead, IUpdateLead, ILeadSafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/lead.interface.js";
 import { toLeadSafe } from "../dto/lead.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
@@ -11,15 +12,18 @@ export class LeadService {
     private readonly repository: LeadRepository;
     private readonly sourceRepository: LeadSourceRepository;
     private readonly statusRepository: LeadStatusRepository;
+    private readonly userRepository: UserRepository;
 
     constructor(
         repository: LeadRepository,
         sourceRepository: LeadSourceRepository,
-        statusRepository: LeadStatusRepository
+        statusRepository: LeadStatusRepository,
+        userRepository: UserRepository
     ) {
         this.repository = repository;
         this.sourceRepository = sourceRepository;
         this.statusRepository = statusRepository;
+        this.userRepository = userRepository;
     }
 
     async createLead(tenantUid: string, data: ICreateLead, createdBy: string): Promise<ILeadSafe> {
@@ -30,6 +34,19 @@ export class LeadService {
             const leadSource = await this.sourceRepository.getByUid(tenantUid, data.leadSourceUid);
             if (!leadSource) {
                 throw new CustomError(LEAD_SOURCE_MESSAGES.NOT_FOUND, 400);
+            }
+        }
+
+        // Ensure assigned user belongs to this tenant if provided
+        if (data.assignedTo) {
+            const user = await this.userRepository.getUserByUid(data.assignedTo, tenantUid);
+            if (!user) {
+                throw new CustomError(LEAD_MESSAGES.VALIDATION_FAILED, 400, [
+                    {
+                        field: "body.assignedTo",
+                        message: LEAD_MESSAGES.USER_NOT_FOUND,
+                    }
+                ]);
             }
         }
 
@@ -103,6 +120,18 @@ export class LeadService {
         if (data.statusUid) {
             const leadStatus = await this.statusRepository.getByUid(tenantUid, data.statusUid);
             if (!leadStatus) throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 400);
+        }
+
+        if (data.assignedTo && data.assignedTo !== existing.assignedTo) {
+            const user = await this.userRepository.getUserByUid(data.assignedTo, tenantUid);
+            if (!user) {
+                throw new CustomError(LEAD_MESSAGES.VALIDATION_FAILED, 400, [
+                    {
+                        field: "body.assignedTo",
+                        message: LEAD_MESSAGES.USER_NOT_FOUND,
+                    }
+                ]);
+            }
         }
 
         try {

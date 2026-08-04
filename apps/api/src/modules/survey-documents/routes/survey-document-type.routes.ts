@@ -34,7 +34,7 @@ function createSurveyDocumentTypeRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/paginationSchemaBody'
      *             properties:
      *               page:
      *                 type: integer
@@ -141,7 +141,7 @@ function createSurveyDocumentTypeRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/createSurveyDocumentTypeSchemaBody'
      *             required:
      *               - name
      *             properties:
@@ -198,7 +198,7 @@ function createSurveyDocumentTypeRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateSurveyDocumentTypeSchemaBody'
      *             properties:
      *               name:
      *                 type: string

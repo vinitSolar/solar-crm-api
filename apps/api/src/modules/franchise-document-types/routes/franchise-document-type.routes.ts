@@ -40,7 +40,7 @@ router.use(authenticate);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/paginationSchemaBody'
  *             properties:
  *               page:
  *                 type: integer
@@ -124,7 +124,7 @@ router.get("/:uid", validateRequest(getByUidSchema), controller.getFranchiseDocu
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/createFranchiseDocumentTypeSchemaBody'
  *             properties:
  *               name:
  *                 type: string
@@ -161,7 +161,7 @@ router.post("/", validateRequest(createFranchiseDocumentTypeSchema), controller.
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/updateFranchiseDocumentTypeSchemaBody'
  *             properties:
  *               name:
  *                 type: string

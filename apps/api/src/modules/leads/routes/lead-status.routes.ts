@@ -93,7 +93,7 @@ function createLeadStatusRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/createLeadStatusSchemaBody'
      *             required:
      *               - name
      *             properties:
@@ -142,7 +142,7 @@ function createLeadStatusRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateLeadStatusSchemaBody'
      *             properties:
      *               name:
      *                 type: string

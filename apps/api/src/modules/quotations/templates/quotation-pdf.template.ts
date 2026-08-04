@@ -48,8 +48,7 @@ export interface IQuotationPdfData {
         description: string;
     }>;
     subsidy?: {
-        centralSubsidy: number;
-        stateSubsidy: number;
+        subsidyData: Array<{ uid: string; name: string; amount: number }>;
         netCustomerCost: number;
         showSubsidy: boolean;
     };
@@ -107,20 +106,20 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
         : `<p class="text-muted">No specific terms and conditions defined.</p>`;
 
     // Build Subsidy rows if applicable
-    const subsidyRowsHtml = (subsidy && subsidy.showSubsidy) ? `
+    let subsidyRowsHtml = "";
+    if (subsidy && subsidy.showSubsidy) {
+        subsidyRowsHtml = subsidy.subsidyData.map(sub => `
         <tr class="subsidy-row">
-            <td colspan="5" class="text-right">Central Subsidy (PM-Surya Ghar):</td>
-            <td colspan="2" class="text-right">- ${formatINR(subsidy.centralSubsidy)}</td>
+            <td colspan="5" class="text-right">${sub.name}:</td>
+            <td colspan="2" class="text-right">- ${formatINR(sub.amount)}</td>
         </tr>
-        <tr class="subsidy-row">
-            <td colspan="5" class="text-right">State Subsidy:</td>
-            <td colspan="2" class="text-right">- ${formatINR(subsidy.stateSubsidy)}</td>
-        </tr>
+        `).join("") + `
         <tr class="net-cost-row">
             <td colspan="5" class="text-right">Net Customer Cost:</td>
             <td colspan="2" class="text-right">${formatINR(subsidy.netCustomerCost)}</td>
         </tr>
-    ` : "";
+        `;
+    }
 
     return `
 <!DOCTYPE html>

@@ -3,15 +3,23 @@ import type { CreatePackageDTO, UpdatePackageDTO, PackageResponseDTO } from "../
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { PACKAGE_MESSAGES } from "../constants/messages.js";
 import { logger } from "@packages/logger/index.js";
+import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 
 export class PackageService {
     private readonly repository: PackageRepository;
+    private readonly scopeOfWorkRepo: QuotationScopeOfWorkRepository;
 
-    constructor(repository: PackageRepository) {
+    constructor(repository: PackageRepository, scopeOfWorkRepo: QuotationScopeOfWorkRepository) {
         this.repository = repository;
+        this.scopeOfWorkRepo = scopeOfWorkRepo;
     }
 
     async createPackage(tenantUid: string, userUid: string, data: CreatePackageDTO): Promise<PackageResponseDTO> {
+        if (!data.packageCode) {
+            const count = await this.repository.countPackages(tenantUid);
+            data.packageCode = `PKG-${(count + 1).toString().padStart(3, "0")}`;
+        }
+
         logger.info("PackageService.createPackage", { tenantUid, name: data.name, code: data.packageCode });
 
         const [nameExists, codeExists] = await Promise.all([
@@ -52,7 +60,33 @@ export class PackageService {
             };
         });
 
-        const createdPackage = await this.repository.createPackage(tenantUid, userUid, data, mappedProducts);
+        let mappedScopeOfWork;
+        if (data.scopeOfWork && data.scopeOfWork.length > 0) {
+            const sowUids = data.scopeOfWork.map(s => s.scopeOfWorkUid);
+            const uniqueSowUids = new Set(sowUids);
+            
+            if (uniqueSowUids.size !== sowUids.length) {
+                throw new CustomError("Duplicate Scope of Work items", 400);
+            }
+
+            const dbSows = await this.scopeOfWorkRepo.findByUids(tenantUid, Array.from(uniqueSowUids));
+            if (dbSows.length !== uniqueSowUids.size) {
+                throw new CustomError("Invalid Scope of Work items provided", 400);
+            }
+
+            const sowsMap = new Map(dbSows.map(s => [s.uid, s]));
+            mappedScopeOfWork = data.scopeOfWork.map((s, index) => {
+                const dbSow = sowsMap.get(s.scopeOfWorkUid)!;
+                return {
+                    scopeOfWorkUid: s.scopeOfWorkUid,
+                    title: dbSow.title,
+                    value: dbSow.value,
+                    sortOrder: s.sortOrder ?? dbSow.sortOrder ?? (index + 1)
+                };
+            });
+        }
+
+        const createdPackage = await this.repository.createPackage(tenantUid, userUid, data, mappedProducts, mappedScopeOfWork);
         return createdPackage;
     }
 
@@ -101,7 +135,33 @@ export class PackageService {
             });
         }
 
-        await this.repository.updatePackage(uid, tenantUid, userUid, data, mappedProducts);
+        let mappedScopeOfWork;
+        if (data.scopeOfWork && data.scopeOfWork.length > 0) {
+            const sowUids = data.scopeOfWork.map(s => s.scopeOfWorkUid);
+            const uniqueSowUids = new Set(sowUids);
+            
+            if (uniqueSowUids.size !== sowUids.length) {
+                throw new CustomError("Duplicate Scope of Work items", 400);
+            }
+
+            const dbSows = await this.scopeOfWorkRepo.findByUids(tenantUid, Array.from(uniqueSowUids));
+            if (dbSows.length !== uniqueSowUids.size) {
+                throw new CustomError("Invalid Scope of Work items provided", 400);
+            }
+
+            const sowsMap = new Map(dbSows.map(s => [s.uid, s]));
+            mappedScopeOfWork = data.scopeOfWork.map((s, index) => {
+                const dbSow = sowsMap.get(s.scopeOfWorkUid)!;
+                return {
+                    scopeOfWorkUid: s.scopeOfWorkUid,
+                    title: dbSow.title,
+                    value: dbSow.value,
+                    sortOrder: s.sortOrder ?? dbSow.sortOrder ?? (index + 1)
+                };
+            });
+        }
+
+        await this.repository.updatePackage(uid, tenantUid, userUid, data, mappedProducts, mappedScopeOfWork);
     }
 
     async getPackageByUid(uid: string, tenantUid: string): Promise<PackageResponseDTO> {

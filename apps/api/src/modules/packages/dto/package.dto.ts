@@ -4,13 +4,19 @@ export interface PackageProductDTO {
     remarks?: string;
 }
 
+export interface PackageScopeOfWorkDTO {
+    scopeOfWorkUid: string;
+    sortOrder?: number;
+}
+
 export interface CreatePackageDTO {
     name: string;
-    packageCode: string;
+    packageCode?: string;
     description?: string;
     capacityKw?: number;
-    price: number;
+    recomendedPrice: number;
     products: PackageProductDTO[];
+    scopeOfWork?: PackageScopeOfWorkDTO[];
 }
 
 export interface UpdatePackageDTO {
@@ -18,9 +24,10 @@ export interface UpdatePackageDTO {
     packageCode?: string;
     description?: string;
     capacityKw?: number;
-    price?: number;
+    recomendedPrice?: number;
     isActive?: number; // 0 or 1
     products?: PackageProductDTO[];
+    scopeOfWork?: PackageScopeOfWorkDTO[];
 }
 
 export interface PackageResponseDTO {
@@ -29,10 +36,11 @@ export interface PackageResponseDTO {
     packageCode: string;
     description: string | null;
     capacityKw: number | null;
-    price: number;
+    recomendedPrice: number;
     isActive: boolean;
     isDeleted: boolean;
     createdAt: Date;
     updatedAt: Date;
     products?: any[]; // Detailed products including joined fields
+    scopeOfWork?: any[];
 }

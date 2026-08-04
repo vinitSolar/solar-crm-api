@@ -53,7 +53,7 @@ router.get("/all", getAllQuotationScopeOfWorks);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/listQuotationScopeOfWorkSchemaBody'
  *             properties:
  *               page:
  *                 type: integer
@@ -95,7 +95,7 @@ router.post("/list", validateRequest(listQuotationScopeOfWorkSchema), listQuotat
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/createQuotationScopeOfWorkSchemaBody'
  *             required:
  *               - title
  *               - value
@@ -162,7 +162,7 @@ router.get("/:uid", validateRequest(getQuotationScopeOfWorkParamsSchema), getQuo
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/updateQuotationScopeOfWorkSchemaBody'
  *             properties:
  *               title:
  *                 type: string

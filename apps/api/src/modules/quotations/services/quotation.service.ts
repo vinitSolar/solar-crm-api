@@ -3,6 +3,8 @@ import { QuotationRepository } from "../repositories/quotation.repository.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
+import { isRedisAvailable } from "../../notification/helpers/redis-health.helper.js";
+import { QueueSnapshotStrategy, DirectSnapshotStrategy } from "../strategies/snapshot.strategy.js";
 import { QUOTATION_VALIDATION_MESSAGES } from "../constants/quotation.constants.js";
 import { toSafeQuotation, type SafeQuotationResponse } from "../dto/quotation.dto.js";
 import { storageService } from "@packages/storage/index.js";
@@ -97,22 +99,45 @@ export class QuotationService {
             }
 
             // 3. Create basic quotation
-            const quotation = await this.repository.create(client, tenantUid, {
+            const payload: {
+                leadUid: string;
+                packageUid?: string;
+                subtotal: number;
+                gstAmount: number;
+                grandTotal: number;
+                subsidyData?: any[];
+                netCustomerCost: number;
+                quotationNumber: string;
+                systemSize: number;
+                validTill: string;
+                status?: number;
+                notes?: string | null;
+            } = {
                 leadUid: data.leadUid,
+                subtotal: data.subtotal,
+                gstAmount: data.gstAmount,
+                grandTotal: data.grandTotal,
+                netCustomerCost: data.netCustomerCost,
                 quotationNumber: nextQuoteNumber,
                 systemSize: systemSize,
                 validTill: data.validTill,
                 status: 0,
                 notes: data.notes ?? null
-            }, createdBy);
+            };
+            if (data.packageUid !== undefined) payload.packageUid = data.packageUid;
+            if (data.subsidyData !== undefined) payload.subsidyData = data.subsidyData;
+
+            const quotation = await this.repository.create(client, tenantUid, payload, createdBy);
 
             // 4. Resolve and save products snapshot
             const createdItems: IQuotationItem[] = [];
-            if (!data.products || data.products.length === 0) {
+            const allProducts = [...(data.packageProducts || []), ...(data.extraProducts || [])];
+            
+            if (allProducts.length === 0) {
                 throw new CustomError("Quotation must have at least one product.", 400);
             }
 
-            for (const itemInput of data.products) {
+            for (const itemInput of allProducts) {
                 let productName = itemInput.productName;
                 let pricePerUnit = itemInput.pricePerUnit;
                 let gstPercentage = itemInput.gstPercentage;
@@ -143,7 +168,8 @@ export class QuotationService {
                     pricePerUnit,
                     gstPercentage,
                     lineTotal,
-                    description: itemInput.description ?? null
+                    description: itemInput.description ?? null,
+                    isExtra: (itemInput as any).isExtra
                 }, createdBy);
 
                 createdItems.push(createdItem);
@@ -151,13 +177,38 @@ export class QuotationService {
 
             // 5. Resolve and save scope of work snapshot
             const createdSows: IQuotationScopeOfWorkItem[] = [];
-            if (data.scopeOfWork && data.scopeOfWork.length > 0) {
-                for (let i = 0; i < data.scopeOfWork.length; i++) {
-                    const sowInput = data.scopeOfWork[i]!;
+            const allScopeOfWork = [
+                ...(data.scopeOfWork?.map(s => ({ ...s, isExtra: false })) || []),
+                ...(data.extraScopeOfWork?.map(s => ({ ...s, isExtra: true })) || [])
+            ];
+
+            if (allScopeOfWork.length > 0) {
+                const sowUids = allScopeOfWork.map(s => s.scopeOfWorkUid);
+                const uniqueSowUids = Array.from(new Set(sowUids));
+                const dbSows = await this.scopeOfWorkRepo.findByUids(tenantUid, uniqueSowUids);
+                const sowsMap = new Map(dbSows.map(s => [s.uid, s]));
+
+                for (let i = 0; i < allScopeOfWork.length; i++) {
+                    const sowInput = allScopeOfWork[i]!;
+                    const dbSow = sowsMap.get(sowInput.scopeOfWorkUid);
+                    
+                    if (!dbSow && (!sowInput.title || !sowInput.value)) {
+                        throw new CustomError(`Invalid Scope of Work UID: ${sowInput.scopeOfWorkUid}`, 400);
+                    }
+
+                    const title = sowInput.title ?? dbSow?.title;
+                    const value = sowInput.value ?? dbSow?.value;
+
+                    if (!title || !value) {
+                         throw new CustomError(`Scope of Work title and value are required.`, 400);
+                    }
+
                     const createdSow = await this.repository.createScopeOfWorkItem(client, quotation.uid, {
-                        title: sowInput.title,
-                        value: sowInput.value,
-                        sortOrder: sowInput.sortOrder ?? (i + 1)
+                        scopeOfWorkUid: sowInput.scopeOfWorkUid,
+                        title: title,
+                        value: value,
+                        sortOrder: sowInput.sortOrder ?? (i + 1),
+                        isExtra: sowInput.isExtra
                     }, createdBy);
                     createdSows.push(createdSow);
                 }
@@ -165,6 +216,7 @@ export class QuotationService {
                 const defaultSows = await this.scopeOfWorkRepo.findAllActive(tenantUid);
                 for (const defaultSow of defaultSows) {
                     const createdSow = await this.repository.createScopeOfWorkItem(client, quotation.uid, {
+                        scopeOfWorkUid: defaultSow.uid,
                         title: defaultSow.title,
                         value: defaultSow.value,
                         sortOrder: defaultSow.sortOrder
@@ -198,6 +250,10 @@ export class QuotationService {
             }
 
             await client.query("COMMIT");
+
+            // Trigger background snapshot generation using Strategy Pattern
+            const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
+            await strategy.execute(tenantUid, quotation.uid, createdBy);
 
             // Auto-generate PDF during creation
             let pdfUrl: string | null = null;
@@ -270,6 +326,12 @@ export class QuotationService {
             // Update basic quotation fields dynamically to avoid exactOptionalPropertyTypes constraint conflicts
             const updatePayload: {
                 leadUid?: string;
+                packageUid?: string;
+                subtotal?: number;
+                gstAmount?: number;
+                grandTotal?: number;
+                subsidyData?: any[];
+                netCustomerCost?: number;
                 systemSize?: number;
                 validTill?: string;
                 status?: number;
@@ -277,6 +339,12 @@ export class QuotationService {
             } = {};
 
             if (data.leadUid !== undefined) updatePayload.leadUid = data.leadUid;
+            if (data.packageUid !== undefined) updatePayload.packageUid = data.packageUid;
+            if (data.subtotal !== undefined) updatePayload.subtotal = data.subtotal;
+            if (data.gstAmount !== undefined) updatePayload.gstAmount = data.gstAmount;
+            if (data.grandTotal !== undefined) updatePayload.grandTotal = data.grandTotal;
+            if (data.subsidyData !== undefined) updatePayload.subsidyData = data.subsidyData;
+            if (data.netCustomerCost !== undefined) updatePayload.netCustomerCost = data.netCustomerCost;
             if (data.systemSize !== undefined) updatePayload.systemSize = data.systemSize;
             if (data.validTill !== undefined) updatePayload.validTill = data.validTill;
             if (data.status !== undefined) updatePayload.status = data.status;
@@ -290,14 +358,15 @@ export class QuotationService {
 
             // Products update (replacement strategy)
             let items: IQuotationItem[] = [];
-            if (data.products !== undefined) {
+            if (data.packageProducts !== undefined || data.extraProducts !== undefined) {
                 await this.repository.deleteItemsByQuotationUid(client, updatedQuotation.uid);
                 
-                if (data.products.length === 0) {
+                const allProducts = [...(data.packageProducts || []), ...(data.extraProducts || [])];
+                if (allProducts.length === 0) {
                     throw new CustomError("Quotation must have at least one product.", 400);
                 }
 
-                for (const itemInput of data.products) {
+                for (const itemInput of allProducts) {
                     let productName = itemInput.productName;
                     let pricePerUnit = itemInput.pricePerUnit;
                     let gstPercentage = itemInput.gstPercentage;
@@ -328,7 +397,8 @@ export class QuotationService {
                         pricePerUnit,
                         gstPercentage,
                         lineTotal,
-                        description: itemInput.description ?? null
+                        description: itemInput.description ?? null,
+                        isExtra: (itemInput as any).isExtra
                     }, updatedBy);
 
                     items.push(createdItem);
@@ -339,14 +409,40 @@ export class QuotationService {
 
             // Scope of work update (replacement strategy)
             let sows: IQuotationScopeOfWorkItem[] = [];
-            if (data.scopeOfWork !== undefined) {
+            if (data.scopeOfWork !== undefined || data.extraScopeOfWork !== undefined) {
                 await this.repository.deleteScopeOfWorkItemsByQuotationUid(client, updatedQuotation.uid);
-                for (let i = 0; i < data.scopeOfWork.length; i++) {
-                    const sowInput = data.scopeOfWork[i]!;
+                
+                const allScopeOfWork = [
+                    ...(data.scopeOfWork?.map(s => ({ ...s, isExtra: false })) || []),
+                    ...(data.extraScopeOfWork?.map(s => ({ ...s, isExtra: true })) || [])
+                ];
+
+                const sowUids = allScopeOfWork.map(s => s.scopeOfWorkUid);
+                const uniqueSowUids = Array.from(new Set(sowUids));
+                const dbSows = await this.scopeOfWorkRepo.findByUids(tenantUid, uniqueSowUids);
+                const sowsMap = new Map(dbSows.map(s => [s.uid, s]));
+
+                for (let i = 0; i < allScopeOfWork.length; i++) {
+                    const sowInput = allScopeOfWork[i]!;
+                    const dbSow = sowsMap.get(sowInput.scopeOfWorkUid);
+                    
+                    if (!dbSow && (!sowInput.title || !sowInput.value)) {
+                        throw new CustomError(`Invalid Scope of Work UID: ${sowInput.scopeOfWorkUid}`, 400);
+                    }
+
+                    const title = sowInput.title ?? dbSow?.title;
+                    const value = sowInput.value ?? dbSow?.value;
+
+                    if (!title || !value) {
+                         throw new CustomError(`Scope of Work title and value are required.`, 400);
+                    }
+
                     const createdSow = await this.repository.createScopeOfWorkItem(client, updatedQuotation.uid, {
-                        title: sowInput.title,
-                        value: sowInput.value,
-                        sortOrder: sowInput.sortOrder ?? (i + 1)
+                        scopeOfWorkUid: sowInput.scopeOfWorkUid,
+                        title: title,
+                        value: value,
+                        sortOrder: sowInput.sortOrder ?? (i + 1),
+                        isExtra: sowInput.isExtra
                     }, updatedBy);
                     sows.push(createdSow);
                 }
@@ -371,7 +467,14 @@ export class QuotationService {
                 tcs = await this.repository.findTermsConditionsByQuotationUid(updatedQuotation.uid);
             }
 
+            // Fetch final items for return
+            const finalItems = await this.repository.findItemsByQuotationUid(updatedQuotation.uid);
+
             await client.query("COMMIT");
+
+            // Trigger background snapshot generation using Strategy Pattern
+            const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
+            await strategy.execute(tenantUid, updatedQuotation.uid, updatedBy);
 
             // Auto-regenerate PDF during update to sync details
             let pdfUrl: string | null = null;
@@ -605,12 +708,8 @@ export class QuotationService {
         }
 
         // 4. Calculate Subtotal, GST and Grand Total
-        let subtotal = 0;
-        let gstAmount = 0;
         const mappedItems = items.map(item => {
             const lineTotal = Number(item.lineTotal);
-            subtotal += lineTotal;
-            gstAmount += lineTotal * (Number(item.gstPercentage) / 100);
             return {
                 productName: item.productName,
                 brandName: item.brandName,
@@ -623,40 +722,8 @@ export class QuotationService {
             };
         });
 
-        subtotal = Math.round(subtotal * 100) / 100;
-        gstAmount = Math.round(gstAmount * 100) / 100;
-        const grandTotal = Math.round((subtotal + gstAmount) * 100) / 100;
-
-        // 5. Calculate Subsidies dynamically if rule exists
-        let centralSubsidy = 0;
-        let stateSubsidy = 0;
-        let showSubsidy = false;
-
+        const showSubsidy = quotation.subsidyData && quotation.subsidyData.length > 0;
         const systemSize = Number(quotation.systemSize);
-        if (systemSize > 0) {
-            // Central Subsidy PM Surya Ghar calculation
-            if (systemSize <= 2) {
-                centralSubsidy = systemSize * 30000;
-            } else {
-                centralSubsidy = Math.min(60000 + (systemSize - 2) * 18000, 78000);
-            }
-            centralSubsidy = Math.round(centralSubsidy * 100) / 100;
-
-            // State Subsidy calculation
-            if (customer.state) {
-                const stateRule = await this.repository.getStateSubsidyRule(customer.state);
-                if (stateRule) {
-                    stateSubsidy = Math.min(systemSize * stateRule.subsidyPerKw, stateRule.maximumSubsidyAmount);
-                    stateSubsidy = Math.round(stateSubsidy * 100) / 100;
-                }
-            }
-
-            if (centralSubsidy > 0 || stateSubsidy > 0) {
-                showSubsidy = true;
-            }
-        }
-
-        const netCustomerCost = Math.max(0, Math.round((grandTotal - centralSubsidy - stateSubsidy) * 100) / 100);
 
         // Status text mapping
         const statusMap: Record<number, string> = {
@@ -689,9 +756,9 @@ export class QuotationService {
                 validTill: formatDate(quotation.validTill),
                 systemSize,
                 statusText,
-                subtotal,
-                gstAmount,
-                grandTotal,
+                subtotal: quotation.subtotal,
+                gstAmount: quotation.gstAmount,
+                grandTotal: quotation.grandTotal,
                 notes: quotation.notes,
                 createdAt: formatDate(quotation.createdAt)
             },
@@ -699,9 +766,8 @@ export class QuotationService {
             scopeOfWork: scopeOfWork.map(s => ({ title: s.title, value: s.value })),
             termsConditions: termsConditions.map(t => ({ title: t.title, description: t.description })),
             subsidy: {
-                centralSubsidy,
-                stateSubsidy,
-                netCustomerCost,
+                subsidyData: quotation.subsidyData as Array<{ uid: string; name: string; amount: number }>,
+                netCustomerCost: quotation.netCustomerCost,
                 showSubsidy
             }
         };

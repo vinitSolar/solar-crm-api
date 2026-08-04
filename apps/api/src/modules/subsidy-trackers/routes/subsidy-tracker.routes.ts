@@ -51,7 +51,7 @@ function createSubsidyTrackerRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/paginationSchemaBody'
      *             properties:
      *               page:
      *                 type: integer
@@ -120,7 +120,7 @@ function createSubsidyTrackerRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateSubsidyTrackerSchemaBody'
      *             properties:
      *               portalStatus:
      *                 type: integer

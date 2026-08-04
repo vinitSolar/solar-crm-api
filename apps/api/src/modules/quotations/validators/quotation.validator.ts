@@ -8,7 +8,17 @@ export const createQuotationSchema = z.object({
         systemSize: z.number().positive(QUOTATION_VALIDATION_MESSAGES.SYSTEM_SIZE_POSITIVE).optional(),
         validTill: z.string().min(1, QUOTATION_VALIDATION_MESSAGES.VALID_TILL_REQUIRED),
         notes: z.string().max(1000, QUOTATION_VALIDATION_MESSAGES.NOTES_MAX).optional().nullable(),
-        products: z.array(z.object({
+        packageUid: z.string().uuid(QUOTATION_VALIDATION_MESSAGES.INVALID_UID).optional(),
+        subtotal: z.number().nonnegative(),
+        gstAmount: z.number().nonnegative(),
+        grandTotal: z.number().nonnegative(),
+        subsidyData: z.array(z.object({
+            uid: z.string().uuid(),
+            name: z.string().min(1),
+            amount: z.number().nonnegative()
+        })).optional(),
+        netCustomerCost: z.number().nonnegative(),
+        packageProducts: z.array(z.object({
             productUid: z.string().uuid(),
             quantity: z.number().positive(),
             productName: z.string().optional(),
@@ -16,9 +26,24 @@ export const createQuotationSchema = z.object({
             gstPercentage: z.number().optional(),
             description: z.string().optional()
         })).min(1),
+        extraProducts: z.array(z.object({
+            productUid: z.string().uuid(),
+            quantity: z.number().positive(),
+            productName: z.string().optional(),
+            pricePerUnit: z.number().optional(),
+            gstPercentage: z.number().optional(),
+            description: z.string().optional()
+        })).optional(),
         scopeOfWork: z.array(z.object({
-            title: z.string().min(1).max(255),
-            value: z.string().min(1),
+            scopeOfWorkUid: z.string().uuid(),
+            title: z.string().min(1).max(255).optional(),
+            value: z.string().min(1).optional(),
+            sortOrder: z.number().int().min(0).optional()
+        })).optional(),
+        extraScopeOfWork: z.array(z.object({
+            scopeOfWorkUid: z.string().uuid(),
+            title: z.string().min(1).max(255).optional(),
+            value: z.string().min(1).optional(),
             sortOrder: z.number().int().min(0).optional()
         })).optional(),
         termsConditions: z.array(z.object({
@@ -39,7 +64,17 @@ export const updateQuotationSchema = z.object({
         validTill: z.string().min(1).optional(),
         notes: z.string().max(1000, QUOTATION_VALIDATION_MESSAGES.NOTES_MAX).optional().nullable(),
         status: z.number().int().min(0).max(4).optional(),
-        products: z.array(z.object({
+        packageUid: z.string().uuid(QUOTATION_VALIDATION_MESSAGES.INVALID_UID).optional(),
+        subtotal: z.number().nonnegative().optional(),
+        gstAmount: z.number().nonnegative().optional(),
+        grandTotal: z.number().nonnegative().optional(),
+        subsidyData: z.array(z.object({
+            uid: z.string().uuid(),
+            name: z.string().min(1),
+            amount: z.number().nonnegative()
+        })).optional(),
+        netCustomerCost: z.number().nonnegative().optional(),
+        packageProducts: z.array(z.object({
             productUid: z.string().uuid(),
             quantity: z.number().positive(),
             productName: z.string().optional(),
@@ -47,9 +82,24 @@ export const updateQuotationSchema = z.object({
             gstPercentage: z.number().optional(),
             description: z.string().optional()
         })).min(1).optional(),
+        extraProducts: z.array(z.object({
+            productUid: z.string().uuid(),
+            quantity: z.number().positive(),
+            productName: z.string().optional(),
+            pricePerUnit: z.number().optional(),
+            gstPercentage: z.number().optional(),
+            description: z.string().optional()
+        })).optional(),
         scopeOfWork: z.array(z.object({
-            title: z.string().min(1).max(255),
-            value: z.string().min(1),
+            scopeOfWorkUid: z.string().uuid(),
+            title: z.string().min(1).max(255).optional(),
+            value: z.string().min(1).optional(),
+            sortOrder: z.number().int().min(0).optional()
+        })).optional(),
+        extraScopeOfWork: z.array(z.object({
+            scopeOfWorkUid: z.string().uuid(),
+            title: z.string().min(1).max(255).optional(),
+            value: z.string().min(1).optional(),
             sortOrder: z.number().int().min(0).optional()
         })).optional(),
         termsConditions: z.array(z.object({

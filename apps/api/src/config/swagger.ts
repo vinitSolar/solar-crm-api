@@ -1,7 +1,18 @@
 import swaggerJsdoc from "swagger-jsdoc";
 import type { Options } from "swagger-jsdoc";
 import { env } from "@packages/config/index.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const generatedSchemasPath = path.resolve(__dirname, "generated-schemas.json");
+let generatedSchemas = {};
+if (fs.existsSync(generatedSchemasPath)) {
+    generatedSchemas = JSON.parse(fs.readFileSync(generatedSchemasPath, "utf8"));
+}
 const swaggerOptions: Options = {
     definition: {
         openapi: "3.0.3",
@@ -205,6 +216,7 @@ const swaggerOptions: Options = {
                         },
                     },
                 },
+                ...generatedSchemas,
             },
         },
     },

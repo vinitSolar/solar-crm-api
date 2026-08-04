@@ -17,7 +17,7 @@ export class PackageRepository {
             packageCode: row.package_code,
             description: row.description,
             capacityKw: row.capacity_kw ? Number(row.capacity_kw) : null,
-            price: Number(row.price),
+            recomendedPrice: Number(row.recomended_price),
             isActive: row.is_active,
             isDeleted: row.is_deleted,
             createdAt: row.created_at,
@@ -66,11 +66,18 @@ export class PackageRepository {
         return (result.rowCount ?? 0) > 0;
     }
 
+    async countPackages(tenantUid: string): Promise<number> {
+        const query = `SELECT COUNT(*) FROM packages WHERE tenant_uid = $1`;
+        const result = await this.pool.query(query, [tenantUid]);
+        return parseInt(result.rows[0].count, 10);
+    }
+
     async createPackage(
         tenantUid: string,
         userUid: string,
         data: CreatePackageDTO,
-        productsData: { productUid: string, quantity: number, remarks: string | null, unitPriceSnapshot: number }[]
+        productsData: { productUid: string, quantity: number, remarks: string | null, unitPriceSnapshot: number }[],
+        scopeOfWorkData?: { scopeOfWorkUid?: string, title: string, value: string, sortOrder?: number }[]
     ): Promise<any> {
         const client = await this.pool.connect();
         try {
@@ -79,7 +86,7 @@ export class PackageRepository {
             const packageUid = uuidv4();
             const packageQuery = `
                 INSERT INTO packages (
-                    uid, tenant_uid, name, package_code, description, capacity_kw, price, created_by, updated_by
+                    uid, tenant_uid, name, package_code, description, capacity_kw, recomended_price, created_by, updated_by
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 RETURNING *
@@ -91,7 +98,7 @@ export class PackageRepository {
                 data.packageCode,
                 data.description || null,
                 data.capacityKw || null,
-                data.price,
+                data.recomendedPrice,
                 userUid,
                 userUid
             ];
@@ -123,8 +130,40 @@ export class PackageRepository {
                 createdProducts.push(this.mapRowToPackageProduct(pResult.rows[0]));
             }
 
+            const createdScopeOfWork = [];
+            if (scopeOfWorkData && scopeOfWorkData.length > 0) {
+                for (const sow of scopeOfWorkData) {
+                    const sowUid = uuidv4();
+                    const sowQuery = `
+                        INSERT INTO package_scope_of_work_items (
+                            uid, package_uid, scope_of_work_uid, title, value, sort_order, created_by, updated_by
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                        RETURNING *
+                    `;
+                    const sowValues = [
+                        sowUid,
+                        packageUid,
+                        sow.scopeOfWorkUid || null,
+                        sow.title,
+                        sow.value,
+                        sow.sortOrder || 0,
+                        userUid,
+                        userUid
+                    ];
+                    const sResult = await client.query(sowQuery, sowValues);
+                    createdScopeOfWork.push({
+                        uid: sResult.rows[0].uid,
+                        scopeOfWorkUid: sResult.rows[0].scope_of_work_uid,
+                        title: sResult.rows[0].title,
+                        value: sResult.rows[0].value,
+                        sortOrder: sResult.rows[0].sort_order
+                    });
+                }
+            }
+
             await client.query("COMMIT");
             createdPackage.products = createdProducts;
+            createdPackage.scopeOfWork = createdScopeOfWork;
             return createdPackage;
         } catch (error) {
             await client.query("ROLLBACK");
@@ -139,7 +178,8 @@ export class PackageRepository {
         tenantUid: string,
         userUid: string,
         data: UpdatePackageDTO,
-        productsData?: { productUid: string, quantity: number, remarks: string | null, unitPriceSnapshot: number }[]
+        productsData?: { productUid: string, quantity: number, remarks: string | null, unitPriceSnapshot: number }[],
+        scopeOfWorkData?: { scopeOfWorkUid?: string, title: string, value: string, sortOrder?: number }[]
     ): Promise<void> {
         const client = await this.pool.connect();
         try {
@@ -153,7 +193,7 @@ export class PackageRepository {
             if (data.packageCode !== undefined) { updates.push(`package_code = $${i++}`); values.push(data.packageCode); }
             if (data.description !== undefined) { updates.push(`description = $${i++}`); values.push(data.description); }
             if (data.capacityKw !== undefined) { updates.push(`capacity_kw = $${i++}`); values.push(data.capacityKw); }
-            if (data.price !== undefined) { updates.push(`price = $${i++}`); values.push(data.price); }
+            if (data.recomendedPrice !== undefined) { updates.push(`recomended_price = $${i++}`); values.push(data.recomendedPrice); }
             if (data.isActive !== undefined) { updates.push(`is_active = $${i++}`); values.push(data.isActive === 1); }
 
             updates.push(`updated_by = $${i++}`); values.push(userUid);
@@ -191,6 +231,33 @@ export class PackageRepository {
                 }
             }
 
+            if (scopeOfWorkData && scopeOfWorkData.length > 0) {
+                // Soft delete existing scope of work items
+                await client.query(`UPDATE package_scope_of_work_items SET is_deleted = true, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1 WHERE package_uid = $2 AND is_deleted = false`, [userUid, uid]);
+
+                // Insert new scope of work items
+                for (const sow of scopeOfWorkData) {
+                    const sowUid = uuidv4();
+                    const sowQuery = `
+                        INSERT INTO package_scope_of_work_items (
+                            uid, package_uid, scope_of_work_uid, title, value, sort_order, created_by, updated_by
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                        RETURNING *
+                    `;
+                    const sowValues = [
+                        sowUid,
+                        uid,
+                        sow.scopeOfWorkUid || null,
+                        sow.title,
+                        sow.value,
+                        sow.sortOrder || 0,
+                        userUid,
+                        userUid
+                    ];
+                    await client.query(sowQuery, sowValues);
+                }
+            }
+
             await client.query("COMMIT");
         } catch (error) {
             await client.query("ROLLBACK");
@@ -221,6 +288,21 @@ export class PackageRepository {
         `;
         const productsResult = await this.pool.query(productsQuery, [uid]);
         pkg.products = productsResult.rows.map(row => this.mapRowToPackageProduct(row));
+        
+        const sowResult = await this.pool.query(`
+            SELECT uid, scope_of_work_uid, title, value, sort_order 
+            FROM package_scope_of_work_items 
+            WHERE package_uid = $1 AND is_deleted = false 
+            ORDER BY sort_order ASC
+        `, [uid]);
+
+        pkg.scopeOfWork = sowResult.rows.map(row => ({
+            uid: row.uid,
+            scopeOfWorkUid: row.scope_of_work_uid,
+            title: row.title,
+            value: row.value,
+            sortOrder: row.sort_order
+        }));
         
         return pkg;
     }
@@ -300,7 +382,7 @@ export class PackageRepository {
         if (status === "active" || !status) conditions.push(`is_deleted = false AND is_active = true`);
         else if (status === "deleted") conditions.push(`is_deleted = true`);
 
-        const query = `SELECT uid, name, package_code, capacity_kw, price FROM packages WHERE ${conditions.join(" AND ")} ORDER BY name ASC`;
+        const query = `SELECT uid, name, package_code, capacity_kw, recomended_price FROM packages WHERE ${conditions.join(" AND ")} ORDER BY name ASC`;
         const result = await this.pool.query(query, values);
         
         return result.rows.map(row => ({
@@ -308,7 +390,7 @@ export class PackageRepository {
             name: row.name,
             packageCode: row.package_code,
             capacityKw: row.capacity_kw ? Number(row.capacity_kw) : null,
-            price: Number(row.price)
+            recomendedPrice: Number(row.recomended_price)
         }));
     }
 

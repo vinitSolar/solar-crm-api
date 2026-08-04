@@ -77,7 +77,7 @@ function createProjectRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/paginationSchemaBody'
      *             properties:
      *               page:
      *                 type: integer
@@ -163,7 +163,7 @@ function createProjectRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/addSubsidyDocumentSchemaBody'
      *             required:
      *               - documentTypeUid
      *               - originalName
@@ -247,7 +247,7 @@ function createProjectRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/createProjectSchemaBody'
      *             required:
      *               - quotationUid
      *               - projectName
@@ -298,7 +298,7 @@ function createProjectRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateProjectSchemaBody'
      *             properties:
      *               projectName:
      *                 type: string
@@ -348,7 +348,7 @@ function createProjectRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/changeProjectStatusSchemaBody'
      *             required:
      *               - statusUid
      *             properties:
@@ -391,7 +391,7 @@ function createProjectRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/assignProjectManagerSchemaBody'
      *             required:
      *               - projectManagerUid
      *             properties:

@@ -434,6 +434,40 @@ export class QuotationRepository {
         };
     }
 
+    // Bulk query to resolve multiple catalog product details
+    async getCatalogProductsDetails(productUids: string[]): Promise<{
+        productUid: string;
+        name: string;
+        brandName: string;
+        unitName: string;
+        pricePerUnit: number;
+        gstPercentage: number;
+    }[]> {
+        if (productUids.length === 0) return [];
+        const query = `
+            SELECT 
+                p.uid AS "productUid",
+                p.name AS "name",
+                pb.name AS "brandName",
+                pu.name AS "unitName",
+                p.price_per_unit AS "pricePerUnit",
+                p.gst_percentage AS "gstPercentage"
+            FROM products p
+            LEFT JOIN product_brands pb ON p.brand_uid = pb.uid
+            LEFT JOIN product_units pu ON p.unit_uid = pu.uid
+            WHERE p.uid = ANY($1) AND p.is_deleted = 0
+        `;
+        const result = await this.pool.query(query, [productUids]);
+        return result.rows.map(row => ({
+            productUid: row.productUid,
+            name: row.name,
+            brandName: row.brandName || "Generic",
+            unitName: row.unitName || "Units",
+            pricePerUnit: Number(row.pricePerUnit),
+            gstPercentage: Number(row.gstPercentage)
+        }));
+    }
+
     // Lead exist check helper
     async leadExists(tenantUid: string, leadUid: string): Promise<boolean> {
         const query = `SELECT 1 FROM leads WHERE tenant_uid = $1 AND uid = $2 AND is_deleted = 0`;

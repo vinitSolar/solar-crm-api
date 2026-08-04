@@ -43,7 +43,7 @@ function createLeadRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/paginationSchemaBody'
      *             properties:
      *               page:
      *                 type: integer
@@ -188,7 +188,7 @@ function createLeadRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/createLeadSchemaBody'
      *             required:
      *               - firstName
      *               - mobileNumber
@@ -274,7 +274,7 @@ function createLeadRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateLeadSchemaBody'
      *             properties:
      *               firstName:
      *                 type: string
@@ -358,7 +358,7 @@ function createLeadRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/changeLeadStatusSchemaBody'
      *             properties:
      *               statusUid:
      *                 type: string

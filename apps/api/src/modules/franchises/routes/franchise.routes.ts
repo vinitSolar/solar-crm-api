@@ -105,7 +105,7 @@ function createFranchiseRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/getPaginatedFranchisesSchemaBody'
      *             properties:
      *               page:
      *                 type: integer
@@ -253,7 +253,7 @@ function createFranchiseRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/createFranchiseSchemaBody'
      *             properties:
      *               franchise:
      *                 type: object
@@ -337,7 +337,7 @@ function createFranchiseRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateFranchiseSchemaBody'
      *             properties:
      *               franchise:
      *                 type: object
@@ -456,7 +456,7 @@ function createFranchiseRouter(): Router {
      *       content:
      *         multipart/form-data:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/addFranchiseDocumentSchemaBody'
      *             properties:
      *               logo:
      *                 type: string

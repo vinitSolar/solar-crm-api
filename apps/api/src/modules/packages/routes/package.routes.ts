@@ -2,6 +2,7 @@ import { Router } from "express";
 import { PackageController } from "../controllers/package.controller.js";
 import { PackageService } from "../services/package.service.js";
 import { PackageRepository } from "../repositories/package.repository.js";
+import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import { createPackageSchema, updatePackageSchema, paginationSchema, validatePackageRequest } from "../validators/package.validator.js";
 import pool from "@packages/connection.js";
@@ -9,7 +10,8 @@ import pool from "@packages/connection.js";
 const router = Router();
 
 const repository = new PackageRepository(pool);
-const service = new PackageService(repository);
+const scopeOfWorkRepo = new QuotationScopeOfWorkRepository();
+const service = new PackageService(repository, scopeOfWorkRepo);
 const controller = new PackageController(service);
 
 router.use(authenticate);
@@ -113,7 +115,7 @@ router.get("/:uid", controller.getPackageByUid);
  *             required:
  *               - name
  *               - packageCode
- *               - price
+ *               - recomendedPrice
  *               - products
  *             properties:
  *               name:
@@ -124,7 +126,7 @@ router.get("/:uid", controller.getPackageByUid);
  *                 type: string
  *               capacityKw:
  *                 type: number
- *               price:
+ *               recomendedPrice:
  *                 type: number
  *               products:
  *                 type: array
@@ -176,7 +178,7 @@ router.post("/", validatePackageRequest(createPackageSchema), controller.createP
  *                 type: string
  *               capacityKw:
  *                 type: number
- *               price:
+ *               recomendedPrice:
  *                 type: number
  *               isActive:
  *                 type: integer

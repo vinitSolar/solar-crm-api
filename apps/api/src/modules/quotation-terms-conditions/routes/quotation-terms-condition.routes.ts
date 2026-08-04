@@ -72,7 +72,7 @@ router.get(
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/listQuotationTermsConditionSchemaBody'
  *             properties:
  *               page:
  *                 type: integer
@@ -146,7 +146,7 @@ router.get(
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/createQuotationTermsConditionSchemaBody'
  *             required:
  *               - title
  *               - description
@@ -193,7 +193,7 @@ router.post(
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/updateQuotationTermsConditionSchemaBody'
  *             properties:
  *               title:
  *                 type: string

@@ -65,7 +65,7 @@ function createSiteSurveyRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/paginationSchemaBody'
      *             properties:
      *               page:
      *                 type: integer
@@ -165,7 +165,7 @@ function createSiteSurveyRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/createSiteSurveySchemaBody'
      *             required:
      *               - leadUid
      *               - assignedTo
@@ -212,7 +212,7 @@ function createSiteSurveyRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateSiteSurveySchemaBody'
      *             properties:
      *               assignedTo:
      *                 type: string
@@ -255,7 +255,7 @@ function createSiteSurveyRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/changeSiteSurveyStatusSchemaBody'
      *             properties:
      *               status:
      *                 type: integer
@@ -344,7 +344,7 @@ function createSiteSurveyRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/saveDetailsSchemaBody'
      *             required:
      *               - roofAreaSqft
      *               - shading
@@ -403,7 +403,7 @@ function createSiteSurveyRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateDetailsSchemaBody'
      *             properties:
      *               roofAreaSqft:
      *                 type: number
@@ -457,7 +457,7 @@ function createSiteSurveyRouter(): Router {
      *       content:
      *         multipart/form-data:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/uploadDocumentSchemaBody'
      *             properties:
      *               document_type_uid:
      *                 type: string

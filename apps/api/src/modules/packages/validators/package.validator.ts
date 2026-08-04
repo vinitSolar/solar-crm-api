@@ -3,27 +3,35 @@ import type { Request, Response, NextFunction } from "express";
 
 const packageProductSchema = z.object({
     productUid: z.string().uuid("Invalid Product UID"),
-    quantity: z.coerce.number().min(0.01, "Quantity must be greater than zero"),
+    quantity: z.any().optional().transform(() => 1),
     remarks: z.string().max(1000).optional().nullable(),
 });
 
 export const createPackageSchema = z.object({
     name: z.string().min(1, "Name is required").max(255, "Name cannot exceed 255 characters"),
-    packageCode: z.string().min(1, "Package code is required").max(100, "Package code cannot exceed 100 characters"),
+    packageCode: z.string().max(100, "Package code cannot exceed 100 characters").optional(),
     description: z.string().optional().nullable(),
-    capacityKw: z.coerce.number().min(0, "Capacity cannot be negative").optional().nullable(),
-    price: z.coerce.number().min(0, "Price must be a positive number"),
+    capacityKw: z.any().optional().transform(() => 1),
+    recomendedPrice: z.coerce.number().min(0, "Price must be a positive number"),
     products: z.array(packageProductSchema).min(1, "A package must contain at least one product"),
+    scopeOfWork: z.array(z.object({
+        scopeOfWorkUid: z.string().uuid("Invalid Scope of Work UID"),
+        sortOrder: z.number().int().min(0).optional()
+    })).optional(),
 });
 
 export const updatePackageSchema = z.object({
-    name: z.string().min(1, "Name is required").max(255).optional(),
+    name: z.string().min(1, "Name is required").max(255, "Name cannot exceed 255 characters").optional(),
     packageCode: z.string().min(1, "Package code is required").max(100).optional(),
     description: z.string().optional().nullable(),
-    capacityKw: z.coerce.number().min(0, "Capacity cannot be negative").optional().nullable(),
-    price: z.coerce.number().min(0, "Price must be a positive number").optional(),
+    capacityKw: z.any().optional().transform(() => 1),
+    recomendedPrice: z.coerce.number().min(0, "Price must be a positive number").optional(),
     isActive: z.coerce.number().min(0).max(1).optional(),
     products: z.array(packageProductSchema).min(1, "A package must contain at least one product").optional(),
+    scopeOfWork: z.array(z.object({
+        scopeOfWorkUid: z.string().uuid("Invalid Scope of Work UID"),
+        sortOrder: z.number().int().min(0).optional()
+    })).optional(),
 });
 
 const sanitizePage = (val: unknown): number => {

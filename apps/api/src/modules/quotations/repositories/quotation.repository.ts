@@ -75,6 +75,15 @@ export class QuotationRepository {
         return this.mapQuotationToCamelCase(result.rows[0]);
     }
 
+    async deactivateOtherQuotations(tenantUid: string, leadUid: string, currentQuotationUid: string, updatedBy: string): Promise<void> {
+        const query = `
+            UPDATE quotations 
+            SET is_active = 0, updated_by = $1, updated_at = NOW() 
+            WHERE tenant_uid = $2 AND lead_uid = $3 AND uid != $4 AND is_active = 1 AND is_deleted = 0
+        `;
+        await this.pool.query(query, [updatedBy, tenantUid, leadUid, currentQuotationUid]);
+    }
+
     async createItem(client: PoolClient, quotationUid: string, data: {
         productUid: string;
         productName: string;

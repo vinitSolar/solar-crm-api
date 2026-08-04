@@ -130,21 +130,24 @@ export class QuotationService {
             const quotation = await this.repository.create(client, tenantUid, payload, createdBy);
 
             // 4. Resolve and save products snapshot
-            const createdItems: IQuotationItem[] = [];
             const allProducts = [...(data.packageProducts || []), ...(data.extraProducts || [])];
             
             if (allProducts.length === 0) {
                 throw new CustomError("Quotation must have at least one product.", 400);
             }
 
-            for (const itemInput of allProducts) {
+            const uniqueProductUids = Array.from(new Set(allProducts.map(p => p.productUid)));
+            const catalogProductsList = await this.repository.getCatalogProductsDetails(uniqueProductUids);
+            const catalogProductsMap = new Map(catalogProductsList.map(cp => [cp.productUid, cp]));
+
+            const itemInsertPromises = allProducts.map(async (itemInput) => {
                 let productName = itemInput.productName;
                 let pricePerUnit = itemInput.pricePerUnit;
                 let gstPercentage = itemInput.gstPercentage;
                 let brandName = "Generic";
                 let unitName = "Units";
 
-                const catalogProduct = await this.repository.getCatalogProductDetails(itemInput.productUid);
+                const catalogProduct = catalogProductsMap.get(itemInput.productUid);
                 if (catalogProduct) {
                     productName = productName ?? catalogProduct.name;
                     pricePerUnit = pricePerUnit ?? catalogProduct.pricePerUnit;
@@ -159,7 +162,7 @@ export class QuotationService {
 
                 const lineTotal = Math.round(itemInput.quantity * pricePerUnit * 100) / 100;
 
-                const createdItem = await this.repository.createItem(client, quotation.uid, {
+                return this.repository.createItem(client, quotation.uid, {
                     productUid: itemInput.productUid,
                     productName,
                     brandName,
@@ -171,9 +174,9 @@ export class QuotationService {
                     description: itemInput.description ?? null,
                     isExtra: (itemInput as any).isExtra
                 }, createdBy);
+            });
 
-                createdItems.push(createdItem);
-            }
+            const createdItems: IQuotationItem[] = await Promise.all(itemInsertPromises);
 
             // 5. Resolve and save scope of work snapshot
             const createdSows: IQuotationScopeOfWorkItem[] = [];
@@ -188,8 +191,7 @@ export class QuotationService {
                 const dbSows = await this.scopeOfWorkRepo.findByUids(tenantUid, uniqueSowUids);
                 const sowsMap = new Map(dbSows.map(s => [s.uid, s]));
 
-                for (let i = 0; i < allScopeOfWork.length; i++) {
-                    const sowInput = allScopeOfWork[i]!;
+                const sowInsertPromises = allScopeOfWork.map(async (sowInput, i) => {
                     const dbSow = sowsMap.get(sowInput.scopeOfWorkUid);
                     
                     if (!dbSow && (!sowInput.title || !sowInput.value)) {
@@ -203,50 +205,49 @@ export class QuotationService {
                          throw new CustomError(`Scope of Work title and value are required.`, 400);
                     }
 
-                    const createdSow = await this.repository.createScopeOfWorkItem(client, quotation.uid, {
+                    return this.repository.createScopeOfWorkItem(client, quotation.uid, {
                         scopeOfWorkUid: sowInput.scopeOfWorkUid,
                         title: title,
                         value: value,
                         sortOrder: sowInput.sortOrder ?? (i + 1),
                         isExtra: sowInput.isExtra
                     }, createdBy);
-                    createdSows.push(createdSow);
-                }
+                });
+                createdSows.push(...(await Promise.all(sowInsertPromises)));
             } else {
                 const defaultSows = await this.scopeOfWorkRepo.findAllActive(tenantUid);
-                for (const defaultSow of defaultSows) {
-                    const createdSow = await this.repository.createScopeOfWorkItem(client, quotation.uid, {
+                const defaultSowInsertPromises = defaultSows.map(defaultSow => 
+                    this.repository.createScopeOfWorkItem(client, quotation.uid, {
                         scopeOfWorkUid: defaultSow.uid,
                         title: defaultSow.title,
                         value: defaultSow.value,
                         sortOrder: defaultSow.sortOrder
-                    }, createdBy);
-                    createdSows.push(createdSow);
-                }
+                    }, createdBy)
+                );
+                createdSows.push(...(await Promise.all(defaultSowInsertPromises)));
             }
 
             // 6. Resolve and save terms and conditions snapshot
             const createdTcs: IQuotationTermsConditionsItem[] = [];
             if (data.termsConditions && data.termsConditions.length > 0) {
-                for (let i = 0; i < data.termsConditions.length; i++) {
-                    const tcInput = data.termsConditions[i]!;
-                    const createdTc = await this.repository.createTermsConditionsItem(client, quotation.uid, {
+                const tcInsertPromises = data.termsConditions.map((tcInput, i) => 
+                    this.repository.createTermsConditionsItem(client, quotation.uid, {
                         title: tcInput.title,
                         description: tcInput.description,
                         sortOrder: tcInput.sortOrder ?? (i + 1)
-                    }, createdBy);
-                    createdTcs.push(createdTc);
-                }
+                    }, createdBy)
+                );
+                createdTcs.push(...(await Promise.all(tcInsertPromises)));
             } else {
                 const defaultTcs = await this.termsConditionRepo.findAllActive(tenantUid);
-                for (const defaultTc of defaultTcs) {
-                    const createdTc = await this.repository.createTermsConditionsItem(client, quotation.uid, {
+                const defaultTcInsertPromises = defaultTcs.map(defaultTc => 
+                    this.repository.createTermsConditionsItem(client, quotation.uid, {
                         title: defaultTc.title,
                         description: defaultTc.description,
                         sortOrder: defaultTc.sortOrder
-                    }, createdBy);
-                    createdTcs.push(createdTc);
-                }
+                    }, createdBy)
+                );
+                createdTcs.push(...(await Promise.all(defaultTcInsertPromises)));
             }
 
             await client.query("COMMIT");
@@ -366,14 +367,18 @@ export class QuotationService {
                     throw new CustomError("Quotation must have at least one product.", 400);
                 }
 
-                for (const itemInput of allProducts) {
+                const uniqueProductUids = Array.from(new Set(allProducts.map(p => p.productUid)));
+                const catalogProductsList = await this.repository.getCatalogProductsDetails(uniqueProductUids);
+                const catalogProductsMap = new Map(catalogProductsList.map(cp => [cp.productUid, cp]));
+
+                const itemInsertPromises = allProducts.map(async (itemInput) => {
                     let productName = itemInput.productName;
                     let pricePerUnit = itemInput.pricePerUnit;
                     let gstPercentage = itemInput.gstPercentage;
                     let brandName = "Generic";
                     let unitName = "Units";
 
-                    const catalogProduct = await this.repository.getCatalogProductDetails(itemInput.productUid);
+                    const catalogProduct = catalogProductsMap.get(itemInput.productUid);
                     if (catalogProduct) {
                         productName = productName ?? catalogProduct.name;
                         pricePerUnit = pricePerUnit ?? catalogProduct.pricePerUnit;
@@ -388,7 +393,7 @@ export class QuotationService {
 
                     const lineTotal = Math.round(itemInput.quantity * pricePerUnit * 100) / 100;
 
-                    const createdItem = await this.repository.createItem(client, updatedQuotation.uid, {
+                    return this.repository.createItem(client, updatedQuotation.uid, {
                         productUid: itemInput.productUid,
                         productName,
                         brandName,
@@ -400,9 +405,9 @@ export class QuotationService {
                         description: itemInput.description ?? null,
                         isExtra: (itemInput as any).isExtra
                     }, updatedBy);
-
-                    items.push(createdItem);
-                }
+                });
+                
+                items.push(...(await Promise.all(itemInsertPromises)));
             } else {
                 items = await this.repository.findItemsByQuotationUid(updatedQuotation.uid);
             }
@@ -422,8 +427,7 @@ export class QuotationService {
                 const dbSows = await this.scopeOfWorkRepo.findByUids(tenantUid, uniqueSowUids);
                 const sowsMap = new Map(dbSows.map(s => [s.uid, s]));
 
-                for (let i = 0; i < allScopeOfWork.length; i++) {
-                    const sowInput = allScopeOfWork[i]!;
+                const sowInsertPromises = allScopeOfWork.map(async (sowInput, i) => {
                     const dbSow = sowsMap.get(sowInput.scopeOfWorkUid);
                     
                     if (!dbSow && (!sowInput.title || !sowInput.value)) {
@@ -437,15 +441,15 @@ export class QuotationService {
                          throw new CustomError(`Scope of Work title and value are required.`, 400);
                     }
 
-                    const createdSow = await this.repository.createScopeOfWorkItem(client, updatedQuotation.uid, {
+                    return this.repository.createScopeOfWorkItem(client, updatedQuotation.uid, {
                         scopeOfWorkUid: sowInput.scopeOfWorkUid,
                         title: title,
                         value: value,
                         sortOrder: sowInput.sortOrder ?? (i + 1),
                         isExtra: sowInput.isExtra
                     }, updatedBy);
-                    sows.push(createdSow);
-                }
+                });
+                sows.push(...(await Promise.all(sowInsertPromises)));
             } else {
                 sows = await this.repository.findScopeOfWorkByQuotationUid(updatedQuotation.uid);
             }
@@ -454,15 +458,14 @@ export class QuotationService {
             let tcs: IQuotationTermsConditionsItem[] = [];
             if (data.termsConditions !== undefined) {
                 await this.repository.deleteTermsConditionsItemsByQuotationUid(client, updatedQuotation.uid);
-                for (let i = 0; i < data.termsConditions.length; i++) {
-                    const tcInput = data.termsConditions[i]!;
-                    const createdTc = await this.repository.createTermsConditionsItem(client, updatedQuotation.uid, {
+                const tcInsertPromises = data.termsConditions.map((tcInput, i) => 
+                    this.repository.createTermsConditionsItem(client, updatedQuotation.uid, {
                         title: tcInput.title,
                         description: tcInput.description,
                         sortOrder: tcInput.sortOrder ?? (i + 1)
-                    }, updatedBy);
-                    tcs.push(createdTc);
-                }
+                    }, updatedBy)
+                );
+                tcs.push(...(await Promise.all(tcInsertPromises)));
             } else {
                 tcs = await this.repository.findTermsConditionsByQuotationUid(updatedQuotation.uid);
             }

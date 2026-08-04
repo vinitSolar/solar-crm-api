@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE quotations ADD COLUMN price NUMERIC(15, 2);
+
+COMMIT;

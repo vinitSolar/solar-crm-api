@@ -6,3 +6,4 @@ export * from "./repositories/quotation.repository.js";
 export * from "./services/quotation.service.js";
 export * from "./controllers/quotation.controller.js";
 export * from "./routes/quotation.routes.js";
+export * from "./workers/quotation.worker.js";

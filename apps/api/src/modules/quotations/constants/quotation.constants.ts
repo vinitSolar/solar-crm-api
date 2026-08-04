@@ -30,3 +30,17 @@ export const QUOTATION_MESSAGES = {
     RESTORED_SUCCESSFULLY: "Quotation restored successfully",
     CONVERTED_SUCCESSFULLY: "Quotation converted to project successfully",
 };
+
+export const QUOTATION_QUEUE = {
+    NAME: "quotation_snapshot_queue",
+    DEFAULT_ATTEMPTS: 3,
+    BACKOFF_TYPE: "exponential",
+    BACKOFF_DELAY: 5000,
+};
+
+export const QUOTATION_WORKER_MESSAGES = {
+    WORKER_STARTED: "Quotation snapshot worker started successfully.",
+    WORKER_FAILED: "Failed to start quotation snapshot worker",
+    WORKER_JOB_FAILED: "Quotation snapshot job failed",
+    WORKER_JOB_COMPLETED: "Quotation snapshot job completed successfully",
+};

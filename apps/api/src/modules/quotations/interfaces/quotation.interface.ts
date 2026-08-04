@@ -6,6 +6,11 @@ export interface IQuotation {
     packageUid: string | null;
     quotationNumber: string;
     systemSize: number;
+    subtotal: number;
+    gstAmount: number;
+    grandTotal: number;
+    subsidyData: ISubsidyData[];
+    netCustomerCost: number;
     validTill: Date;
     status: number;
     notes: string | null;
@@ -21,6 +26,12 @@ export interface IQuotation {
     deletedBy: string | null;
 }
 
+export interface ISubsidyData {
+    uid: string;
+    name: string;
+    amount: number;
+}
+
 export interface IQuotationItem {
     id: string;
     uid: string;
@@ -34,6 +45,7 @@ export interface IQuotationItem {
     gstPercentage: number;
     lineTotal: number;
     description: string | null;
+    isExtra: number;
     isActive: number;
     isDeleted: number;
     createdAt: Date;
@@ -48,9 +60,11 @@ export interface IQuotationScopeOfWorkItem {
     id: string;
     uid: string;
     quotationUid: string;
+    scopeOfWorkUid: string | null;
     title: string;
     value: string;
     sortOrder: number;
+    isExtra: number;
     isActive: number;
     isDeleted: number;
     createdAt: Date;
@@ -88,9 +102,11 @@ export interface ICreateQuotationItemRequest {
 }
 
 export interface ICreateQuotationScopeOfWorkRequest {
-    title: string;
-    value: string;
+    scopeOfWorkUid: string;
+    title?: string;
+    value?: string;
     sortOrder?: number;
+    isExtra?: boolean;
 }
 
 export interface ICreateQuotationTermsConditionsRequest {
@@ -104,8 +120,16 @@ export interface ICreateQuotationRequest {
     systemSize?: number;
     validTill: string; // ISO date string (YYYY-MM-DD)
     notes?: string;
-    products: ICreateQuotationItemRequest[];
+    packageUid?: string;
+    subtotal: number;
+    gstAmount: number;
+    grandTotal: number;
+    subsidyData?: ISubsidyData[];
+    netCustomerCost: number;
+    packageProducts: ICreateQuotationItemRequest[];
+    extraProducts?: ICreateQuotationItemRequest[];
     scopeOfWork?: ICreateQuotationScopeOfWorkRequest[];
+    extraScopeOfWork?: ICreateQuotationScopeOfWorkRequest[];
     termsConditions?: ICreateQuotationTermsConditionsRequest[];
 }
 
@@ -115,8 +139,16 @@ export interface IUpdateQuotationRequest {
     validTill?: string;
     notes?: string;
     status?: number;
-    products?: ICreateQuotationItemRequest[];
+    packageUid?: string;
+    subtotal?: number;
+    gstAmount?: number;
+    grandTotal?: number;
+    subsidyData?: ISubsidyData[];
+    netCustomerCost?: number;
+    packageProducts?: ICreateQuotationItemRequest[];
+    extraProducts?: ICreateQuotationItemRequest[];
     scopeOfWork?: ICreateQuotationScopeOfWorkRequest[];
+    extraScopeOfWork?: ICreateQuotationScopeOfWorkRequest[];
     termsConditions?: ICreateQuotationTermsConditionsRequest[];
 }
 

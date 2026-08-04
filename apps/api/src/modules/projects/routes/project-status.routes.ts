@@ -93,7 +93,7 @@ function createProjectStatusRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/createProjectStatusSchemaBody'
      *             required:
      *               - name
      *             properties:
@@ -144,7 +144,7 @@ function createProjectStatusRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateProjectStatusSchemaBody'
      *             properties:
      *               name:
      *                 type: string

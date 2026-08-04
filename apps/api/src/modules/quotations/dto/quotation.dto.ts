@@ -16,6 +16,7 @@ export interface SafeQuotationItemResponse {
     gstPercentage: number;
     lineTotal: number;
     description: string | null;
+    isExtra: number;
     isActive: number;
     isDeleted: number;
     createdAt: Date;
@@ -24,9 +25,11 @@ export interface SafeQuotationItemResponse {
 
 export interface SafeQuotationScopeOfWorkItemResponse {
     uid: string;
+    scopeOfWorkUid: string | null;
     title: string;
     value: string;
     sortOrder: number;
+    isExtra: number;
     isActive: number;
     isDeleted: number;
     createdAt: Date;
@@ -48,6 +51,11 @@ export interface SafeQuotationResponse {
     uid: string;
     leadUid: string;
     packageUid: string | null;
+    subtotal: number;
+    gstAmount: number;
+    grandTotal: number;
+    subsidyData: any[];
+    netCustomerCost: number;
     quotationNumber: string;
     systemSize: number;
     validTill: Date;
@@ -59,9 +67,6 @@ export interface SafeQuotationResponse {
     isDeleted: number;
     createdAt: Date;
     updatedAt: Date;
-    subtotal: number;
-    gstAmount: number;
-    grandTotal: number;
     items: SafeQuotationItemResponse[];
     scopeOfWork: SafeQuotationScopeOfWorkItemResponse[];
     termsConditions: SafeQuotationTermsConditionsItemResponse[];
@@ -79,6 +84,7 @@ export const toSafeQuotationItem = (item: IQuotationItem): SafeQuotationItemResp
         gstPercentage: Number(item.gstPercentage),
         lineTotal: Number(item.lineTotal),
         description: item.description,
+        isExtra: item.isExtra,
         isActive: item.isActive,
         isDeleted: item.isDeleted,
         createdAt: item.createdAt,
@@ -89,9 +95,11 @@ export const toSafeQuotationItem = (item: IQuotationItem): SafeQuotationItemResp
 export const toSafeQuotationScopeOfWorkItem = (item: IQuotationScopeOfWorkItem): SafeQuotationScopeOfWorkItemResponse => {
     return {
         uid: item.uid,
+        scopeOfWorkUid: (item as any).scopeOfWorkUid ?? null,
         title: item.title,
         value: item.value,
         sortOrder: item.sortOrder,
+        isExtra: item.isExtra,
         isActive: item.isActive,
         isDeleted: item.isDeleted,
         createdAt: item.createdAt,
@@ -118,24 +126,17 @@ export const toSafeQuotation = (
     scopeOfWork: IQuotationScopeOfWorkItem[] = [],
     termsConditions: IQuotationTermsConditionsItem[] = []
 ): SafeQuotationResponse => {
-    let subtotal = 0;
-    let gstAmount = 0;
-
-    const safeItems = items.map(item => {
-        const safeItem = toSafeQuotationItem(item);
-        subtotal += safeItem.lineTotal;
-        gstAmount += safeItem.lineTotal * (safeItem.gstPercentage / 100);
-        return safeItem;
-    });
-
-    subtotal = Math.round(subtotal * 100) / 100;
-    gstAmount = Math.round(gstAmount * 100) / 100;
-    const grandTotal = Math.round((subtotal + gstAmount) * 100) / 100;
+    const safeItems = items.map(toSafeQuotationItem);
 
     return {
         uid: quotation.uid,
         leadUid: quotation.leadUid,
         packageUid: quotation.packageUid,
+        subtotal: quotation.subtotal,
+        gstAmount: quotation.gstAmount,
+        grandTotal: quotation.grandTotal,
+        subsidyData: quotation.subsidyData,
+        netCustomerCost: quotation.netCustomerCost,
         quotationNumber: quotation.quotationNumber,
         systemSize: Number(quotation.systemSize),
         validTill: quotation.validTill,
@@ -147,9 +148,6 @@ export const toSafeQuotation = (
         isDeleted: quotation.isDeleted,
         createdAt: quotation.createdAt,
         updatedAt: quotation.updatedAt,
-        subtotal,
-        gstAmount,
-        grandTotal,
         items: safeItems,
         scopeOfWork: scopeOfWork.map(toSafeQuotationScopeOfWorkItem),
         termsConditions: termsConditions.map(toSafeQuotationTermsConditionsItem)

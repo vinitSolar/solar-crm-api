@@ -120,8 +120,7 @@ function createRolePermissionRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
-     *             required: [permissions]
+     *             $ref: '#/components/schemas/upsertMenuPermissionsSchemaBody'
      *             properties:
      *               permissions:
      *                 type: array

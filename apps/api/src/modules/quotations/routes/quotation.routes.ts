@@ -106,7 +106,7 @@ router.post("/list", validateRequest(listQuotationSchema), listQuotations);
  *             required:
  *               - leadUid
  *               - validTill
- *               - products
+ *               - packageProducts
  *             properties:
  *               leadUid:
  *                 type: string
@@ -118,7 +118,33 @@ router.post("/list", validateRequest(listQuotationSchema), listQuotations);
  *                 format: date
  *               notes:
  *                 type: string
- *               products:
+ *               packageUid:
+ *                 type: string
+ *                 format: uuid
+ *               price:
+ *                 type: number
+ *               packageProducts:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - productUid
+ *                     - quantity
+ *                   properties:
+ *                     productUid:
+ *                       type: string
+ *                       format: uuid
+ *                     quantity:
+ *                       type: number
+ *                     productName:
+ *                       type: string
+ *                     pricePerUnit:
+ *                       type: number
+ *                     gstPercentage:
+ *                       type: number
+ *                     description:
+ *                       type: string
+ *               extraProducts:
  *                 type: array
  *                 items:
  *                   type: object
@@ -234,7 +260,33 @@ router.get("/:uid", validateRequest(getQuotationParamsSchema), getQuotation);
  *                 type: string
  *               status:
  *                 type: integer
- *               products:
+ *               packageUid:
+ *                 type: string
+ *                 format: uuid
+ *               price:
+ *                 type: number
+ *               packageProducts:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - productUid
+ *                     - quantity
+ *                   properties:
+ *                     productUid:
+ *                       type: string
+ *                       format: uuid
+ *                     quantity:
+ *                       type: number
+ *                     productName:
+ *                       type: string
+ *                     pricePerUnit:
+ *                       type: number
+ *                     gstPercentage:
+ *                       type: number
+ *                     description:
+ *                       type: string
+ *               extraProducts:
  *                 type: array
  *                 items:
  *                   type: object

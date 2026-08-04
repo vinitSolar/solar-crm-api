@@ -93,7 +93,7 @@ function createLeadSourceRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/createLeadSourceSchemaBody'
      *             required:
      *               - name
      *             properties:
@@ -140,7 +140,7 @@ function createLeadSourceRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateLeadSourceSchemaBody'
      *             properties:
      *               name:
      *                 type: string

@@ -28,7 +28,7 @@ function createUserRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/getPaginatedUsersSchemaBody'
      *             properties:
      *               page:
      *                 type: integer
@@ -75,7 +75,7 @@ function createUserRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/getAllUsersSchemaBody'
      *             properties:
      *               status:
      *                 type: string
@@ -144,8 +144,7 @@ function createUserRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
-     *             required: [roleUid, firstName, lastName, email, password]
+     *             $ref: '#/components/schemas/createUserSchemaBody'
      *             properties:
      *               roleUid:
      *                 type: string
@@ -193,7 +192,7 @@ function createUserRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateUserSchemaBody'
      *             properties:
      *               roleUid:
      *                 type: string

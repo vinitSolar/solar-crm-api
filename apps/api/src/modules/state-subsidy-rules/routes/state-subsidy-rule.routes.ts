@@ -48,7 +48,7 @@ router.use(authenticate);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/paginationSchemaBody'
  *             properties:
  *               page:
  *                 type: integer
@@ -81,7 +81,7 @@ router.post("/list", validateStateSubsidyRuleRequest(paginationSchema), controll
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/combinedRequiredDocumentsSchemaBody'
  *             required:
  *               - subsidyUids
  *             properties:
@@ -181,7 +181,7 @@ router.get("/:uid", controller.getRuleByUid);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/createStateSubsidyRuleSchemaBody'
  *             required:
  *               - stateUid
  *               - subsidyPerKw
@@ -232,7 +232,7 @@ router.post("/", validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), 
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/updateStateSubsidyRuleSchemaBody'
  *             properties:
  *               schemeName:
  *                 type: string

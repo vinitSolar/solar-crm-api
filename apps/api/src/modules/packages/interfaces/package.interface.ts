@@ -6,7 +6,7 @@ export interface IPackage {
     packageCode: string;
     description: string | null;
     capacityKw: number | null;
-    price: number;
+    recomendedPrice: number;
     isActive: boolean;
     isDeleted: boolean;
     createdAt: Date;

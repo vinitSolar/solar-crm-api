@@ -34,7 +34,7 @@ router.use(authenticate);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+     *             $ref: '#/components/schemas/paginationSchemaBody'
  *             properties:
  *               page:
  *                 type: integer

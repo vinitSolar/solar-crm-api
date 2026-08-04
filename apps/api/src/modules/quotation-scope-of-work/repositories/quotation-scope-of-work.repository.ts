@@ -204,6 +204,16 @@ export class QuotationScopeOfWorkRepository {
         return result.rows.map(this.mapToCamelCase);
     }
 
+    async findByUids(tenantUid: string, uids: string[]): Promise<IQuotationScopeOfWork[]> {
+        if (!uids || uids.length === 0) return [];
+        const query = `
+            SELECT * FROM quotation_scope_of_work
+            WHERE tenant_uid = $1 AND uid = ANY($2) AND is_deleted = 0 AND is_active = 1
+        `;
+        const result = await this.db.query(query, [tenantUid, uids]);
+        return result.rows.map(this.mapToCamelCase);
+    }
+
     async softDelete(tenantUid: string, uid: string, deletedBy: string): Promise<boolean> {
         // There is no deleted_at in the migration script, but `is_deleted` and `deleted_by` are there
         // Actually, the migration didn't include deleted_at but included deleted_by.

@@ -34,6 +34,12 @@ export class QuotationRepository {
 
     async create(client: PoolClient, tenantUid: string, data: {
         leadUid: string;
+        packageUid?: string;
+        subtotal: number;
+        gstAmount: number;
+        grandTotal: number;
+        subsidyData?: any[];
+        netCustomerCost: number;
         quotationNumber: string;
         systemSize: number;
         validTill: string;
@@ -43,14 +49,20 @@ export class QuotationRepository {
         const uid = uuidv4();
         const query = `
             INSERT INTO quotations 
-            (uid, tenant_uid, lead_uid, quotation_number, system_size, valid_till, status, notes, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            (uid, tenant_uid, lead_uid, package_uid, subtotal, gst_amount, grand_total, subsidy_data, net_customer_cost, quotation_number, system_size, valid_till, status, notes, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             RETURNING *
         `;
         const values = [
             uid,
             tenantUid,
             data.leadUid,
+            data.packageUid ?? null,
+            data.subtotal,
+            data.gstAmount,
+            data.grandTotal,
+            JSON.stringify(data.subsidyData ?? []),
+            data.netCustomerCost,
             data.quotationNumber,
             data.systemSize,
             data.validTill,
@@ -73,12 +85,13 @@ export class QuotationRepository {
         gstPercentage: number;
         lineTotal: number;
         description?: string | null;
+        isExtra?: number;
     }, createdBy: string): Promise<IQuotationItem> {
         const uid = uuidv4();
         const query = `
             INSERT INTO quotation_items 
-            (uid, quotation_uid, product_uid, product_name, brand_name, unit_name, quantity, price_per_unit, gst_percentage, line_total, description, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            (uid, quotation_uid, product_uid, product_name, brand_name, unit_name, quantity, price_per_unit, gst_percentage, line_total, description, is_extra, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING *
         `;
         const values = [
@@ -93,6 +106,7 @@ export class QuotationRepository {
             data.gstPercentage,
             data.lineTotal,
             data.description ?? null,
+            data.isExtra ?? 0,
             createdBy,
             createdBy
         ];
@@ -101,23 +115,27 @@ export class QuotationRepository {
     }
 
     async createScopeOfWorkItem(client: PoolClient, quotationUid: string, data: {
+        scopeOfWorkUid: string;
         title: string;
         value: string;
         sortOrder: number;
+        isExtra?: boolean | undefined;
     }, createdBy: string): Promise<IQuotationScopeOfWorkItem> {
         const uid = uuidv4();
         const query = `
             INSERT INTO quotation_scope_of_work_items 
-            (uid, quotation_uid, title, value, sort_order, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            (uid, quotation_uid, scope_of_work_uid, title, value, sort_order, is_extra, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
         `;
         const values = [
             uid,
             quotationUid,
+            data.scopeOfWorkUid,
             data.title,
             data.value,
             data.sortOrder,
+            data.isExtra ? 1 : 0,
             createdBy,
             createdBy
         ];
@@ -192,6 +210,11 @@ export class QuotationRepository {
     async update(client: PoolClient, tenantUid: string, uid: string, data: {
         leadUid?: string;
         packageUid?: string;
+        subtotal?: number;
+        gstAmount?: number;
+        grandTotal?: number;
+        subsidyData?: any[];
+        netCustomerCost?: number;
         systemSize?: number;
         validTill?: string;
         status?: number;
@@ -211,6 +234,11 @@ export class QuotationRepository {
 
         addField("lead_uid", data.leadUid);
         addField("package_uid", data.packageUid);
+        addField("subtotal", data.subtotal);
+        addField("gst_amount", data.gstAmount);
+        addField("grand_total", data.grandTotal);
+        if (data.subsidyData !== undefined) addField("subsidy_data", JSON.stringify(data.subsidyData));
+        addField("net_customer_cost", data.netCustomerCost);
         addField("system_size", data.systemSize);
         addField("valid_till", data.validTill);
         addField("status", data.status);
@@ -422,6 +450,15 @@ export class QuotationRepository {
         await this.pool.query(query, [pdfUrl, pdfPath, updatedBy, uid]);
     }
 
+    async updateSnapshotData(uid: string, snapshotData: string): Promise<void> {
+        const query = `
+            UPDATE quotations
+            SET snapshot_data = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE uid = $2
+        `;
+        await this.pool.query(query, [snapshotData, uid]);
+    }
+
     async getFranchiseDetails(tenantUid: string): Promise<{
         code: string;
         name: string;
@@ -527,6 +564,11 @@ export class QuotationRepository {
             packageUid: row.package_uid,
             quotationNumber: row.quotation_number,
             systemSize: Number(row.system_size),
+            subtotal: Number(row.subtotal || 0),
+            gstAmount: Number(row.gst_amount || 0),
+            grandTotal: Number(row.grand_total || 0),
+            subsidyData: typeof row.subsidy_data === "string" ? JSON.parse(row.subsidy_data) : (row.subsidy_data || []),
+            netCustomerCost: Number(row.net_customer_cost || 0),
             validTill: row.valid_till,
             status: row.status,
             notes: row.notes,
@@ -557,6 +599,7 @@ export class QuotationRepository {
             gstPercentage: Number(row.gst_percentage),
             lineTotal: Number(row.line_total),
             description: row.description,
+            isExtra: row.is_extra ? Number(row.is_extra) : 0,
             isActive: row.is_active,
             isDeleted: row.is_deleted,
             createdAt: row.created_at,
@@ -573,9 +616,11 @@ export class QuotationRepository {
             id: row.id,
             uid: row.uid,
             quotationUid: row.quotation_uid,
+            scopeOfWorkUid: row.scope_of_work_uid || null,
             title: row.title,
             value: row.value,
             sortOrder: row.sort_order,
+            isExtra: row.is_extra ? Number(row.is_extra) : 0,
             isActive: row.is_active,
             isDeleted: row.is_deleted,
             createdAt: row.created_at,

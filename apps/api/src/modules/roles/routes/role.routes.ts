@@ -28,7 +28,7 @@ function createRoleRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/getPaginatedRolesSchemaBody'
      *             properties:
      *               page:
      *                 type: integer
@@ -203,8 +203,7 @@ function createRoleRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
-     *             required: [name]
+     *             $ref: '#/components/schemas/createRoleSchemaBody'
      *             properties:
      *               name:
      *                 type: string
@@ -256,7 +255,7 @@ function createRoleRouter(): Router {
      *       content:
      *         application/json:
      *           schema:
-     *             type: object
+     *             $ref: '#/components/schemas/updateRoleSchemaBody'
      *             properties:
      *               name:
      *                 type: string

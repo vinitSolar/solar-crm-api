@@ -252,31 +252,31 @@ export class QuotationService {
 
             await client.query("COMMIT");
 
+            // Deactivate other quotations for this lead in the background
+            this.repository.deactivateOtherQuotations(tenantUid, quotation.leadUid, quotation.uid, createdBy).catch(err => {
+                logger.error(`Failed to deactivate older quotations for lead ${quotation.leadUid}`, err);
+            });
+
             // Trigger background snapshot generation using Strategy Pattern
             const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
             await strategy.execute(tenantUid, quotation.uid, createdBy);
 
-            // Auto-generate PDF during creation
-            let pdfUrl: string | null = null;
-            let pdfPath: string | null = null;
-            try {
-                const pdfResult = await this.generatePdf(tenantUid, quotation.uid, createdBy);
-                pdfUrl = pdfResult.pdfUrl;
-                pdfPath = pdfResult.pdfPath;
-
+            // Auto-generate PDF during creation in the background
+            this.generatePdf(tenantUid, quotation.uid, createdBy).then(pdfResult => {
+                const pdfUrl = pdfResult.pdfUrl;
                 if (pdfUrl) {
                     this.sendQuotationEmailBackground(tenantUid, quotation.uid, pdfUrl, createdBy).catch(err => {
                         logger.error(`Failed to trigger background quotation email sending:`, err);
                     });
                 }
-            } catch (err) {
+            }).catch(err => {
                 logger.error(`Failed to auto-generate PDF for Quote: ${quotation.uid}`, err);
-            }
+            });
 
             const quotationWithPdf = {
                 ...quotation,
-                pdfUrl,
-                pdfPath
+                pdfUrl: null,
+                pdfPath: null
             };
 
             return toSafeQuotation(quotationWithPdf, createdItems, createdSows, createdTcs);
@@ -479,21 +479,15 @@ export class QuotationService {
             const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
             await strategy.execute(tenantUid, updatedQuotation.uid, updatedBy);
 
-            // Auto-regenerate PDF during update to sync details
-            let pdfUrl: string | null = null;
-            let pdfPath: string | null = null;
-            try {
-                const pdfResult = await this.generatePdf(tenantUid, updatedQuotation.uid, updatedBy);
-                pdfUrl = pdfResult.pdfUrl;
-                pdfPath = pdfResult.pdfPath;
-            } catch (err) {
+            // Auto-regenerate PDF during update to sync details in the background
+            this.generatePdf(tenantUid, updatedQuotation.uid, updatedBy).catch(err => {
                 logger.error(`Failed to auto-regenerate PDF for Quote: ${updatedQuotation.uid}`, err);
-            }
+            });
 
             const updatedQuotationWithPdf = {
                 ...updatedQuotation,
-                pdfUrl,
-                pdfPath
+                pdfUrl: null,
+                pdfPath: null
             };
 
             return toSafeQuotation(updatedQuotationWithPdf, items, sows, tcs);
@@ -776,13 +770,19 @@ export class QuotationService {
         };
 
         // 6. Generate PDF Buffer using Puppeteer
+        const startTime = performance.now();
         const pdfBuffer = await QuotationPdfGenerator.generatePdfBuffer(pdfData);
+        const generationTime = performance.now() - startTime;
+        logger.info(`PDF Generation for Quote ${quotation.uid} completed in ${generationTime.toFixed(2)} ms`);
 
         // 7. Upload PDF to Storage
+        const uploadStartTime = performance.now();
         const fileName = `${quotation.quotationNumber}.pdf`;
         const mimeType = "application/pdf";
         const uploadFolder = `franchises/${franchise.code || "HO"}_${tenantUid}/quotations`;
         const { url: pdfUrl, path: pdfPath } = await storageService.uploadFileWithPath(pdfBuffer, fileName, mimeType, uploadFolder);
+        const uploadTime = performance.now() - uploadStartTime;
+        logger.info(`PDF Upload for Quote ${quotation.uid} completed in ${uploadTime.toFixed(2)} ms`);
 
         // 8. Save PDF URL & Path in Database
         await this.repository.updatePdfInfo(quotation.uid, pdfUrl, pdfPath, createdBy);

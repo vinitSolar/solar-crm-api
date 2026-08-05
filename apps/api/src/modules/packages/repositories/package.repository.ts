@@ -281,9 +281,9 @@ export class PackageRepository {
                 p.name AS product_name, p.product_code,
                 c.name AS category_name, b.name AS brand_name
             FROM package_products pp
-            JOIN products p ON p.uid = pp.product_uid
-            LEFT JOIN product_categories c ON c.uid = p.category_uid
-            LEFT JOIN product_brands b ON b.uid = p.brand_uid
+            JOIN products p ON p.uid::text = pp.product_uid::text
+            LEFT JOIN product_categories c ON c.uid::text = p.category_uid::text
+            LEFT JOIN product_brands b ON b.uid::text = p.brand_uid::text
             WHERE pp.package_uid = $1 AND pp.is_deleted = false
         `;
         const productsResult = await this.pool.query(productsQuery, [uid]);

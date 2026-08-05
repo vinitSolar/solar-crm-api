@@ -52,13 +52,14 @@ export const getQuotation = asyncHandler(async (req: Request, res: Response) => 
 export const listQuotations = asyncHandler(async (req: Request, res: Response) => {
     const authReq = req as IAuthenticatedRequest;
     const tenantUid = authReq.user.tenantUid;
-    const { page, limit, search, status } = req.body;
+    const { page, limit, search, status, leadUid } = req.body;
 
     const result = await quotationService.list(tenantUid, {
         page,
         limit,
         search,
-        status
+        status,
+        leadUid
     });
 
     res.status(200).json({

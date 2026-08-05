@@ -124,7 +124,7 @@ export class QuotationRepository {
     }
 
     async createScopeOfWorkItem(client: PoolClient, quotationUid: string, data: {
-        scopeOfWorkUid: string;
+        scopeOfWorkUid: string | null;
         title: string;
         value: string;
         sortOrder: number;
@@ -358,7 +358,8 @@ export class QuotationRepository {
         page: number,
         limit: number,
         search?: string,
-        status: "active" | "deleted" | "all" = "active"
+        status: "active" | "deleted" | "all" = "active",
+        leadUid?: string
     ): Promise<{ data: IQuotation[]; total: number }> {
         const offset = (page - 1) * limit;
         const values: any[] = [tenantUid];
@@ -376,6 +377,12 @@ export class QuotationRepository {
         if (search) {
             whereClause += ` AND (LOWER(quotation_number) LIKE $${paramIndex} OR LOWER(notes) LIKE $${paramIndex})`;
             values.push(`%${search.toLowerCase()}%`);
+            paramIndex++;
+        }
+
+        if (leadUid) {
+            whereClause += ` AND lead_uid = $${paramIndex}`;
+            values.push(leadUid);
             paramIndex++;
         }
 

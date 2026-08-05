@@ -186,15 +186,15 @@ export class QuotationService {
             ];
 
             if (allScopeOfWork.length > 0) {
-                const sowUids = allScopeOfWork.map(s => s.scopeOfWorkUid);
+                const sowUids = allScopeOfWork.map(s => s.scopeOfWorkUid).filter((uid): uid is string => Boolean(uid));
                 const uniqueSowUids = Array.from(new Set(sowUids));
                 const dbSows = await this.scopeOfWorkRepo.findByUids(tenantUid, uniqueSowUids);
                 const sowsMap = new Map(dbSows.map(s => [s.uid, s]));
 
                 const sowInsertPromises = allScopeOfWork.map(async (sowInput, i) => {
-                    const dbSow = sowsMap.get(sowInput.scopeOfWorkUid);
+                    const dbSow = sowInput.scopeOfWorkUid ? sowsMap.get(sowInput.scopeOfWorkUid) : undefined;
                     
-                    if (!dbSow && (!sowInput.title || !sowInput.value)) {
+                    if (sowInput.scopeOfWorkUid && !dbSow && (!sowInput.title || !sowInput.value)) {
                         throw new CustomError(`Invalid Scope of Work UID: ${sowInput.scopeOfWorkUid}`, 400);
                     }
 
@@ -206,7 +206,7 @@ export class QuotationService {
                     }
 
                     return this.repository.createScopeOfWorkItem(client, quotation.uid, {
-                        scopeOfWorkUid: sowInput.scopeOfWorkUid,
+                        scopeOfWorkUid: sowInput.scopeOfWorkUid ?? null,
                         title: title,
                         value: value,
                         sortOrder: sowInput.sortOrder ?? (i + 1),
@@ -422,15 +422,15 @@ export class QuotationService {
                     ...(data.extraScopeOfWork?.map(s => ({ ...s, isExtra: true })) || [])
                 ];
 
-                const sowUids = allScopeOfWork.map(s => s.scopeOfWorkUid);
+                const sowUids = allScopeOfWork.map(s => s.scopeOfWorkUid).filter((uid): uid is string => Boolean(uid));
                 const uniqueSowUids = Array.from(new Set(sowUids));
                 const dbSows = await this.scopeOfWorkRepo.findByUids(tenantUid, uniqueSowUids);
                 const sowsMap = new Map(dbSows.map(s => [s.uid, s]));
 
                 const sowInsertPromises = allScopeOfWork.map(async (sowInput, i) => {
-                    const dbSow = sowsMap.get(sowInput.scopeOfWorkUid);
+                    const dbSow = sowInput.scopeOfWorkUid ? sowsMap.get(sowInput.scopeOfWorkUid) : undefined;
                     
-                    if (!dbSow && (!sowInput.title || !sowInput.value)) {
+                    if (sowInput.scopeOfWorkUid && !dbSow && (!sowInput.title || !sowInput.value)) {
                         throw new CustomError(`Invalid Scope of Work UID: ${sowInput.scopeOfWorkUid}`, 400);
                     }
 
@@ -442,7 +442,7 @@ export class QuotationService {
                     }
 
                     return this.repository.createScopeOfWorkItem(client, updatedQuotation.uid, {
-                        scopeOfWorkUid: sowInput.scopeOfWorkUid,
+                        scopeOfWorkUid: sowInput.scopeOfWorkUid ?? null,
                         title: title,
                         value: value,
                         sortOrder: sowInput.sortOrder ?? (i + 1),
@@ -507,8 +507,9 @@ export class QuotationService {
         const limit = query.limit ?? 10;
         const search = query.search;
         const status = query.status ?? "active";
+        const leadUid = query.leadUid;
 
-        const { data: quotations, total } = await this.repository.list(tenantUid, page, limit, search, status);
+        const { data: quotations, total } = await this.repository.list(tenantUid, page, limit, search, status, leadUid);
 
         if (quotations.length === 0) {
             return {

@@ -102,7 +102,7 @@ export interface ICreateQuotationItemRequest {
 }
 
 export interface ICreateQuotationScopeOfWorkRequest {
-    scopeOfWorkUid: string;
+    scopeOfWorkUid?: string;
     title?: string;
     value?: string;
     sortOrder?: number;
@@ -157,4 +157,5 @@ export interface IQuotationPaginationQuery {
     limit: number;
     search?: string;
     status?: "active" | "deleted" | "all";
+    leadUid?: string;
 }

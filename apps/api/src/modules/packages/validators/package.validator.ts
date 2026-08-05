@@ -3,7 +3,7 @@ import type { Request, Response, NextFunction } from "express";
 
 const packageProductSchema = z.object({
     productUid: z.string().uuid("Invalid Product UID"),
-    quantity: z.any().optional().transform(() => 1),
+    quantity: z.coerce.number().min(1, "Quantity must be at least 1").optional().default(1),
     remarks: z.string().max(1000).optional().nullable(),
 });
 
@@ -11,7 +11,7 @@ export const createPackageSchema = z.object({
     name: z.string().min(1, "Name is required").max(255, "Name cannot exceed 255 characters"),
     packageCode: z.string().max(100, "Package code cannot exceed 100 characters").optional(),
     description: z.string().optional().nullable(),
-    capacityKw: z.any().optional().transform(() => 1),
+    capacityKw: z.coerce.number().min(0, "Capacity must be a positive number").optional().nullable(),
     recomendedPrice: z.coerce.number().min(0, "Price must be a positive number"),
     products: z.array(packageProductSchema).min(1, "A package must contain at least one product"),
     scopeOfWork: z.array(z.object({
@@ -24,7 +24,7 @@ export const updatePackageSchema = z.object({
     name: z.string().min(1, "Name is required").max(255, "Name cannot exceed 255 characters").optional(),
     packageCode: z.string().min(1, "Package code is required").max(100).optional(),
     description: z.string().optional().nullable(),
-    capacityKw: z.any().optional().transform(() => 1),
+    capacityKw: z.coerce.number().min(0, "Capacity must be a positive number").optional().nullable(),
     recomendedPrice: z.coerce.number().min(0, "Price must be a positive number").optional(),
     isActive: z.coerce.number().min(0).max(1).optional(),
     products: z.array(packageProductSchema).min(1, "A package must contain at least one product").optional(),

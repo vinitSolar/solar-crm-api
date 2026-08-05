@@ -35,13 +35,13 @@ export const createQuotationSchema = z.object({
             description: z.string().optional()
         })).optional(),
         scopeOfWork: z.array(z.object({
-            scopeOfWorkUid: z.string().uuid(),
+            scopeOfWorkUid: z.string().uuid().optional(),
             title: z.string().min(1).max(255).optional(),
             value: z.string().min(1).optional(),
             sortOrder: z.number().int().min(0).optional()
         })).optional(),
         extraScopeOfWork: z.array(z.object({
-            scopeOfWorkUid: z.string().uuid(),
+            scopeOfWorkUid: z.string().uuid().optional().nullable(),
             title: z.string().min(1).max(255).optional(),
             value: z.string().min(1).optional(),
             sortOrder: z.number().int().min(0).optional()
@@ -91,13 +91,13 @@ export const updateQuotationSchema = z.object({
             description: z.string().optional()
         })).optional(),
         scopeOfWork: z.array(z.object({
-            scopeOfWorkUid: z.string().uuid(),
+            scopeOfWorkUid: z.string().uuid().optional(),
             title: z.string().min(1).max(255).optional(),
             value: z.string().min(1).optional(),
             sortOrder: z.number().int().min(0).optional()
         })).optional(),
         extraScopeOfWork: z.array(z.object({
-            scopeOfWorkUid: z.string().uuid(),
+            scopeOfWorkUid: z.string().uuid().optional().nullable(),
             title: z.string().min(1).max(255).optional(),
             value: z.string().min(1).optional(),
             sortOrder: z.number().int().min(0).optional()
@@ -122,6 +122,7 @@ export const listQuotationSchema = z.object({
         limit: z.number().int().min(1).max(100).optional().default(10),
         search: z.string().optional(),
         status: z.enum(["active", "deleted", "all"]).optional().default("active"),
+        leadUid: z.string().uuid().optional(),
     }),
 });
 

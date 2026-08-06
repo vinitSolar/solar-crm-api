@@ -145,12 +145,12 @@ export async function seedTenantDefaults(client: PoolClient, tenantUid: string, 
 
     // 7. Seed Quotation Terms & Conditions
     const quotationTerms = [
-        { title: "Taxes & Duties", description: "All taxes and duties as applicable at the time of delivery will be extra." },
-        { title: "Transportation Charges", description: "Transportation charges will be actuals and paid by the client." },
-        { title: "Payment Terms", description: "100% advance along with purchase order." },
-        { title: "Project Completion Period", description: "The project will be completed within 30 days from the date of advance receipt." },
-        { title: "Additional Material / Work", description: "Any additional material or work beyond the scope will be charged extra." },
-        { title: "System Handover", description: "System will be handed over to the client only after full payment." }
+        { title: "Taxes & Duties", description: ["All taxes and duties as applicable at the time of delivery will be extra."] },
+        { title: "Transportation Charges", description: ["Transportation charges will be actuals and paid by the client."] },
+        { title: "Payment Terms", description: ["100% advance along with purchase order."] },
+        { title: "Project Completion Period", description: ["The project will be completed within 30 days from the date of advance receipt."] },
+        { title: "Additional Material / Work", description: ["Any additional material or work beyond the scope will be charged extra."] },
+        { title: "System Handover", description: ["System will be handed over to the client only after full payment."] }
     ];
     for (let i = 0; i < quotationTerms.length; i++) {
         const term = quotationTerms[i];

@@ -82,7 +82,7 @@ export interface IQuotationTermsConditionsItem {
     uid: string;
     quotationUid: string;
     title: string;
-    description: string;
+    description: string[];
     sortOrder: number;
     isActive: number;
     isDeleted: number;
@@ -113,7 +113,7 @@ export interface ICreateQuotationScopeOfWorkRequest {
 
 export interface ICreateQuotationTermsConditionsRequest {
     title: string;
-    description: string;
+    description: string[];
     sortOrder?: number;
 }
 

@@ -2,7 +2,7 @@ export interface IQuotationTermsCondition {
     uid: string;
     tenantUid: string;
     title: string;
-    description: string;
+    description: string[];
     sortOrder: number;
     isDefault: number;
     isActive: number;

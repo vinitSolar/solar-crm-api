@@ -154,7 +154,7 @@ export class QuotationRepository {
 
     async createTermsConditionsItem(client: PoolClient, quotationUid: string, data: {
         title: string;
-        description: string;
+        description: string[];
         sortOrder: number;
     }, createdBy: string): Promise<IQuotationTermsConditionsItem> {
         const uid = uuidv4();

@@ -45,7 +45,7 @@ export interface IQuotationPdfData {
     }>;
     termsConditions: Array<{
         title: string;
-        description: string;
+        description: string | string[];
     }>;
     subsidy?: {
         subsidyData: Array<{ uid: string; name: string; amount: number }>;
@@ -97,12 +97,17 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
 
     // Build Terms and conditions list
     const tcHtml = termsConditions.length > 0
-        ? termsConditions.map((tc, idx) => `
-            <div class="tc-item">
-                <strong>${idx + 1}. ${tc.title}</strong>
-                <p>${tc.description}</p>
-            </div>
-          `).join("")
+        ? termsConditions.map((tc, idx) => {
+            const descHtml = Array.isArray(tc.description)
+                ? tc.description.map(descItem => `<div style="margin-left: 10px; margin-top: 2px;">• ${descItem}</div>`).join("")
+                : `<p>${tc.description || ""}</p>`;
+            return `
+                <div class="tc-item">
+                    <strong>${idx + 1}. ${tc.title}</strong>
+                    ${descHtml}
+                </div>
+            `;
+          }).join("")
         : `<p class="text-muted">No specific terms and conditions defined.</p>`;
 
     // Build Subsidy rows if applicable

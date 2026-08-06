@@ -4,7 +4,7 @@ import { QUOTATION_TERMS_CONDITION_VALIDATION_MESSAGES } from "../constants/quot
 export const createQuotationTermsConditionSchema = z.object({
     body: z.object({
         title: z.string().min(1, QUOTATION_TERMS_CONDITION_VALIDATION_MESSAGES.TITLE_REQUIRED).max(255),
-        description: z.string().min(1, QUOTATION_TERMS_CONDITION_VALIDATION_MESSAGES.DESCRIPTION_REQUIRED),
+        description: z.array(z.string().min(1)).min(1, QUOTATION_TERMS_CONDITION_VALIDATION_MESSAGES.DESCRIPTION_REQUIRED),
         sortOrder: z.number().int().min(0).optional(),
         isDefault: z.number().int().min(0).max(1).optional().default(0)
     }),
@@ -16,7 +16,7 @@ export const updateQuotationTermsConditionSchema = z.object({
     }),
     body: z.object({
         title: z.string().min(1, QUOTATION_TERMS_CONDITION_VALIDATION_MESSAGES.TITLE_REQUIRED).max(255).optional(),
-        description: z.string().min(1, QUOTATION_TERMS_CONDITION_VALIDATION_MESSAGES.DESCRIPTION_REQUIRED).optional(),
+        description: z.array(z.string().min(1)).min(1, QUOTATION_TERMS_CONDITION_VALIDATION_MESSAGES.DESCRIPTION_REQUIRED).optional(),
         sortOrder: z.number().int().min(0).optional(),
         isActive: z.number().int().min(0).max(1).optional(),
     }),

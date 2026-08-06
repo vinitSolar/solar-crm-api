@@ -39,7 +39,7 @@ export interface SafeQuotationScopeOfWorkItemResponse {
 export interface SafeQuotationTermsConditionsItemResponse {
     uid: string;
     title: string;
-    description: string;
+    description: string[];
     sortOrder: number;
     isActive: number;
     isDeleted: number;

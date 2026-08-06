@@ -11,6 +11,8 @@ export interface ISiteSurvey {
     scheduledAt: Date;
     status: number; // 0 = Scheduled, 1 = Completed, 2 = Cancelled, 3 = Rescheduled
     remarks: string | null;
+    latitude: number | null;
+    longitude: number | null;
     isActive: number;
     isDeleted: number;
     createdAt: Date;
@@ -25,6 +27,8 @@ export interface ICreateSiteSurvey {
     assignedTo: string;
     scheduledAt: Date | string;
     remarks?: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 export interface IUpdateSiteSurvey {
@@ -32,6 +36,8 @@ export interface IUpdateSiteSurvey {
     scheduledAt?: Date | string;
     status?: number;
     remarks?: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 export interface ISiteSurveySafe {
@@ -43,6 +49,8 @@ export interface ISiteSurveySafe {
     scheduledAt: Date;
     status: number;
     remarks: string | null;
+    latitude: number | null;
+    longitude: number | null;
     details?: ISiteSurveyDetailsSafe | undefined;
     isActive: number;
     isDeleted: number;

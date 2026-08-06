@@ -31,6 +31,8 @@ export function toSiteSurveySafe(survey: ISiteSurvey, details?: ISiteSurveyDetai
         scheduledAt: survey.scheduledAt,
         status: survey.status,
         remarks: survey.remarks,
+        latitude: survey.latitude,
+        longitude: survey.longitude,
         details,
         isActive: survey.isActive,
         isDeleted: survey.isDeleted,

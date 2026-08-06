@@ -25,7 +25,7 @@ export const createQuotationSchema = z.object({
             pricePerUnit: z.number().optional(),
             gstPercentage: z.number().optional(),
             description: z.string().optional()
-        })).min(1),
+        })).optional(),
         extraProducts: z.array(z.object({
             productUid: z.string().uuid(),
             quantity: z.number().positive(),

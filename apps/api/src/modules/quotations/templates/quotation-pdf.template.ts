@@ -576,10 +576,6 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
     <!-- Scope and Terms Columns -->
     <div class="sections-container">
         <div class="section-box">
-            <div class="section-title">Scope Of Work</div>
-            ${sowHtml}
-        </div>
-        <div class="section-box">
             <div class="section-title">Terms & Conditions</div>
             ${tcHtml}
         </div>

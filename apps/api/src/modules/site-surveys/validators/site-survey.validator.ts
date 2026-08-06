@@ -10,6 +10,8 @@ export const createSiteSurveySchema = z.object({
             message: SITE_SURVEY_VALIDATION_MESSAGES.SCHEDULED_AT_INVALID,
         }),
         remarks: z.string().optional(),
+        latitude: z.number().min(-90).max(90).optional(),
+        longitude: z.number().min(-180).max(180).optional(),
     }),
 });
 
@@ -24,7 +26,9 @@ export const updateSiteSurveySchema = z.object({
         }).optional(),
         status: z.number().int().min(0).max(3).optional(),
         remarks: z.string().optional(),
-}).strict(),
+        latitude: z.number().min(-90).max(90).optional().nullable(),
+        longitude: z.number().min(-180).max(180).optional().nullable(),
+    }).strict(),
 });
 
 export const changeSiteSurveyStatusSchema = z.object({

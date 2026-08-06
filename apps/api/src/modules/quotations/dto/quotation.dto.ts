@@ -70,6 +70,12 @@ export interface SafeQuotationResponse {
     items: SafeQuotationItemResponse[];
     scopeOfWork: SafeQuotationScopeOfWorkItemResponse[];
     termsConditions: SafeQuotationTermsConditionsItemResponse[];
+    audit: {
+        createdBy: string | null;
+        createdAt: Date;
+        updatedBy: string | null;
+        updatedAt: Date;
+    };
 }
 
 export const toSafeQuotationItem = (item: IQuotationItem): SafeQuotationItemResponse => {
@@ -150,6 +156,12 @@ export const toSafeQuotation = (
         updatedAt: quotation.updatedAt,
         items: safeItems,
         scopeOfWork: scopeOfWork.map(toSafeQuotationScopeOfWorkItem),
-        termsConditions: termsConditions.map(toSafeQuotationTermsConditionsItem)
+        termsConditions: termsConditions.map(toSafeQuotationTermsConditionsItem),
+        audit: {
+            createdBy: quotation.createdByName || quotation.createdBy || null,
+            createdAt: quotation.createdAt,
+            updatedBy: quotation.updatedByName || quotation.updatedBy || null,
+            updatedAt: quotation.updatedAt
+        }
     };
 };

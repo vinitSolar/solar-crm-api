@@ -24,6 +24,8 @@ export interface IQuotation {
     createdBy: string | null;
     updatedBy: string | null;
     deletedBy: string | null;
+    createdByName?: string | null;
+    updatedByName?: string | null;
 }
 
 export interface ISubsidyData {

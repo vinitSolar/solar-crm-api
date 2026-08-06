@@ -179,8 +179,13 @@ export class QuotationRepository {
 
     async findByUid(tenantUid: string, uid: string): Promise<IQuotation | null> {
         const query = `
-            SELECT * FROM quotations 
-            WHERE tenant_uid = $1 AND uid = $2 AND is_deleted = 0
+            SELECT q.*,
+                   COALESCE(TRIM(CONCAT(uc.first_name, ' ', uc.last_name)), q.created_by) AS creator_name,
+                   COALESCE(TRIM(CONCAT(uu.first_name, ' ', uu.last_name)), q.updated_by) AS updater_name
+            FROM quotations q
+            LEFT JOIN users uc ON q.created_by = uc.uid
+            LEFT JOIN users uu ON q.updated_by = uu.uid
+            WHERE q.tenant_uid = $1 AND q.uid = $2 AND q.is_deleted = 0
         `;
         const result = await this.pool.query(query, [tenantUid, uid]);
         return result.rows.length > 0 ? this.mapQuotationToCamelCase(result.rows[0]) : null;
@@ -365,32 +370,37 @@ export class QuotationRepository {
         const values: any[] = [tenantUid];
         let paramIndex = 2;
 
-        let whereClause = "WHERE tenant_uid = $1";
+        let whereClause = "WHERE q.tenant_uid = $1";
 
         if (status !== "all") {
-            whereClause += ` AND is_deleted = ${status === "deleted" ? 1 : 0}`;
+            whereClause += ` AND q.is_deleted = ${status === "deleted" ? 1 : 0}`;
             if (status === "active") {
-                whereClause += ` AND is_active = 1`;
+                whereClause += ` AND q.is_active = 1`;
             }
         }
 
         if (search) {
-            whereClause += ` AND (LOWER(quotation_number) LIKE $${paramIndex} OR LOWER(notes) LIKE $${paramIndex})`;
+            whereClause += ` AND (LOWER(q.quotation_number) LIKE $${paramIndex} OR LOWER(q.notes) LIKE $${paramIndex})`;
             values.push(`%${search.toLowerCase()}%`);
             paramIndex++;
         }
 
         if (leadUid) {
-            whereClause += ` AND lead_uid = $${paramIndex}`;
+            whereClause += ` AND q.lead_uid = $${paramIndex}`;
             values.push(leadUid);
             paramIndex++;
         }
 
-        const countQuery = `SELECT COUNT(*) as total FROM quotations ${whereClause}`;
+        const countQuery = `SELECT COUNT(*) as total FROM quotations q ${whereClause}`;
         const dataQuery = `
-            SELECT * FROM quotations 
+            SELECT q.*,
+                   COALESCE(TRIM(CONCAT(uc.first_name, ' ', uc.last_name)), q.created_by) AS creator_name,
+                   COALESCE(TRIM(CONCAT(uu.first_name, ' ', uu.last_name)), q.updated_by) AS updater_name
+            FROM quotations q
+            LEFT JOIN users uc ON q.created_by = uc.uid
+            LEFT JOIN users uu ON q.updated_by = uu.uid
             ${whereClause} 
-            ORDER BY created_at DESC 
+            ORDER BY q.created_at DESC 
             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
         `;
 
@@ -631,7 +641,9 @@ export class QuotationRepository {
             deletedAt: row.deleted_at,
             createdBy: row.created_by,
             updatedBy: row.updated_by,
-            deletedBy: row.deleted_by
+            deletedBy: row.deleted_by,
+            createdByName: row.creator_name || null,
+            updatedByName: row.updater_name || null
         };
     }
 

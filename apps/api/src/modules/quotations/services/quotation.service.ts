@@ -185,7 +185,23 @@ export class QuotationService {
                 ...(data.extraScopeOfWork?.map(s => ({ ...s, isExtra: true })) || [])
             ];
 
-            if (allScopeOfWork.length > 0) {
+            const shouldLoadDefaults = 
+                data.scopeOfWork === undefined && 
+                data.extraScopeOfWork === undefined && 
+                data.termsConditions === undefined;
+
+            if (shouldLoadDefaults) {
+                const defaultSows = await this.scopeOfWorkRepo.findAllActive(tenantUid);
+                const defaultSowInsertPromises = defaultSows.map(defaultSow => 
+                    this.repository.createScopeOfWorkItem(client, quotation.uid, {
+                        scopeOfWorkUid: defaultSow.uid,
+                        title: defaultSow.title,
+                        value: defaultSow.value,
+                        sortOrder: defaultSow.sortOrder
+                    }, createdBy)
+                );
+                createdSows.push(...(await Promise.all(defaultSowInsertPromises)));
+            } else if (allScopeOfWork.length > 0) {
                 const sowUids = allScopeOfWork.map(s => s.scopeOfWorkUid).filter((uid): uid is string => Boolean(uid));
                 const uniqueSowUids = Array.from(new Set(sowUids));
                 const dbSows = await this.scopeOfWorkRepo.findByUids(tenantUid, uniqueSowUids);
@@ -214,31 +230,11 @@ export class QuotationService {
                     }, createdBy);
                 });
                 createdSows.push(...(await Promise.all(sowInsertPromises)));
-            } else {
-                const defaultSows = await this.scopeOfWorkRepo.findAllActive(tenantUid);
-                const defaultSowInsertPromises = defaultSows.map(defaultSow => 
-                    this.repository.createScopeOfWorkItem(client, quotation.uid, {
-                        scopeOfWorkUid: defaultSow.uid,
-                        title: defaultSow.title,
-                        value: defaultSow.value,
-                        sortOrder: defaultSow.sortOrder
-                    }, createdBy)
-                );
-                createdSows.push(...(await Promise.all(defaultSowInsertPromises)));
             }
 
             // 6. Resolve and save terms and conditions snapshot
             const createdTcs: IQuotationTermsConditionsItem[] = [];
-            if (data.termsConditions && data.termsConditions.length > 0) {
-                const tcInsertPromises = data.termsConditions.map((tcInput, i) => 
-                    this.repository.createTermsConditionsItem(client, quotation.uid, {
-                        title: tcInput.title,
-                        description: tcInput.description,
-                        sortOrder: tcInput.sortOrder ?? (i + 1)
-                    }, createdBy)
-                );
-                createdTcs.push(...(await Promise.all(tcInsertPromises)));
-            } else {
+            if (shouldLoadDefaults) {
                 const defaultTcs = await this.termsConditionRepo.findAllActive(tenantUid);
                 const defaultTcInsertPromises = defaultTcs.map(defaultTc => 
                     this.repository.createTermsConditionsItem(client, quotation.uid, {
@@ -248,6 +244,15 @@ export class QuotationService {
                     }, createdBy)
                 );
                 createdTcs.push(...(await Promise.all(defaultTcInsertPromises)));
+            } else if (data.termsConditions && data.termsConditions.length > 0) {
+                const tcInsertPromises = data.termsConditions.map((tcInput, i) => 
+                    this.repository.createTermsConditionsItem(client, quotation.uid, {
+                        title: tcInput.title,
+                        description: tcInput.description,
+                        sortOrder: tcInput.sortOrder ?? (i + 1)
+                    }, createdBy)
+                );
+                createdTcs.push(...(await Promise.all(tcInsertPromises)));
             }
 
             await client.query("COMMIT");

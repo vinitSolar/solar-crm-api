@@ -2668,17 +2668,17 @@ COMMENT ON COLUMN master_document_types.is_common_for_all_modules IS '0 = No, 1 
 
 WITH new_docs AS (
     SELECT * FROM (VALUES 
-        ('Electricity Bill', 2, 'Latest electricity bill from DISCOM', 'pdf,jpg,jpeg,png', 1, 1, '{"site_survey"}', 1, 1),
-        ('Aadhaar Card', 1, 'Government issued Aadhaar identity card', 'pdf,jpg,jpeg,png', 0, 1, '{"site_survey","project","franchise","subsidy_tracker"}', 2, 1),
-        ('PAN Card', 1, 'Permanent Account Number card', 'pdf,jpg,jpeg,png', 0, 1, '{"site_survey","project","franchise"}', 3, 1),
+        ('Electricity Bill', 2, 'Latest electricity bill from DISCOM', 'pdf,jpg,jpeg,png', 1, 1, '{"site_survey","discom"}', 1, 1),
+        ('Aadhaar Card', 1, 'Government issued Aadhaar identity card', 'pdf,jpg,jpeg,png', 0, 1, '{"site_survey","project","subsidy_tracker","finance","discom"}', 2, 1),
+        ('PAN Card', 1, 'Permanent Account Number card', 'pdf,jpg,jpeg,png', 0, 1, '{"site_survey","project","finance","discom"}', 3, 1),
         ('Site Photo', 5, 'Photos of the installation site', 'jpg,jpeg,png,webp', 1, 1, '{"site_survey"}', 4, 1),
         ('Layout Drawing', 4, 'Layout Drawing of the site', 'pdf,dwg,dxf,jpg,png', 1, 0, '{"site_survey","project"}', 5, 1),
         ('Datasheet', 4, 'Technical specification datasheet for the product', 'pdf,doc,docx', 0, 1, '{"product"}', 6, 1),
         ('Warranty Certificate', 4, 'Warranty terms and guidelines', 'pdf,jpg,jpeg,png', 0, 0, '{"product"}', 7, 1),
         ('Installation Manual', 4, 'Guide for installing and configuring the product', 'pdf', 0, 0, '{"product"}', 8, 1),
-        ('GST Certificate', 3, 'GST registration certificate', 'pdf,jpg,jpeg,png', 0, 1, '{"franchise"}', 9, 1),
-        ('Bank Cancelled Cheque', 3, 'Cancelled cheque for bank verification', 'pdf,jpg,jpeg,png', 0, 1, '{"franchise"}', 10, 1),
-        ('Partnership Deed / COI', 3, 'Company/firm registration certificate or Partnership Deed', 'pdf,jpg,jpeg,png', 0, 0, '{"franchise"}', 11, 1)
+        ('GST Certificate', 3, 'GST registration certificate', 'pdf,jpg,jpeg,png', 0, 1, '{"finance"}', 9, 1),
+        ('Bank Cancelled Cheque', 3, 'Cancelled cheque for bank verification', 'pdf,jpg,jpeg,png', 0, 1, '{"finance"}', 10, 1),
+        ('Partnership Deed / COI', 3, 'Company/firm registration certificate or Partnership Deed', 'pdf,jpg,jpeg,png', 0, 0, '{"finance"}', 11, 1)
     ) AS v(name, category, description, allowed_extensions, allow_multiple, is_required, applicable_modules, sort_order, is_common_for_all_modules)
 ),
 updated AS (
@@ -2724,3 +2724,49 @@ WHERE is_system = 1
 
 
 
+-- ============================================================
+-- Payments Module
+-- ============================================================
+CREATE TABLE payments (
+  id BIGSERIAL,
+  uid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+  tenant_uid UUID NOT NULL,
+  lead_uid UUID NOT NULL,
+  amount NUMERIC(15, 2) NOT NULL,
+  payment_method SMALLINT NOT NULL, -- 0=Cash, 1=Bank Transfer, 2=UPI, 3=Cheque, 4=Card, 5=Online, 6=Other
+  transaction_reference VARCHAR(255),
+  payment_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  status SMALLINT NOT NULL DEFAULT 0, -- 0=Pending, 1=Paid, 2=Failed, 3=Cancelled, 4=Refunded
+  notes TEXT,
+  
+  -- Base Fields
+  is_active SMALLINT DEFAULT 1,
+  is_deleted SMALLINT DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  created_by UUID,
+  updated_by UUID,
+  deleted_by UUID,
+  
+  CONSTRAINT pk_payments PRIMARY KEY (id)
+);
+
+CREATE INDEX idx_payments_tenant_uid ON payments(tenant_uid);
+CREATE INDEX idx_payments_lead_uid ON payments(lead_uid);
+
+COMMENT ON TABLE payments IS 'Stores payment records against a Lead';
+
+-- Seed Payments Menus
+INSERT INTO menus (uid, name, code, route, icon, sort_order, parent_uid, is_active, created_at, updated_at)
+VALUES 
+  ('32345678-0000-0000-0000-000000000001', 'Payments', 'PAYMENTS', '/payments', 'credit-card', 11, NULL, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;
+
+-- Seed Payments Features
+INSERT INTO features (uid, menu_uid, name, code, is_active, created_at, updated_at)
+VALUES 
+  ('32345678-0000-0000-0000-000000000002', '32345678-0000-0000-0000-000000000001', 'Export', 'payment_export', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('32345678-0000-0000-0000-000000000003', '32345678-0000-0000-0000-000000000001', 'Change Status', 'payment_change_status', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('32345678-0000-0000-0000-000000000004', '32345678-0000-0000-0000-000000000001', 'Delete', 'payment_delete', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;

@@ -196,57 +196,6 @@ export class ProjectController {
         }
     };
 
-    addSubsidyDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-        try {
-            const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.tenantUid;
-            const userUid = authReq.user.uid;
-            const uid = req.params.uid as string;
-            const documentData = req.body;
-            const ipAddress = req.ip || "Unknown";
-            const userAgent = req.headers["user-agent"] || "Unknown";
-
-            if (!req.file) {
-                res.status(400).json({ success: false, message: "File is required" });
-                return;
-            }
-
-            const uploadDir = path.join(process.cwd(), "public", "uploads", "franchises", "projects", uid, "subsidy-docs");
-            await fs.promises.mkdir(uploadDir, { recursive: true });
-
-            const fileName = `${Date.now()}_${req.file.originalname}`;
-            const filePath = path.join(uploadDir, fileName);
-            await fs.promises.writeFile(filePath, req.file.buffer);
-
-            const fileUrl = `/uploads/franchises/projects/${uid}/subsidy-docs/${fileName}`;
-
-            const document = await this.service.addSubsidyDocument(
-                tenantUid,
-                uid,
-                {
-                    documentTypeUid: documentData.documentTypeUid,
-                    remarks: documentData.remarks,
-                    originalName: req.file.originalname,
-                    fileName: fileName,
-                    fileUrl: fileUrl,
-                    mimeType: req.file.mimetype,
-                    fileSize: req.file.size,
-                },
-                userUid,
-                ipAddress,
-                userAgent
-            );
-
-            res.status(201).json({
-                success: true,
-                message: "Subsidy document added successfully",
-                data: document,
-            });
-        } catch (error) {
-            next(error);
-        }
-    };
-
     // --- INSTALLATION MILESTONES ---
 
     getProjectMilestones = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -260,30 +209,6 @@ export class ProjectController {
                 success: true,
                 message: "Project milestones fetched successfully",
                 data: milestones,
-            });
-        } catch (error) {
-            next(error);
-        }
-    };
-
-    uploadMilestoneDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-        try {
-            const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.tenantUid;
-            const projectUid = req.params.projectUid as string;
-            const milestoneUid = req.params.milestoneUid as string;
-            const userUid = authReq.user.uid;
-
-            if (!req.file) {
-                res.status(400).json({ success: false, message: "File is required", errors: [] });
-                return;
-            }
-
-            const document = await this.service.uploadMilestoneDocument(tenantUid, projectUid, milestoneUid, req.file, userUid);
-            res.status(201).json({
-                success: true,
-                message: "Document uploaded successfully",
-                data: document,
             });
         } catch (error) {
             next(error);

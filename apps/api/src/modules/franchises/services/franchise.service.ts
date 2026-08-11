@@ -15,8 +15,9 @@ import { FRANCHISE_MESSAGES } from "../constants/franchise.constants.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { logger } from "@packages/logger/index.js";
 import type { FranchiseOnboardingService } from "./franchise-onboarding.service.js";
-import type { FranchiseDocumentTypeRepository } from "../../franchise-document-types/repositories/franchise-document-type.repository.js";
 import { storageService as storageServiceInstance } from "@packages/storage/index.js";
+
+import { FranchiseDocumentTypeRepository } from "../repositories/franchise-document-type.repository.js";
 
 /**
  * Franchise Service.
@@ -27,22 +28,21 @@ import { storageService as storageServiceInstance } from "@packages/storage/inde
 export class FranchiseService {
     private readonly franchiseRepository: FranchiseRepository;
     private readonly franchiseOnboardingService: FranchiseOnboardingService;
-    private readonly documentTypeRepo: FranchiseDocumentTypeRepository;
     private readonly storageService: typeof storageServiceInstance;
     private readonly pool: Pool;
+    private readonly franchiseDocumentTypeRepository: FranchiseDocumentTypeRepository;
 
     constructor(
         franchiseRepository: FranchiseRepository,
         franchiseOnboardingService: FranchiseOnboardingService,
-        documentTypeRepo: FranchiseDocumentTypeRepository,
         storageService: typeof storageServiceInstance,
         pool: Pool
     ) {
         this.franchiseRepository = franchiseRepository;
         this.franchiseOnboardingService = franchiseOnboardingService;
-        this.documentTypeRepo = documentTypeRepo;
         this.storageService = storageService;
         this.pool = pool;
+        this.franchiseDocumentTypeRepository = new FranchiseDocumentTypeRepository();
     }
 
     async updateLogo(uid: string, logoUrl: string, updatedBy: string): Promise<string> {
@@ -331,68 +331,106 @@ export class FranchiseService {
             client.release();
         }
     }
-    async addDocument(uid: string, documentTypeUid: string, documentNumber: string | undefined, file: Express.Multer.File, updatedBy: string) {
-        logger.info("FranchiseService.addDocument", { uid, documentTypeUid });
 
-        const existingTenant = await this.franchiseRepository.getFranchiseByUid(uid);
-        if (!existingTenant) {
-            throw new CustomError(FRANCHISE_MESSAGES.NOT_FOUND, 404);
+    // ─── Documents ──────────────────────────────────────────────────
+
+    async getDocumentTypes(tenantUid: string) {
+        logger.info("FranchiseService.getDocumentTypes", { tenantUid });
+        return this.franchiseDocumentTypeRepository.getActiveTypesByTenant(tenantUid);
+    }
+
+    async getDocuments(tenantUid: string) {
+        logger.info("FranchiseService.getDocuments", { tenantUid });
+        const rawDocs = await this.franchiseRepository.getDocumentsByTenantUid(tenantUid);
+        return rawDocs.map(doc => {
+            const safeDoc = toFranchiseDocumentSafe(doc);
+            safeDoc.documentTypeName = doc.documentTypeName || "";
+            return safeDoc;
+        });
+    }
+
+    async uploadDocument(
+        tenantUid: string,
+        documentTypeUid: string,
+        file: Express.Multer.File,
+        documentNumber: string | undefined,
+        createdBy: string
+    ) {
+        logger.info("FranchiseService.uploadDocument", { tenantUid, documentTypeUid });
+
+        const docType = await this.franchiseDocumentTypeRepository.getByUid(documentTypeUid);
+        if (!docType) {
+            throw new CustomError("Document type not found", 404);
         }
 
         const client = await this.pool.connect();
         try {
             await client.query("BEGIN");
 
-            const docType = await this.documentTypeRepo.getByUid(uid, documentTypeUid, client);
-            if (!docType) {
-                throw new CustomError("Invalid Document Type", 400);
-            }
+            // Upload to storage
+            const folderPath = `franchises/${tenantUid}/documents`;
+            const fileUrl = await this.storageService.uploadFile(file.buffer, file.originalname, file.mimetype, folderPath);
 
-            // If allow_multiple = 0, replace existing
-            if (docType.allowMultiple === 0) {
-                const existingDocs = await this.franchiseRepository.getDocumentsByTenantAndType(client, uid, documentTypeUid);
-                const existingUids = existingDocs.map(d => d.uid);
-                if (existingUids.length > 0) {
-                    await this.franchiseRepository.softDeleteDocuments(client, uid, existingUids, updatedBy);
-                }
-            }
-
-            const folder = `franchises/${uid}/documents`;
-            const { url: fileUrl, path: storedFileName } = await this.storageService.uploadFileWithPath(
-                file.buffer,
-                file.originalname,
-                file.mimetype,
-                folder
-            );
-
-            const docData: any = {
+            const payload: {
+                documentNumber?: string;
+                originalFileName: string;
+                storedFileName: string;
+                filePath: string;
+                mimeType: string;
+                fileSize: number;
+            } = {
                 originalFileName: file.originalname,
-                storedFileName,
+                storedFileName: fileUrl,
                 filePath: fileUrl,
                 mimeType: file.mimetype,
-                fileSize: file.size,
+                fileSize: file.size
             };
-            if (documentNumber) docData.documentNumber = documentNumber;
+            if (documentNumber !== undefined) {
+                payload.documentNumber = documentNumber;
+            }
 
-            const document = await this.franchiseRepository.createDocument(
+            // Create db record
+            const doc = await this.franchiseRepository.createDocument(
                 client,
-                uid,
+                tenantUid,
                 documentTypeUid,
-                docData,
-                updatedBy
+                payload,
+                createdBy
             );
-            
-            await client.query("COMMIT");
-            
-            const safeDoc = toFranchiseDocumentSafe(document);
-            safeDoc.documentTypeName = docType.name || "";
-            return safeDoc;
 
+            await client.query("COMMIT");
+            return toFranchiseDocumentSafe(doc);
         } catch (error) {
             await client.query("ROLLBACK");
-            logger.error("FranchiseService.addDocument failed", { error });
-            if (error instanceof CustomError) throw error;
-            throw new CustomError("Failed to add document", 500);
+            logger.error("FranchiseService.uploadDocument failed", { error });
+            throw new CustomError("Failed to upload franchise document", 500);
+        } finally {
+            client.release();
+        }
+    }
+
+    async deleteDocument(tenantUid: string, documentUid: string, deletedBy: string) {
+        logger.info("FranchiseService.deleteDocument", { tenantUid, documentUid });
+
+        const doc = await this.franchiseRepository.getDocumentByUid(tenantUid, documentUid);
+        if (!doc) {
+            throw new CustomError("Document not found", 404);
+        }
+
+        const client = await this.pool.connect();
+        try {
+            await client.query("BEGIN");
+            
+            // Note: In a real scenario, you might also delete the file from storage
+            // await this.storageService.deleteFile(doc.filePath);
+
+            await this.franchiseRepository.softDeleteDocuments(client, tenantUid, [documentUid], deletedBy);
+
+            await client.query("COMMIT");
+        } catch (error) {
+            await client.query("ROLLBACK");
+            logger.error("FranchiseService.deleteDocument failed", { error });
+            throw new CustomError("Failed to delete franchise document", 500);
         } finally {
             client.release();
         }

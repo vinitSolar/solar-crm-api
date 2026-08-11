@@ -10,6 +10,7 @@
 
 // Routes
 export { franchiseRoutes } from "./routes/franchise.routes.js";
+export { franchiseDocumentTypeRoutes } from "./routes/franchise-document-type.routes.js";
 
 // Interfaces
 export type {

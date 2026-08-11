@@ -5,19 +5,16 @@ import type { RoleRepository } from "../../roles/repositories/role.repository.js
 import type { UserRepository } from "../../users/repositories/user.repository.js";
 import type { LeadSourceRepository } from "../../leads/repositories/lead-source.repository.js";
 import type { LeadStatusRepository } from "../../leads/repositories/lead-status.repository.js";
-import type { SurveyDocumentTypeRepository } from "../../survey-documents/repositories/survey-document-type.repository.js";
-import type { MenuRepository } from "../../menus/repositories/menu.repository.js";
-import type { RolePermissionRepository } from "../../role-permissions/repositories/role-permission.repository.js";
-import { SurveyDocumentTypeService } from "../../survey-documents/services/survey-document-type.service.js";
-import { ProductDocumentTypeService } from "../../product-document-types/services/product-document-type.service.js";
-import type { ProductDocumentTypeRepository } from "../../product-document-types/repositories/product-document-type.repository.js";
-import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
-import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
-import { FranchiseDocumentTypeService } from "../../franchise-document-types/services/franchise-document-type.service.js";
-import type { FranchiseDocumentTypeRepository } from "../../franchise-document-types/repositories/franchise-document-type.repository.js";
+import { MasterDocumentTypeService } from "../../master-documents/services/master-document-type.service.js";
+import type { MasterDocumentTypeRepository } from "../../master-documents/repositories/master-document-type.repository.js";
 import { ProjectStatusRepository } from "../../projects/repositories/project-status.repository.js";
 import type { IFranchiseOwnerDetails } from "../interfaces/franchise.interface.js";
 import { logger } from "@packages/logger/index.js";
+import type { MenuRepository } from "../../menus/repositories/menu.repository.js";
+import type { RolePermissionRepository } from "../../role-permissions/repositories/role-permission.repository.js";
+import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
+import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
+import { FranchiseDocumentTypeRepository } from "../repositories/franchise-document-type.repository.js";
 
 const SALT_ROUNDS = 10;
 
@@ -26,38 +23,34 @@ export class FranchiseOnboardingService {
     private readonly userRepository: UserRepository;
     private readonly leadSourceRepository: LeadSourceRepository;
     private readonly leadStatusRepository: LeadStatusRepository;
-    private readonly surveyDocumentTypeService: SurveyDocumentTypeService;
-    private readonly productDocumentTypeService: ProductDocumentTypeService;
     private readonly menuRepository: MenuRepository;
     private readonly rolePermissionRepository: RolePermissionRepository;
     private readonly quotationTermsConditionRepository: QuotationTermsConditionRepository;
     private readonly quotationScopeOfWorkRepository: QuotationScopeOfWorkRepository;
-    private readonly franchiseDocumentTypeService: FranchiseDocumentTypeService;
+    private readonly masterDocumentTypeService: MasterDocumentTypeService;
     private readonly projectStatusRepository: ProjectStatusRepository;
+    private readonly franchiseDocumentTypeRepository: FranchiseDocumentTypeRepository;
 
     constructor(
         roleRepository: RoleRepository, 
         userRepository: UserRepository,
         leadSourceRepository: LeadSourceRepository,
         leadStatusRepository: LeadStatusRepository,
-        surveyDocumentTypeRepository: SurveyDocumentTypeRepository,
-        productDocumentTypeRepository: ProductDocumentTypeRepository,
         menuRepository: MenuRepository,
         rolePermissionRepository: RolePermissionRepository,
-        franchiseDocumentTypeRepository: FranchiseDocumentTypeRepository
+        masterDocumentTypeRepository: MasterDocumentTypeRepository
     ) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.leadSourceRepository = leadSourceRepository;
         this.leadStatusRepository = leadStatusRepository;
-        this.surveyDocumentTypeService = new SurveyDocumentTypeService(surveyDocumentTypeRepository);
-        this.productDocumentTypeService = new ProductDocumentTypeService(productDocumentTypeRepository);
         this.menuRepository = menuRepository;
         this.rolePermissionRepository = rolePermissionRepository;
         this.quotationTermsConditionRepository = new QuotationTermsConditionRepository();
         this.quotationScopeOfWorkRepository = new QuotationScopeOfWorkRepository();
-        this.franchiseDocumentTypeService = new FranchiseDocumentTypeService(franchiseDocumentTypeRepository);
+        this.masterDocumentTypeService = new MasterDocumentTypeService(masterDocumentTypeRepository);
         this.projectStatusRepository = new ProjectStatusRepository(pool);
+        this.franchiseDocumentTypeRepository = new FranchiseDocumentTypeRepository();
     }
 
     /**
@@ -151,7 +144,7 @@ export class FranchiseOnboardingService {
             // 4.5 Assign all menu permissions to Admin Role
             const allMenus = await this.menuRepository.findAll("active");
             if (allMenus.length > 0) {
-                const adminPermissions = allMenus.map((menu) => ({
+                const adminPermissions = allMenus.map((menu: any) => ({
                     menuUid: menu.uid,
                     canView: 1,
                     canCreate: 1,
@@ -206,13 +199,35 @@ export class FranchiseOnboardingService {
             }
             logger.info("Successfully created default project statuses for franchise", { tenantUid });
 
-            // 7. Create Default Survey Document Types
-            await this.surveyDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
-            logger.info("Successfully created default survey document types for franchise", { tenantUid });
+            // 7. Create Default Master Document Types (covers survey, product, franchise, etc.)
+            await this.masterDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
+            logger.info("Successfully created default master document types for franchise", { tenantUid });
 
-            // 7.1 Create Default Product Document Types
-            await this.productDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
-            logger.info("Successfully created default product document types for franchise", { tenantUid });
+            // 7.5 Create Default Franchise Document Types
+            const defaultFranchiseDocs = [
+                { name: "GST Certificate", description: "Business GST Registration", isRequired: 1 },
+                { name: "PAN Card", description: "Business PAN Card", isRequired: 1 },
+                { name: "Aadhaar Card", description: "Owner Aadhaar Card", isRequired: 1 },
+                { name: "Bank Cancelled Cheque", description: "Cancelled cheque for account verification", isRequired: 1 },
+                { name: "Partnership Deed / COI", description: "Certificate of Incorporation or Partnership Deed", isRequired: 0 },
+            ];
+
+            for (let i = 0; i < defaultFranchiseDocs.length; i++) {
+                const doc = defaultFranchiseDocs[i];
+                if (!doc) continue;
+                await this.franchiseDocumentTypeRepository.upsert(
+                    tenantUid,
+                    {
+                        name: doc.name,
+                        description: doc.description,
+                        isRequired: doc.isRequired,
+                        sortOrder: i + 1,
+                        allowMultiple: 0,
+                    },
+                    createdBy
+                );
+            }
+            logger.info("Successfully created default franchise document types", { tenantUid });
 
             // 8. Create Default Quotation Terms & Conditions
             const defaultTerms = [
@@ -270,9 +285,7 @@ export class FranchiseOnboardingService {
             }
             logger.info("Successfully created default quotation scope of work for franchise", { tenantUid });
 
-            // 10. Create Default Franchise Document Types
-            await this.franchiseDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
-            logger.info("Successfully created default franchise document types for franchise", { tenantUid });
+
 
             return { adminPassword: plainPassword, adminEmail: email };
 

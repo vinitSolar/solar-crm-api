@@ -265,17 +265,6 @@ router.get("/:uid", controller.getProductByUid);
  *                 items:
  *                   type: string
  *                   format: binary
- *               files:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
- *                 description: Array of product document files
- *               documentTypeUids:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: JSON stringified array or multiple field entries of product document type UIDs matching files array in the exact same order
  *     responses:
  *       201:
  *         description: Product created successfully
@@ -358,23 +347,9 @@ router.post("/", upload.any(), validateProductRequest(createProductSchema), cont
  *                 items:
  *                   type: string
  *                   format: binary
- *               files:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
- *                 description: Array of new product document files to upload
- *               documentTypeUids:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: JSON stringified array or multiple field entries of product document type UIDs matching new files in the exact same order
  *               isActive:
  *                 type: integer
  *                 enum: [0, 1]
- *               deleteDocumentUids:
- *                 type: string
- *                 description: JSON stringified array of document UIDs to soft delete (e.g. '["uid1", "uid2"]')
  *     responses:
  *       200:
  *         description: Product updated successfully

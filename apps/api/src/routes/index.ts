@@ -24,6 +24,7 @@ import { projectRoutes, projectStatusRoutes } from "../modules/projects/index.js
 import { subsidyTrackerRoutes } from "../modules/subsidy-trackers/index.js";
 import { packageRoutes } from "../modules/packages/index.js";
 import { masterDocumentRoutes, masterDocumentTypeRoutes } from "../modules/master-documents/index.js";
+import { paymentRoutes } from "../modules/payments/index.js";
 
 const apiRouter = Router();
 
@@ -57,5 +58,6 @@ apiRouter.use("/project-statuses", projectStatusRoutes);
 apiRouter.use("/projects", projectRoutes);
 apiRouter.use("/master-documents", masterDocumentRoutes);
 apiRouter.use("/master-document-types", masterDocumentTypeRoutes);
+apiRouter.use("/payments", paymentRoutes);
 
 export default apiRouter;

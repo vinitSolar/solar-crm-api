@@ -13,7 +13,6 @@ import {
     getPaginatedFranchisesSchema,
     getAllFranchisesSchema,
     validateFranchiseRequest,
-    addFranchiseDocumentSchema,
 } from "../validators/franchise.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import type { IAuthenticatedRequest } from "../../auth/interfaces/auth.interface.js";
@@ -23,12 +22,12 @@ import { UserRepository } from "../../users/repositories/user.repository.js";
 import { LeadSourceRepository } from "../../leads/repositories/lead-source.repository.js";
 import { LeadStatusRepository } from "../../leads/repositories/lead-status.repository.js";
 import { FranchiseOnboardingService } from "../services/franchise-onboarding.service.js";
-import { SurveyDocumentTypeRepository } from "../../survey-documents/repositories/survey-document-type.repository.js";
-import { ProductDocumentTypeRepository } from "../../product-document-types/repositories/product-document-type.repository.js";
+import { MasterDocumentTypeRepository } from "../../master-documents/repositories/master-document-type.repository.js";
 import { MenuRepository } from "../../menus/repositories/menu.repository.js";
 import { RolePermissionRepository } from "../../role-permissions/repositories/role-permission.repository.js";
+import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
+import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import { storageService } from "@packages/storage/index.js";
-import { FranchiseDocumentTypeRepository } from "../../franchise-document-types/repositories/franchise-document-type.repository.js";
 
 function createFranchiseRouter(): Router {
     const router = Router();
@@ -44,27 +43,22 @@ function createFranchiseRouter(): Router {
     const userRepository = new UserRepository(pool);
     const leadSourceRepository = new LeadSourceRepository(pool);
     const leadStatusRepository = new LeadStatusRepository(pool);
-    const surveyDocumentTypeRepository = new SurveyDocumentTypeRepository(pool);
-    const productDocumentTypeRepository = new ProductDocumentTypeRepository(pool);
     const menuRepository = new MenuRepository(pool);
     const rolePermissionRepository = new RolePermissionRepository(pool);
-    const franchiseDocumentTypeRepository = new FranchiseDocumentTypeRepository(pool);
+    const masterDocumentTypeRepository = new MasterDocumentTypeRepository(pool);
     
     const franchiseOnboardingService = new FranchiseOnboardingService(
         roleRepository, 
         userRepository,
         leadSourceRepository,
         leadStatusRepository,
-        surveyDocumentTypeRepository,
-        productDocumentTypeRepository,
         menuRepository,
         rolePermissionRepository,
-        franchiseDocumentTypeRepository
+        masterDocumentTypeRepository
     );
     const franchiseService = new FranchiseService(
         franchiseRepository, 
         franchiseOnboardingService, 
-        franchiseDocumentTypeRepository,
         storageService,
         pool
     );
@@ -476,55 +470,69 @@ function createFranchiseRouter(): Router {
         franchiseController.uploadLogo,
     );
 
+    // ─── Documents ──────────────────────────────────────────────────
+
+    /**
+     * @swagger
+     * /franchises/{uid}/document-types:
+     *   get:
+     *     tags: [Franchises]
+     *     summary: Get document types for a franchise
+     *     security:
+     *       - bearerAuth: []
+     */
+    router.get(
+        "/:uid/document-types",
+        authenticate,
+        franchiseController.getDocumentTypes,
+    );
+
+    /**
+     * @swagger
+     * /franchises/{uid}/documents:
+     *   get:
+     *     tags: [Franchises]
+     *     summary: Get all documents for a franchise
+     *     security:
+     *       - bearerAuth: []
+     */
+    router.get(
+        "/:uid/documents",
+        authenticate,
+        franchiseController.getDocuments,
+    );
+
     /**
      * @swagger
      * /franchises/{uid}/documents:
      *   post:
      *     tags: [Franchises]
-     *     summary: Add a document to a franchise
-     *     description: Uploads a document file and associates it with a specific document type for the franchise.
+     *     summary: Upload a document for a franchise
      *     security:
      *       - bearerAuth: []
-     *     parameters:
-     *       - in: path
-     *         name: uid
-     *         required: true
-     *         schema:
-     *           type: string
-     *           format: uuid
-     *         description: The franchise UID
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         multipart/form-data:
-     *           schema:
-     *             type: object
-     *             properties:
-     *               documentTypeUid:
-     *                 type: string
-     *                 format: uuid
-     *                 description: The UID of the franchise document type
-     *               documentNumber:
-     *                 type: string
-     *                 description: Optional document number (e.g., PAN number, GST number)
-     *               documentFile:
-     *                 type: string
-     *                 format: binary
-     *                 description: The document file to upload
-     *     responses:
-     *       200:
-     *         description: Document added successfully
-     *       400:
-     *         description: Validation error or missing file
-     *       404:
-     *         description: Franchise or document type not found
      */
     router.post(
         "/:uid/documents",
-        upload.single("documentFile"),
-        validateFranchiseRequest(addFranchiseDocumentSchema),
-        franchiseController.addDocument,
+        authenticate,
+        upload.single("file"),
+        franchiseController.uploadDocument,
     );
+
+    /**
+     * @swagger
+     * /franchises/{uid}/documents/{documentUid}:
+     *   delete:
+     *     tags: [Franchises]
+     *     summary: Delete a franchise document
+     *     security:
+     *       - bearerAuth: []
+     */
+    router.delete(
+        "/:uid/documents/:documentUid",
+        authenticate,
+        franchiseController.deleteDocument,
+    );
+
 
     /**
      * @swagger

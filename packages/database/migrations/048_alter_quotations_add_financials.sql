@@ -1,7 +1,0 @@
-ALTER TABLE quotations 
-DROP COLUMN IF EXISTS price,
-ADD COLUMN subtotal NUMERIC(15, 2) DEFAULT 0,
-ADD COLUMN gst_amount NUMERIC(15, 2) DEFAULT 0,
-ADD COLUMN grand_total NUMERIC(15, 2) DEFAULT 0,
-ADD COLUMN subsidy_data JSONB DEFAULT '[]'::jsonb,
-ADD COLUMN net_customer_cost NUMERIC(15, 2) DEFAULT 0;

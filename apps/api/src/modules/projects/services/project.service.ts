@@ -3,9 +3,7 @@ import type { ProjectStatusRepository } from "../repositories/project-status.rep
 import type { QuotationRepository } from "../../quotations/repositories/quotation.repository.js";
 import type { StateSubsidyRuleRepository } from "../../state-subsidy-rules/repositories/state-subsidy-rule.repository.js";
 import type { SubsidyRequiredDocumentRepository, ICombinedRequiredDocumentDetail } from "../../state-subsidy-rules/repositories/subsidy-required-document.repository.js";
-import type { ProjectSubsidyDocumentRepository, IProjectSubsidyDocument } from "../repositories/project-subsidy-document.repository.js";
 import type { ProjectInstallationMilestoneRepository } from "../repositories/project-installation-milestone.repository.js";
-import type { ProjectInstallationMilestoneDocumentRepository } from "../repositories/project-milestone-document.repository.js";
 import type { LeadRepository } from "../../leads/repositories/lead.repository.js";
 import type { SubsidyTrackerRepository } from "../../subsidy-trackers/repositories/subsidy-tracker.repository.js";
 import type { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
@@ -21,9 +19,7 @@ export class ProjectService {
     private readonly statusRepository: ProjectStatusRepository;
     private readonly subsidyRuleRepository: StateSubsidyRuleRepository;
     private readonly requiredDocRepository: SubsidyRequiredDocumentRepository;
-    private readonly subsidyDocumentRepository: ProjectSubsidyDocumentRepository;
     private readonly milestoneRepository: ProjectInstallationMilestoneRepository;
-    private readonly milestoneDocumentRepository: ProjectInstallationMilestoneDocumentRepository;
     private readonly quotationRepository: QuotationRepository;
     private readonly leadRepository: LeadRepository;
     private readonly subsidyTrackerRepository: SubsidyTrackerRepository;
@@ -32,9 +28,7 @@ export class ProjectService {
     constructor(
         repository: ProjectRepository,
         statusRepository: ProjectStatusRepository,
-        subsidyDocumentRepository: ProjectSubsidyDocumentRepository,
         milestoneRepository: ProjectInstallationMilestoneRepository,
-        milestoneDocumentRepository: ProjectInstallationMilestoneDocumentRepository,
         quotationRepository: QuotationRepository,
         subsidyRuleRepository: StateSubsidyRuleRepository,
         requiredDocRepository: SubsidyRequiredDocumentRepository,
@@ -44,9 +38,7 @@ export class ProjectService {
     ) {
         this.repository = repository;
         this.statusRepository = statusRepository;
-        this.subsidyDocumentRepository = subsidyDocumentRepository;
         this.milestoneRepository = milestoneRepository;
-        this.milestoneDocumentRepository = milestoneDocumentRepository;
         this.quotationRepository = quotationRepository;
         this.subsidyRuleRepository = subsidyRuleRepository;
         this.requiredDocRepository = requiredDocRepository;
@@ -180,17 +172,16 @@ export class ProjectService {
         }
 
         const requiredDocs = await this.requiredDocRepository.getCombinedRequiredDocuments(targetSubsidyUids);
-        const uploadedDocs = await this.subsidyDocumentRepository.getByProjectUid(uid, tenantUid);
 
         return requiredDocs.map(doc => {
-            const uploaded = uploadedDocs.find(u => u.documentTypeUid === doc.documentTypeUid);
             return {
                 ...doc,
-                isUploaded: !!uploaded,
-                fileUrl: uploaded ? uploaded.fileUrl : null,
-                uploadedByUid: uploaded?.createdBy || null,
-                uploadedByName: uploaded?.createdByName || null,
-                uploadedAt: uploaded?.createdAt || null
+                isUploaded: false,
+                fileUrl: null,
+                uploadedByUid: null,
+                uploadedByName: null,
+                uploadedAt: null,
+                uploadedDocuments: []
             };
         });
     }
@@ -375,49 +366,6 @@ export class ProjectService {
         });
     }
 
-    async addSubsidyDocument(
-        tenantUid: string,
-        projectUid: string,
-        data: {
-            documentTypeUid: string;
-            originalName: string;
-            fileName: string;
-            fileUrl: string;
-            mimeType: string;
-            fileSize: number;
-            remarks?: string;
-        },
-        createdBy: string,
-        ipAddress?: string,
-        userAgent?: string
-    ): Promise<IProjectSubsidyDocument> {
-        // Verify project exists
-        const project = await this.repository.getByUid(tenantUid, projectUid);
-        if (!project) {
-            throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
-        }
-
-        const document = await this.subsidyDocumentRepository.create({
-            tenantUid,
-            projectUid,
-            ...data,
-            createdBy,
-        });
-
-        await this.auditLogService.log({
-            tenantUid,
-            module: "ProjectSubsidyDocument",
-            recordUid: document.uid,
-            action: AUDIT_LOG_ACTIONS.CREATE,
-            message: `Uploaded subsidy document for project ${project.projectNumber}.`,
-            ipAddress,
-            userAgent,
-            createdBy,
-        });
-
-        return document;
-    }
-
     // --- INSTALLATION MILESTONES ---
 
     async getProjectMilestones(tenantUid: string, projectUid: string) {
@@ -425,64 +373,13 @@ export class ProjectService {
         if (!project) throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
 
         const milestones = await this.milestoneRepository.getByProjectUid(tenantUid, projectUid);
-        // Map documents for each milestone
-        const enriched = await Promise.all(milestones.map(async m => {
-            const documents = await this.milestoneDocumentRepository.getDocumentsByMilestoneUid(tenantUid, m.uid);
-            return {
-                ...m,
-                documents
-            };
+        return milestones.map(m => ({
+            ...m,
+            documents: []
         }));
-        return enriched;
     }
 
-    async uploadMilestoneDocument(tenantUid: string, projectUid: string, milestoneUid: string, file: any, createdBy: string) {
-        const project = await this.repository.getByUid(tenantUid, projectUid);
-        if (!project) throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
 
-        const milestone = await this.milestoneRepository.getByUid(tenantUid, milestoneUid);
-        if (!milestone || milestone.projectUid !== projectUid) {
-            throw new CustomError("Milestone not found for this project", 404);
-        }
-
-        const templateRules = await this.milestoneRepository.getMilestoneTemplateRules(tenantUid, milestone.milestoneUid);
-        if (templateRules?.allowMultipleImages === 0) {
-            const count = await this.milestoneDocumentRepository.getCountByMilestoneUid(tenantUid, milestoneUid);
-            if (count > 0) {
-                throw new CustomError("Multiple images are not allowed for this milestone", 400);
-            }
-        }
-
-        const filePath = `public/uploads/milestones/${tenantUid}/${projectUid}/${Date.now()}_${file.originalname.replace(/\s+/g, "_")}`;
-        const imageUrl = `/${filePath}`;
-        
-        // Ensure directory exists
-        const fs = await import("fs");
-        const path = await import("path");
-        const dir = path.dirname(filePath);
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        
-        fs.writeFileSync(filePath, file.buffer);
-
-        const document = await this.milestoneDocumentRepository.addDocument(tenantUid, milestoneUid, {
-            imageName: file.originalname,
-            imagePath: filePath,
-            imageUrl: imageUrl,
-            mimeType: file.mimetype,
-            fileSize: file.size,
-        }, createdBy);
-
-        await this.auditLogService.log({
-            tenantUid,
-            module: "Project",
-            recordUid: projectUid,
-            action: AUDIT_LOG_ACTIONS.UPDATE,
-            message: `Document uploaded for milestone: ${milestone.title}`,
-            createdBy
-        });
-
-        return document;
-    }
 
     async updateMilestoneStatus(tenantUid: string, projectUid: string, milestoneUid: string, status: number, remarks: string | null, updatedBy: string) {
         const project = await this.repository.getByUid(tenantUid, projectUid);
@@ -493,16 +390,7 @@ export class ProjectService {
             throw new CustomError("Milestone not found for this project", 404);
         }
 
-        // If completing, check document requirement
-        if (status === 2) {
-            const templateRules = await this.milestoneRepository.getMilestoneTemplateRules(tenantUid, milestone.milestoneUid);
-            if (templateRules?.requiresDocument === 1) {
-                const count = await this.milestoneDocumentRepository.getCountByMilestoneUid(tenantUid, milestoneUid);
-                if (count === 0) {
-                    throw new CustomError("A document is required to complete this milestone", 400);
-                }
-            }
-        }
+        // If completing, we'll bypass the backend document check since documents are now handled by master-documents.
 
         // Update the milestone status
         await this.milestoneRepository.updateMilestoneStatus(tenantUid, milestoneUid, status, remarks, updatedBy);

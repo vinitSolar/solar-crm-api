@@ -1,10 +1,9 @@
 import type { StateSubsidyRuleRepository, IStateSubsidyRuleWithStateName } from "../repositories/state-subsidy-rule.repository.js";
 import type { SubsidyRequiredDocumentRepository, ICombinedRequiredDocumentDetail } from "../repositories/subsidy-required-document.repository.js";
-import type { SubsidyDocumentTypeRepository } from "../../subsidy-document-types/repositories/subsidy-document-type.repository.js";
+import type { MasterDocumentTypeRepository } from "../../master-documents/repositories/master-document-type.repository.js";
 import type { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import type { IStateSubsidyRule, IStateSubsidyRuleSafe, IStateSubsidyRuleDropdown } from "../interfaces/state-subsidy-rule.interface.js";
 import { STATE_SUBSIDY_RULE_MESSAGES } from "../constants/state-subsidy-rule.constants.js";
-import { SUBSIDY_DOCUMENT_TYPE_MESSAGES } from "../../subsidy-document-types/constants/subsidy-document-type.constants.js";
 import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constants.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { TENANT_TYPE } from "../../franchises/constants/franchise.constants.js";
@@ -32,13 +31,13 @@ export interface IUpdateSubsidyPayload {
 export class StateSubsidyRuleService {
     private readonly repository: StateSubsidyRuleRepository;
     private readonly requiredDocRepository: SubsidyRequiredDocumentRepository;
-    private readonly docTypeRepository: SubsidyDocumentTypeRepository;
+    private readonly docTypeRepository: MasterDocumentTypeRepository;
     private readonly auditLogService?: AuditLogService | undefined;
 
     constructor(
         repository: StateSubsidyRuleRepository,
         requiredDocRepository: SubsidyRequiredDocumentRepository,
-        docTypeRepository: SubsidyDocumentTypeRepository,
+        docTypeRepository: MasterDocumentTypeRepository,
         auditLogService?: AuditLogService | undefined
     ) {
         this.repository = repository;
@@ -80,19 +79,19 @@ export class StateSubsidyRuleService {
      */
     private async validateDocumentTypes(documentTypeUids: string[]): Promise<void> {
         if (!documentTypeUids || documentTypeUids.length === 0) {
-            throw new CustomError(SUBSIDY_DOCUMENT_TYPE_MESSAGES.AT_LEAST_ONE_DOCUMENT_REQUIRED, 400);
+            throw new CustomError("At least one document type is required", 400);
         }
 
         // Check for duplicate UIDs in array
         const uniqueUids = new Set(documentTypeUids);
         if (uniqueUids.size !== documentTypeUids.length) {
-            throw new CustomError(SUBSIDY_DOCUMENT_TYPE_MESSAGES.DUPLICATE_DOCUMENT_TYPES, 400);
+            throw new CustomError("Duplicate document types provided", 400);
         }
 
         // Query database to check if all UIDs exist and are active
         const foundDocTypes = await this.docTypeRepository.findByUids(Array.from(uniqueUids));
         if (foundDocTypes.length !== uniqueUids.size) {
-            throw new CustomError(SUBSIDY_DOCUMENT_TYPE_MESSAGES.INVALID_DOCUMENT_TYPES, 400);
+            throw new CustomError("Invalid document types provided", 400);
         }
     }
 

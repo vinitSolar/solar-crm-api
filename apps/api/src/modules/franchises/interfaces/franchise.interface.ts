@@ -95,6 +95,27 @@ export interface IFranchiseDocument {
 }
 
 /**
+ * Represents a franchise document type from the `franchise_document_types` table.
+ */
+export interface IFranchiseDocumentType {
+    id: number;
+    uid: string;
+    tenantUid: string;
+    name: string;
+    description: string | null;
+    allowMultiple: number;
+    isRequired: number;
+    sortOrder: number;
+    isActive: number;
+    isDeleted: number;
+    createdAt: Date;
+    updatedAt: Date;
+    createdBy: string | null;
+    updatedBy: string | null;
+    deletedBy: string | null;
+}
+
+/**
  * Represents a franchise service area record.
  */
 export interface IFranchiseServiceArea {

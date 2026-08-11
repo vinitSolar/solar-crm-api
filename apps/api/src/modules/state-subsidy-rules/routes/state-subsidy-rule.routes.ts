@@ -3,7 +3,7 @@ import { StateSubsidyRuleController } from "../controllers/state-subsidy-rule.co
 import { StateSubsidyRuleService } from "../services/state-subsidy-rule.service.js";
 import { StateSubsidyRuleRepository } from "../repositories/state-subsidy-rule.repository.js";
 import { SubsidyRequiredDocumentRepository } from "../repositories/subsidy-required-document.repository.js";
-import { SubsidyDocumentTypeRepository } from "../../subsidy-document-types/repositories/subsidy-document-type.repository.js";
+import { MasterDocumentTypeRepository } from "../../master-documents/repositories/master-document-type.repository.js";
 import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
 import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
@@ -20,7 +20,7 @@ const router = Router();
 
 const repository = new StateSubsidyRuleRepository(pool);
 const requiredDocRepository = new SubsidyRequiredDocumentRepository(pool);
-const docTypeRepository = new SubsidyDocumentTypeRepository(pool);
+const docTypeRepository = new MasterDocumentTypeRepository(pool);
 const auditLogRepository = new AuditLogRepository(pool);
 const auditLogService = new AuditLogService(auditLogRepository);
 const service = new StateSubsidyRuleService(repository, requiredDocRepository, docTypeRepository, auditLogService);

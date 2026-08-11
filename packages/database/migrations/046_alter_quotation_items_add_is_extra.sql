@@ -1,5 +1,0 @@
-BEGIN;
-
-ALTER TABLE quotation_items ADD COLUMN is_extra SMALLINT DEFAULT 0;
-
-COMMIT;

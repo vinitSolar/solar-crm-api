@@ -1,3 +1,0 @@
-ALTER TABLE roles 
-ADD COLUMN can_site_survey SMALLINT DEFAULT 0,
-ADD COLUMN can_installation SMALLINT DEFAULT 0;

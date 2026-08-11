@@ -1,9 +1,7 @@
 import { Router } from "express";
-import multer from "multer";
 import { SubsidyTrackerController } from "../controllers/subsidy-tracker.controller.js";
 import { SubsidyTrackerService } from "../services/subsidy-tracker.service.js";
 import { SubsidyTrackerRepository } from "../repositories/subsidy-tracker.repository.js";
-import { ProjectSubsidyDocumentRepository } from "../../projects/repositories/project-subsidy-document.repository.js";
 import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
 import {
@@ -17,16 +15,12 @@ import pool from "@packages/connection.js";
 
 function createSubsidyTrackerRouter(): Router {
     const router = Router();
-    const upload = multer({
-        storage: multer.memoryStorage(),
-    });
 
     const repository = new SubsidyTrackerRepository(pool);
-    const documentRepository = new ProjectSubsidyDocumentRepository(pool);
     const auditLogRepo = new AuditLogRepository(pool);
     const auditLogService = new AuditLogService(auditLogRepo);
 
-    const service = new SubsidyTrackerService(repository, documentRepository, auditLogService);
+    const service = new SubsidyTrackerService(repository, auditLogService);
     const controller = new SubsidyTrackerController(service);
 
     router.use(authenticate);
@@ -148,73 +142,6 @@ function createSubsidyTrackerRouter(): Router {
         "/:uid",
         validateSubsidyTrackerRequest(updateSubsidyTrackerSchema),
         controller.update
-    );
-
-    /**
-     * @swagger
-     * /subsidy-trackers/{uid}/documents:
-     *   post:
-     *     tags: [SubsidyTrackers]
-     *     summary: Upload a document for a subsidy tracker
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - in: path
-     *         name: uid
-     *         required: true
-     *         schema:
-     *           type: string
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         multipart/form-data:
-     *           schema:
-     *             type: object
-     *             properties:
-     *               file:
-     *                 type: string
-     *                 format: binary
-     *               documentTypeUid:
-     *                 type: string
-     *               remarks:
-     *                 type: string
-     *     responses:
-     *       201:
-     *         description: Document uploaded successfully
-     */
-    router.post(
-        "/:uid/documents",
-        upload.single("file"),
-        validateSubsidyTrackerRequest(getByUidSchema), // Validate params
-        controller.uploadDocument
-    );
-
-    /**
-     * @swagger
-     * /subsidy-trackers/{uid}/documents/{documentUid}:
-     *   delete:
-     *     tags: [SubsidyTrackers]
-     *     summary: Delete a document from a subsidy tracker
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - in: path
-     *         name: uid
-     *         required: true
-     *         schema:
-     *           type: string
-     *       - in: path
-     *         name: documentUid
-     *         required: true
-     *         schema:
-     *           type: string
-     *     responses:
-     *       200:
-     *         description: Document deleted successfully
-     */
-    router.delete(
-        "/:uid/documents/:documentUid",
-        controller.deleteDocument
     );
 
     return router;

@@ -5,20 +5,15 @@ import { SUBSIDY_TRACKER_MESSAGES } from "../constants/subsidy-tracker.constants
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constants.js";
-import type { ProjectSubsidyDocumentRepository } from "../../projects/repositories/project-subsidy-document.repository.js";
-
 export class SubsidyTrackerService {
     private readonly repository: SubsidyTrackerRepository;
-    private readonly documentRepository: ProjectSubsidyDocumentRepository;
     private readonly auditLogService: AuditLogService;
 
     constructor(
         repository: SubsidyTrackerRepository,
-        documentRepository: ProjectSubsidyDocumentRepository,
         auditLogService: AuditLogService
     ) {
         this.repository = repository;
-        this.documentRepository = documentRepository;
         this.auditLogService = auditLogService;
     }
 
@@ -26,13 +21,7 @@ export class SubsidyTrackerService {
         const tracker = await this.repository.getByUid(tenantUid, uid);
         if (!tracker) throw new CustomError(SUBSIDY_TRACKER_MESSAGES.NOT_FOUND, 404);
         
-        // Also fetch documents
-        const documents = await this.documentRepository.getByProjectUid(tenantUid, tracker.projectUid);
-        
-        return {
-            ...toSubsidyTrackerSafe(tracker),
-            documents
-        };
+        return toSubsidyTrackerSafe(tracker);
     }
 
     async listPaginated(tenantUid: string, queryParams: IPaginationQuery) {
@@ -75,62 +64,5 @@ export class SubsidyTrackerService {
         }
 
         return toSubsidyTrackerSafe(updated);
-    }
-    
-    // Uses the existing project_subsidy_documents table logic since the document belongs to a project.
-    async uploadDocument(
-        tenantUid: string, 
-        uid: string, 
-        data: {
-            documentTypeUid: string;
-            originalName: string;
-            fileName: string;
-            fileUrl: string;
-            mimeType: string;
-            fileSize: number;
-            remarks?: string;
-        }, 
-        createdBy: string
-    ) {
-        const tracker = await this.repository.getByUid(tenantUid, uid);
-        if (!tracker) throw new CustomError(SUBSIDY_TRACKER_MESSAGES.NOT_FOUND, 404);
-        
-        // Use the existing project subsidy document repo to store the doc
-        const document = await this.documentRepository.create({
-            tenantUid,
-            projectUid: tracker.projectUid,
-            ...data,
-            createdBy
-        });
-
-        await this.auditLogService.log({
-            tenantUid,
-            module: "SubsidyTracker",
-            recordUid: tracker.uid,
-            action: AUDIT_LOG_ACTIONS.CREATE,
-            message: `Document uploaded`,
-            createdBy
-        });
-
-        return document;
-    }
-    
-    async deleteDocument(tenantUid: string, uid: string, documentUid: string, deletedBy: string) {
-        const tracker = await this.repository.getByUid(tenantUid, uid);
-        if (!tracker) throw new CustomError(SUBSIDY_TRACKER_MESSAGES.NOT_FOUND, 404);
-        
-        // This is a soft delete from the project subsidy document repo
-        await this.documentRepository.delete(documentUid, tenantUid, deletedBy);
-
-        await this.auditLogService.log({
-            tenantUid,
-            module: "SubsidyTracker",
-            recordUid: tracker.uid,
-            action: AUDIT_LOG_ACTIONS.DELETE,
-            message: `Document deleted`,
-            createdBy: deletedBy
-        });
-        
-        return true;
     }
 }

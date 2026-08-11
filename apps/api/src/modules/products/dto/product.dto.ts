@@ -1,34 +1,4 @@
 import type { IProduct } from "../interfaces/product.interface.js";
-import type { IProductDocument } from "../repositories/product-document.repository.js";
-
-export interface IProductDocumentSafe {
-    uid: string;
-    productUid: string;
-    documentTypeUid: string;
-    documentTypeName?: string | undefined;
-    originalFileName: string;
-    storedFileName: string;
-    filePath: string;
-    mimeType: string;
-    fileSize: number;
-    createdAt: Date;
-}
-
-export const toProductDocumentSafe = (doc: IProductDocument): IProductDocumentSafe => {
-    return {
-        uid: doc.uid,
-        productUid: doc.productUid,
-        documentTypeUid: doc.documentTypeUid,
-        documentTypeName: doc.documentTypeName,
-        originalFileName: doc.originalFileName,
-        storedFileName: doc.storedFileName,
-        filePath: doc.filePath,
-        mimeType: doc.mimeType,
-        fileSize: doc.fileSize,
-        createdAt: doc.createdAt,
-    };
-};
-
 export interface IProductSpecificationValueSafe {
     specificationUid: string;
     value: string;
@@ -57,11 +27,10 @@ export interface IProductSafe {
     brandName?: string | undefined;
     categoryName?: string | undefined;
     unitName?: string | undefined;
-    documents?: IProductDocumentSafe[];
     specifications?: IProductSpecificationValueSafe[];
 }
 
-export const toProductSafe = (product: IProduct, documents?: IProductDocument[]): IProductSafe => {
+export const toProductSafe = (product: IProduct): IProductSafe => {
     return {
         uid: product.uid,
         categoryUid: product.categoryUid,
@@ -84,7 +53,6 @@ export const toProductSafe = (product: IProduct, documents?: IProductDocument[])
         brandName: product.brandName,
         categoryName: product.categoryName,
         unitName: product.unitName,
-        documents: documents ? documents.map(toProductDocumentSafe) : [],
         specifications: product.specifications?.map(s => ({
             specificationUid: s.specificationUid,
             value: s.value,

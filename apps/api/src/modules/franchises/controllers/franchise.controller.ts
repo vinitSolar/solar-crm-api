@@ -206,44 +206,7 @@ export class FranchiseController {
             next(error);
         }
     };
-    /**
-     * Add a document to a franchise.
-     */
-    addDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-        try {
-            const authReq = req as IAuthenticatedRequest;
-            const uid = req.params.uid as string;
-            const { documentTypeUid, documentNumber } = req.body;
-            const documentFile = req.file;
 
-            if (!documentFile) {
-                res.status(400).json({
-                    success: false,
-                    message: "Validation Error",
-                    errors: [{ field: "documentFile", message: "Document file is required" }],
-                });
-                return;
-            }
-
-            const updatedBy = authReq.user?.uid || "system";
-
-            const document = await this.franchiseService.addDocument(
-                uid,
-                documentTypeUid,
-                documentNumber,
-                documentFile,
-                updatedBy
-            );
-
-            res.status(200).json({
-                success: true,
-                message: "Document added successfully",
-                data: document,
-            });
-        } catch (error) {
-            next(error);
-        }
-    };
 
     /**
      * Get service areas for a specific franchise.
@@ -260,6 +223,101 @@ export class FranchiseController {
                 success: true,
                 message: "Service areas fetched successfully.",
                 data: serviceAreas,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    // ─── Documents ──────────────────────────────────────────────────
+
+    getDocumentTypes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const uid = req.params.uid as string;
+            logger.info("FranchiseController.getDocumentTypes", { uid, userUid: authReq.user.uid });
+
+            const types = await this.franchiseService.getDocumentTypes(uid);
+
+            res.status(200).json({
+                success: true,
+                message: "Document types fetched successfully.",
+                data: types,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getDocuments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const uid = req.params.uid as string;
+            logger.info("FranchiseController.getDocuments", { uid, userUid: authReq.user.uid });
+
+            const docs = await this.franchiseService.getDocuments(uid);
+
+            res.status(200).json({
+                success: true,
+                message: "Documents fetched successfully.",
+                data: docs,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    uploadDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const uid = req.params.uid as string;
+            const createdBy = authReq.user.uid;
+
+            if (!req.file) {
+                res.status(400).json({
+                    success: false,
+                    message: "No document file provided",
+                    errors: [{ message: "File is required", path: "file" }],
+                });
+                return;
+            }
+
+            const documentTypeUid = req.body.documentTypeUid as string;
+            if (!documentTypeUid) {
+                res.status(400).json({
+                    success: false,
+                    message: "documentTypeUid is required",
+                    errors: [{ message: "documentTypeUid is required", path: "documentTypeUid" }],
+                });
+                return;
+            }
+            const documentNumber = req.body.documentNumber as string | undefined;
+
+            const doc = await this.franchiseService.uploadDocument(uid, documentTypeUid, req.file, documentNumber, createdBy);
+
+            res.status(200).json({
+                success: true,
+                message: "Document uploaded successfully",
+                data: doc,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    deleteDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const uid = req.params.uid as string;
+            const documentUid = req.params.documentUid as string;
+            const deletedBy = authReq.user.uid;
+
+            await this.franchiseService.deleteDocument(uid, documentUid, deletedBy);
+
+            res.status(200).json({
+                success: true,
+                message: "Document deleted successfully",
+                data: null,
             });
         } catch (error) {
             next(error);

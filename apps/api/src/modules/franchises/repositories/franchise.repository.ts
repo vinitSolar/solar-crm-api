@@ -495,6 +495,19 @@ export class FranchiseRepository {
     }
 
     /**
+     * Gets a single active document by UID for a tenant.
+     */
+    async getDocumentByUid(tenantUid: string, uid: string): Promise<IFranchiseDocument | null> {
+        const result = await this.pool.query(
+            `SELECT ${DOCUMENT_COLUMNS}
+             FROM franchise_documents
+             WHERE tenant_uid = $1 AND uid = $2 AND is_deleted = 0`,
+            [tenantUid, uid]
+        );
+        return (result.rows[0] as IFranchiseDocument) || null;
+    }
+
+    /**
      * Gets all active documents for a franchise, including document type name.
      */
     async getDocumentsByTenantUid(tenantUid: string): Promise<(IFranchiseDocument & { documentTypeName?: string })[]> {

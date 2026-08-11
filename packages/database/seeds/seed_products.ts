@@ -142,9 +142,6 @@ export async function seedProducts(pool: Pool, tenantUid?: string) {
         const specsRes = await client.query("SELECT uid, title FROM product_specifications WHERE is_deleted = 0");
         const specsByName = new Map(specsRes.rows.map(row => [row.title.toLowerCase(), row.uid]));
 
-        // 4. Fetch document types dynamically (filtered by tenant)
-        const docTypesRes = await client.query("SELECT uid, name FROM product_document_types WHERE tenant_uid = $1 AND is_deleted = 0", [resolvedTenantUid]);
-        const docTypesByName = new Map(docTypesRes.rows.map(row => [row.name.toLowerCase(), row.uid]));
 
         for (const prod of PRODUCTS) {
             // Check if product already exists
@@ -236,35 +233,7 @@ export async function seedProducts(pool: Pool, tenantUid?: string) {
                 }
             }
 
-            // Insert Mock Product Documents dynamically mapping document type name to database UIDs
-            if (prod.documentTypeNames && prod.documentTypeNames.length > 0) {
-                for (const docTypeName of prod.documentTypeNames) {
-                    const resolvedDocTypeUid = docTypesByName.get(docTypeName.toLowerCase());
 
-                    if (resolvedDocTypeUid) {
-                        const docUid = uuidv4();
-                        const fileName = `sample_${docTypeName.toLowerCase().replace(/\s+/g, '_')}.pdf`;
-                        await client.query(
-                            `INSERT INTO product_documents (
-                                uid, tenant_uid, product_uid, document_type_uid, original_file_name,
-                                stored_file_name, file_path, mime_type, file_size, created_by
-                            )
-                             VALUES ($1, $2, $3, $4, $5, $6, $7, 'application/pdf', 10240, 'SYSTEM')`,
-                            [
-                                docUid,
-                                resolvedTenantUid,
-                                productUid,
-                                resolvedDocTypeUid,
-                                fileName,
-                                fileName,
-                                `https://example.com/documents/${fileName}`
-                            ]
-                        );
-                    } else {
-                        logger.warn(`Could not resolve document type "${docTypeName}" in database. Skipping.`);
-                    }
-                }
-            }
         }
 
         await client.query("COMMIT");

@@ -498,6 +498,10 @@ CREATE TABLE site_survey_details (
   tenant_uid VARCHAR(255) NOT NULL,
   site_survey_uid VARCHAR(255) NOT NULL,
   
+  -- Location (Moved from site_surveys)
+  latitude DECIMAL(10, 7) NULL,
+  longitude DECIMAL(10, 7) NULL,
+
   -- Technical Specifications
   roof_area_sqft DECIMAL(10, 2) NOT NULL,
   shading SMALLINT NOT NULL, -- 0=None, 1=Low, 2=Medium, 3=High
@@ -2271,9 +2275,7 @@ ALTER TABLE quotation_terms_conditions_items
 
 
 
--- Add latitude and longitude columns to site_surveys table
-ALTER TABLE site_surveys ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 7) NULL;
-ALTER TABLE site_surveys ADD COLUMN IF NOT EXISTS longitude DECIMAL(10, 7) NULL;
+
 
 
 

@@ -24,7 +24,7 @@ export const updateSiteSurveySchema = z.object({
         }).optional(),
         status: z.number().int().min(0).max(3).optional(),
         remarks: z.string().optional(),
-    }).strict(),
+    }),
 });
 
 export const changeSiteSurveyStatusSchema = z.object({

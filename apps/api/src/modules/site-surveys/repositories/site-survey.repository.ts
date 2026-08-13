@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const SITE_SURVEY_COLUMNS = `
     ss.id, ss.uid, ss.tenant_uid AS "tenantUid", ss.lead_uid AS "leadUid", 
+    ss.assigned_to AS "assignedTo", ss.scheduled_at AS "scheduledAt",
     ss.status, ss.remarks,
     ss.is_active AS "isActive", ss.is_deleted AS "isDeleted", 
     ss.created_at AS "createdAt", ss.updated_at AS "updatedAt",

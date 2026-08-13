@@ -7,7 +7,7 @@ const SITE_SURVEY_DETAILS_COLUMNS = `
     ssd.roof_area_sqft AS "roofAreaSqft", ssd.shading, ssd.connection_type AS "connectionType",
     ssd.sanctioned_load_kw AS "sanctionedLoadKw", ssd.recommended_kw AS "recommendedKw", 
     ssd.needs_structure_extension AS "needsStructureExtension", ssd.needs_optimizer AS "needsOptimizer",
-    ssd.optimizer_count AS "optimizerCount", ssd.notes,
+    ssd.optimizer_count AS "optimizerCount", ssd.notes, ssd.latitude, ssd.longitude,
     ssd.is_active AS "isActive", ssd.is_deleted AS "isDeleted", ssd.created_at AS "createdAt",
     ssd.updated_at AS "updatedAt", ssd.created_by AS "createdBy", ssd.updated_by AS "updatedBy",
     ssd.deleted_by AS "deletedBy"
@@ -30,15 +30,15 @@ export class SiteSurveyDetailsRepository {
         const uid = uuidv4();
         const query = `
             INSERT INTO site_survey_details (
-                uid, tenant_uid, site_survey_uid, roof_area_sqft, shading, connection_type, sanctioned_load_kw, recommended_kw, needs_structure_extension, needs_optimizer, optimizer_count, notes, created_by
+                uid, tenant_uid, site_survey_uid, roof_area_sqft, shading, connection_type, sanctioned_load_kw, recommended_kw, needs_structure_extension, needs_optimizer, optimizer_count, notes, latitude, longitude, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
             )
             RETURNING ${SITE_SURVEY_DETAILS_COLUMNS.replace(/ssd\./g, '')}
         `;
         const values = [
-            uid, tenantUid, siteSurveyUid, data.roofAreaSqft, data.shading, data.connectionType, data.sanctionedLoadKw, data.recommendedKw ?? null, data.needsStructureExtension ?? 0, data.needsOptimizer ?? 0, data.optimizerCount ?? null, data.notes ?? null, createdBy
+            uid, tenantUid, siteSurveyUid, data.roofAreaSqft, data.shading, data.connectionType, data.sanctionedLoadKw, data.recommendedKw ?? null, data.needsStructureExtension ?? 0, data.needsOptimizer ?? 0, data.optimizerCount ?? null, data.notes ?? null, data.latitude ?? null, data.longitude ?? null, createdBy
         ];
 
         const result = client 
@@ -106,6 +106,14 @@ export class SiteSurveyDetailsRepository {
         if (data.notes !== undefined) {
             setFields.push(`notes = $${paramIndex++}`);
             values.push(data.notes);
+        }
+        if (data.latitude !== undefined) {
+            setFields.push(`latitude = $${paramIndex++}`);
+            values.push(data.latitude);
+        }
+        if (data.longitude !== undefined) {
+            setFields.push(`longitude = $${paramIndex++}`);
+            values.push(data.longitude);
         }
 
         setFields.push(`updated_at = CURRENT_TIMESTAMP`);

@@ -4,8 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const SITE_SURVEY_COLUMNS = `
     ss.id, ss.uid, ss.tenant_uid AS "tenantUid", ss.lead_uid AS "leadUid", 
-    ss.assigned_to AS "assignedTo", ss.scheduled_at AS "scheduledAt", 
-    ss.status, ss.remarks, ss.latitude, ss.longitude,
+    ss.status, ss.remarks,
     ss.is_active AS "isActive", ss.is_deleted AS "isDeleted", 
     ss.created_at AS "createdAt", ss.updated_at AS "updatedAt",
     ss.created_by AS "createdBy", ss.updated_by AS "updatedBy", ss.deleted_by AS "deletedBy"
@@ -27,15 +26,15 @@ export class SiteSurveyRepository {
         const uid = uuidv4();
         const query = `
             INSERT INTO site_surveys (
-                uid, tenant_uid, lead_uid, assigned_to, scheduled_at, remarks, latitude, longitude, created_by
+                uid, tenant_uid, lead_uid, assigned_to, scheduled_at, remarks, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9
+                $1, $2, $3, $4, $5, $6, $7
             )
-            RETURNING id, uid, tenant_uid AS "tenantUid", lead_uid AS "leadUid", assigned_to AS "assignedTo", scheduled_at AS "scheduledAt", status, remarks, latitude, longitude, is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
+            RETURNING id, uid, tenant_uid AS "tenantUid", lead_uid AS "leadUid", assigned_to AS "assignedTo", scheduled_at AS "scheduledAt", status, remarks, is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
         `;
         const values = [
-            uid, tenantUid, data.leadUid, data.assignedTo, data.scheduledAt, data.remarks ?? null, data.latitude ?? null, data.longitude ?? null, createdBy
+            uid, tenantUid, data.leadUid, data.assignedTo, data.scheduledAt, data.remarks ?? null, createdBy
         ];
 
         const result = client 
@@ -176,14 +175,6 @@ export class SiteSurveyRepository {
             setFields.push(`remarks = $${paramIndex++}`);
             values.push(data.remarks);
         }
-        if (data.latitude !== undefined) {
-            setFields.push(`latitude = $${paramIndex++}`);
-            values.push(data.latitude);
-        }
-        if (data.longitude !== undefined) {
-            setFields.push(`longitude = $${paramIndex++}`);
-            values.push(data.longitude);
-        }
 
         setFields.push(`updated_at = CURRENT_TIMESTAMP`);
         setFields.push(`updated_by = $${paramIndex++}`);
@@ -197,7 +188,7 @@ export class SiteSurveyRepository {
             UPDATE site_surveys
             SET ${setFields.join(", ")}
             WHERE uid = $${uidIndex} AND tenant_uid = $${tenantIndex} AND is_deleted = 0
-            RETURNING id, uid, tenant_uid AS "tenantUid", lead_uid AS "leadUid", assigned_to AS "assignedTo", scheduled_at AS "scheduledAt", status, remarks, latitude, longitude, is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
+            RETURNING id, uid, tenant_uid AS "tenantUid", lead_uid AS "leadUid", assigned_to AS "assignedTo", scheduled_at AS "scheduledAt", status, remarks, is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
         `;
 
         const result = client

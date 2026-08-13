@@ -19,10 +19,22 @@ export async function seed(pool: Pool) {
             await client.query("BEGIN");
             const defaultMenus = [
                 { name: "Dashboard", code: "DASHBOARD", route: "/dashboard", icon: "LayoutDashboard", sortOrder: 1 },
-                { name: "Leads", code: "LEADS", route: "/leads", icon: "Users", sortOrder: 2 },
-                { name: "Surveys", code: "SURVEYS", route: "/surveys", icon: "ClipboardList", sortOrder: 3 },
-                { name: "Quotations", code: "QUOTATIONS", route: "/quotations", icon: "FileText", sortOrder: 4 },
-                { name: "Cell Technologies", code: "CELL_TECHNOLOGIES", route: "/cell-technologies", icon: "Cpu", sortOrder: 5 },
+                { name: "Leads", code: "LEADS", route: "/leads", icon: "Users", sortOrder: 10 },
+                { name: "Site Surveys", code: "SURVEYS", route: "/surveys", icon: "ClipboardList", sortOrder: 20 },
+                { name: "Quotations", code: "QUOTATIONS", route: "/quotations", icon: "FileText", sortOrder: 30 },
+                { name: "Projects", code: "PROJECTS", route: "/projects", icon: "Briefcase", sortOrder: 40 },
+                { name: "Payments", code: "PAYMENTS", route: "/payments", icon: "Banknote", sortOrder: 50 },
+                { name: "Users", code: "USERS", route: "/settings/users", icon: "UsersRound", sortOrder: 60 },
+                { name: "Roles", code: "ROLES", route: "/settings/roles", icon: "ShieldCheck", sortOrder: 70 },
+                { name: "Franchises", code: "FRANCHISES", route: "/settings/franchises", icon: "Building2", sortOrder: 80 },
+                { name: "Lead Sources", code: "LEAD_SOURCES", route: "/settings/lead-sources", icon: "Tag", sortOrder: 90 },
+                { name: "Lead Statuses", code: "LEAD_STATUSES", route: "/settings/lead-statuses", icon: "CircleDot", sortOrder: 100 },
+                { name: "Project Statuses", code: "PROJECT_STATUSES", route: "/settings/project-statuses", icon: "CircleDot", sortOrder: 110 },
+                { name: "Product Masters", code: "PRODUCTS", route: "/settings/products", icon: "Boxes", sortOrder: 120 },
+                { name: "Subsidy Masters", code: "SUBSIDIES", route: "/settings/subsidies", icon: "BadgeIndianRupee", sortOrder: 130 },
+                { name: "Packages", code: "PACKAGES", route: "/settings/packages", icon: "PackageCheck", sortOrder: 140 },
+                { name: "Quotation Masters", code: "QUOTATION_MASTERS", route: "/settings/quotation-masters", icon: "FileCheck2", sortOrder: 150 },
+                { name: "Document Types", code: "DOCUMENT_TYPES", route: "/settings/document-types", icon: "FolderPlus", sortOrder: 160 },
             ];
 
             for (const menu of defaultMenus) {

@@ -33,10 +33,10 @@ function getDefaultLogoBase64(): string {
         return cachedDefaultLogoBase64;
     }
     const pathsToTry = [
-        path.join(process.cwd(), "apps/api/public/uploads/sticky-logo.svg"),
-        path.join(__dirname, "../../../../public/uploads/sticky-logo.svg"),
-        path.join(__dirname, "../../../../../apps/api/public/uploads/sticky-logo.svg"),
-        path.join(__dirname, "../../../../../../apps/api/public/uploads/sticky-logo.svg")
+        path.join(process.cwd(), "apps/api/public/uploads/sunselect-logo.svg"),
+        path.join(__dirname, "../../../../public/uploads/sunselect-logo.svg"),
+        path.join(__dirname, "../../../../../apps/api/public/uploads/sunselect-logo.svg"),
+        path.join(__dirname, "../../../../../../apps/api/public/uploads/sunselect-logo.svg")
     ];
     for (const p of pathsToTry) {
         if (fs.existsSync(p)) {

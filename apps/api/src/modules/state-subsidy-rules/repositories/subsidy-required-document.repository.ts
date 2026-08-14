@@ -102,7 +102,7 @@ export class SubsidyRequiredDocumentRepository {
                 srd.is_mandatory = 1 AS "isRequired",
                 srd.sort_order AS "sortOrder"
             FROM subsidy_required_documents srd
-            JOIN subsidy_document_types sdt ON sdt.uid = srd.document_type_uid
+            JOIN master_document_types sdt ON sdt.uid = srd.document_type_uid
             WHERE srd.subsidy_uid = $1
               AND srd.is_deleted = 0
               AND srd.is_active = 1
@@ -130,7 +130,7 @@ export class SubsidyRequiredDocumentRepository {
                 MIN(srd.sort_order) AS "sortOrder",
                 ARRAY_AGG(DISTINCT COALESCE(ssr.scheme_name, 'Subsidy')) AS "applicableSchemes"
             FROM subsidy_required_documents srd
-            JOIN subsidy_document_types sdt ON sdt.uid = srd.document_type_uid
+            JOIN master_document_types sdt ON sdt.uid = srd.document_type_uid
             LEFT JOIN state_subsidy_rules ssr ON ssr.uid = srd.subsidy_uid
             WHERE srd.subsidy_uid = ANY($1::varchar[])
               AND srd.is_deleted = 0

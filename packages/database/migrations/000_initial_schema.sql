@@ -2652,7 +2652,6 @@ DROP TABLE IF EXISTS franchise_documents CASCADE;
 DROP TABLE IF EXISTS franchise_document_types CASCADE;
 
 DROP TABLE IF EXISTS project_subsidy_documents CASCADE;
-DROP TABLE IF EXISTS subsidy_required_documents CASCADE;
 DROP TABLE IF EXISTS subsidy_document_types CASCADE;
 
 DROP TABLE IF EXISTS project_installation_milestone_documents CASCADE;

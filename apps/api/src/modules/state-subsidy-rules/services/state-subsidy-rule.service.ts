@@ -79,7 +79,7 @@ export class StateSubsidyRuleService {
      */
     private async validateDocumentTypes(documentTypeUids: string[]): Promise<void> {
         if (!documentTypeUids || documentTypeUids.length === 0) {
-            throw new CustomError("At least one document type is required", 400);
+            return;
         }
 
         // Check for duplicate UIDs in array

@@ -1,5 +1,5 @@
 
-CREATE TABLE tenants (
+CREATE TABLE IF NOT EXISTS tenants (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   code VARCHAR(100) NOT NULL,
@@ -20,12 +20,12 @@ CREATE TABLE tenants (
   CONSTRAINT uq_tenants_code UNIQUE (code)
 );
 
-CREATE INDEX idx_tenants_email ON tenants(email);
+CREATE INDEX IF NOT EXISTS idx_tenants_email ON tenants(email);
 
 
 
 
-CREATE TABLE roles (
+CREATE TABLE IF NOT EXISTS roles (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -43,12 +43,12 @@ CREATE TABLE roles (
   CONSTRAINT uq_roles_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_roles_tenant_uid ON roles(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_roles_tenant_uid ON roles(tenant_uid);
 
 
 
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -70,14 +70,14 @@ CREATE TABLE users (
   CONSTRAINT uq_users_email UNIQUE (email)
 );
 
-CREATE INDEX idx_users_tenant_uid ON users(tenant_uid);
-CREATE INDEX idx_users_role_uid ON users(role_uid);
+CREATE INDEX IF NOT EXISTS idx_users_tenant_uid ON users(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_users_role_uid ON users(role_uid);
 
 
 
 
 
-CREATE TABLE menus (
+CREATE TABLE IF NOT EXISTS menus (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   parent_uid VARCHAR(255),
@@ -94,12 +94,12 @@ CREATE TABLE menus (
   CONSTRAINT uq_menus_code UNIQUE (code)
 );
 
-CREATE INDEX idx_menus_parent_uid ON menus(parent_uid);
+CREATE INDEX IF NOT EXISTS idx_menus_parent_uid ON menus(parent_uid);
 
 
 
 
-CREATE TABLE features (
+CREATE TABLE IF NOT EXISTS features (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   menu_uid VARCHAR(255) NOT NULL,
@@ -112,13 +112,13 @@ CREATE TABLE features (
   CONSTRAINT uq_features_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_features_menu_uid ON features(menu_uid);
-CREATE INDEX idx_features_code ON features(code);
+CREATE INDEX IF NOT EXISTS idx_features_menu_uid ON features(menu_uid);
+CREATE INDEX IF NOT EXISTS idx_features_code ON features(code);
 
 
 
 
-CREATE TABLE role_menu_permissions (
+CREATE TABLE IF NOT EXISTS role_menu_permissions (
   id BIGSERIAL,
   tenant_uid VARCHAR(255) NOT NULL,
   role_uid VARCHAR(255) NOT NULL,
@@ -134,14 +134,14 @@ CREATE TABLE role_menu_permissions (
   CONSTRAINT pk_role_menu_permissions PRIMARY KEY (id)
 );
 
-CREATE INDEX idx_role_menu_permissions_tenant_uid ON role_menu_permissions(tenant_uid);
-CREATE INDEX idx_role_menu_permissions_role_uid ON role_menu_permissions(role_uid);
-CREATE INDEX idx_role_menu_permissions_menu_uid ON role_menu_permissions(menu_uid);
+CREATE INDEX IF NOT EXISTS idx_role_menu_permissions_tenant_uid ON role_menu_permissions(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_role_menu_permissions_role_uid ON role_menu_permissions(role_uid);
+CREATE INDEX IF NOT EXISTS idx_role_menu_permissions_menu_uid ON role_menu_permissions(menu_uid);
 
 
 
 
-CREATE TABLE role_feature_permissions (
+CREATE TABLE IF NOT EXISTS role_feature_permissions (
   id BIGSERIAL,
   tenant_uid VARCHAR(255) NOT NULL,
   role_uid VARCHAR(255) NOT NULL,
@@ -151,14 +151,14 @@ CREATE TABLE role_feature_permissions (
   CONSTRAINT pk_role_feature_permissions PRIMARY KEY (id)
 );
 
-CREATE INDEX idx_role_feature_permissions_tenant_uid ON role_feature_permissions(tenant_uid);
-CREATE INDEX idx_role_feature_permissions_role_uid ON role_feature_permissions(role_uid);
-CREATE INDEX idx_role_feature_permissions_feature_uid ON role_feature_permissions(feature_uid);
+CREATE INDEX IF NOT EXISTS idx_role_feature_permissions_tenant_uid ON role_feature_permissions(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_role_feature_permissions_role_uid ON role_feature_permissions(role_uid);
+CREATE INDEX IF NOT EXISTS idx_role_feature_permissions_feature_uid ON role_feature_permissions(feature_uid);
 
 
 
 
-CREATE TABLE user_menu_permissions (
+CREATE TABLE IF NOT EXISTS user_menu_permissions (
   id BIGSERIAL,
   tenant_uid VARCHAR(255) NOT NULL,
   user_uid VARCHAR(255) NOT NULL,
@@ -174,14 +174,14 @@ CREATE TABLE user_menu_permissions (
   CONSTRAINT pk_user_menu_permissions PRIMARY KEY (id)
 );
 
-CREATE INDEX idx_user_menu_permissions_tenant_uid ON user_menu_permissions(tenant_uid);
-CREATE INDEX idx_user_menu_permissions_user_uid ON user_menu_permissions(user_uid);
-CREATE INDEX idx_user_menu_permissions_menu_uid ON user_menu_permissions(menu_uid);
+CREATE INDEX IF NOT EXISTS idx_user_menu_permissions_tenant_uid ON user_menu_permissions(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_user_menu_permissions_user_uid ON user_menu_permissions(user_uid);
+CREATE INDEX IF NOT EXISTS idx_user_menu_permissions_menu_uid ON user_menu_permissions(menu_uid);
 
 
 
 
-CREATE TABLE user_feature_permissions (
+CREATE TABLE IF NOT EXISTS user_feature_permissions (
   id BIGSERIAL,
   tenant_uid VARCHAR(255) NOT NULL,
   user_uid VARCHAR(255) NOT NULL,
@@ -191,14 +191,14 @@ CREATE TABLE user_feature_permissions (
   CONSTRAINT pk_user_feature_permissions PRIMARY KEY (id)
 );
 
-CREATE INDEX idx_user_feature_permissions_tenant_uid ON user_feature_permissions(tenant_uid);
-CREATE INDEX idx_user_feature_permissions_user_uid ON user_feature_permissions(user_uid);
-CREATE INDEX idx_user_feature_permissions_feature_uid ON user_feature_permissions(feature_uid);
+CREATE INDEX IF NOT EXISTS idx_user_feature_permissions_tenant_uid ON user_feature_permissions(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_user_feature_permissions_user_uid ON user_feature_permissions(user_uid);
+CREATE INDEX IF NOT EXISTS idx_user_feature_permissions_feature_uid ON user_feature_permissions(feature_uid);
 
 
 
 
-CREATE TABLE user_sessions (
+CREATE TABLE IF NOT EXISTS user_sessions (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   user_uid VARCHAR(255) NOT NULL,
@@ -216,13 +216,13 @@ CREATE TABLE user_sessions (
   CONSTRAINT uq_user_sessions_token UNIQUE (refresh_token)
 );
 
-CREATE INDEX idx_user_sessions_user_uid ON user_sessions(user_uid);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_uid ON user_sessions(user_uid);
 
 
 
 
-ALTER TABLE tenants ADD COLUMN mobile VARCHAR(20);
-ALTER TABLE tenants ADD COLUMN onboarding_status SMALLINT DEFAULT 0; -- 0 = Pending, 1 = In Progress, 2 = Completed
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS mobile VARCHAR(20);
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS onboarding_status SMALLINT DEFAULT 0; -- 0 = Pending, 1 = In Progress, 2 = Completed
 
 COMMENT ON COLUMN tenants.mobile IS 'Business mobile number of the tenant';
 COMMENT ON COLUMN tenants.onboarding_status IS '0 = Pending, 1 = In Progress, 2 = Completed';
@@ -230,7 +230,7 @@ COMMENT ON COLUMN tenants.onboarding_status IS '0 = Pending, 1 = In Progress, 2 
 
 
 
-CREATE TABLE franchise_owner_details (
+CREATE TABLE IF NOT EXISTS franchise_owner_details (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -252,7 +252,7 @@ CREATE TABLE franchise_owner_details (
   CONSTRAINT uq_franchise_owner_details_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_franchise_owner_details_tenant_uid ON franchise_owner_details(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_franchise_owner_details_tenant_uid ON franchise_owner_details(tenant_uid);
 
 COMMENT ON COLUMN franchise_owner_details.id IS 'Auto-incremented primary key';
 COMMENT ON COLUMN franchise_owner_details.uid IS 'Unique public identifier (UUID)';
@@ -275,7 +275,7 @@ COMMENT ON COLUMN franchise_owner_details.deleted_by IS 'UID of the user who sof
 
 
 
-CREATE TABLE franchise_business_details (
+CREATE TABLE IF NOT EXISTS franchise_business_details (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -300,7 +300,7 @@ CREATE TABLE franchise_business_details (
   CONSTRAINT uq_franchise_business_details_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_franchise_business_details_tenant_uid ON franchise_business_details(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_franchise_business_details_tenant_uid ON franchise_business_details(tenant_uid);
 
 COMMENT ON COLUMN franchise_business_details.id IS 'Auto-incremented primary key';
 COMMENT ON COLUMN franchise_business_details.uid IS 'Unique public identifier (UUID)';
@@ -327,12 +327,12 @@ COMMENT ON COLUMN franchise_business_details.deleted_by IS 'UID of the user who 
 
 
 ALTER TABLE menus
-ADD COLUMN deleted_at TIMESTAMP DEFAULT NULL;
+ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP DEFAULT NULL;
 
 
 
 
-CREATE TABLE lead_sources (
+CREATE TABLE IF NOT EXISTS lead_sources (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -351,14 +351,14 @@ CREATE TABLE lead_sources (
   CONSTRAINT uq_lead_sources_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_lead_sources_tenant_uid ON lead_sources(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_lead_sources_tenant_uid ON lead_sources(tenant_uid);
 
 COMMENT ON TABLE lead_sources IS 'Stores lead sources per tenant';
 
 
 
 
-CREATE TABLE lead_statuses (
+CREATE TABLE IF NOT EXISTS lead_statuses (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -378,14 +378,14 @@ CREATE TABLE lead_statuses (
   CONSTRAINT uq_lead_statuses_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_lead_statuses_tenant_uid ON lead_statuses(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_lead_statuses_tenant_uid ON lead_statuses(tenant_uid);
 
 COMMENT ON TABLE lead_statuses IS 'Stores lead statuses per tenant';
 
 
 
 
-CREATE TABLE leads (
+CREATE TABLE IF NOT EXISTS leads (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -425,10 +425,10 @@ CREATE TABLE leads (
   CONSTRAINT uq_leads_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_leads_tenant_uid ON leads(tenant_uid);
-CREATE INDEX idx_leads_lead_source_uid ON leads(lead_source_uid);
-CREATE INDEX idx_leads_status_uid ON leads(status_uid);
-CREATE INDEX idx_leads_assigned_to ON leads(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_leads_tenant_uid ON leads(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_leads_lead_source_uid ON leads(lead_source_uid);
+CREATE INDEX IF NOT EXISTS idx_leads_status_uid ON leads(status_uid);
+CREATE INDEX IF NOT EXISTS idx_leads_assigned_to ON leads(assigned_to);
 
 COMMENT ON TABLE leads IS 'Stores customer leads per tenant';
 
@@ -452,7 +452,7 @@ END $$;
 
 
 
-CREATE TABLE site_surveys (
+CREATE TABLE IF NOT EXISTS site_surveys (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -477,22 +477,22 @@ CREATE TABLE site_surveys (
   CONSTRAINT uq_site_surveys_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_site_surveys_tenant_uid ON site_surveys(tenant_uid);
-CREATE INDEX idx_site_surveys_lead_uid ON site_surveys(lead_uid);
-CREATE INDEX idx_site_surveys_assigned_to ON site_surveys(assigned_to);
-CREATE INDEX idx_site_surveys_status ON site_surveys(status);
+CREATE INDEX IF NOT EXISTS idx_site_surveys_tenant_uid ON site_surveys(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_site_surveys_lead_uid ON site_surveys(lead_uid);
+CREATE INDEX IF NOT EXISTS idx_site_surveys_assigned_to ON site_surveys(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_site_surveys_status ON site_surveys(status);
 
 COMMENT ON TABLE site_surveys IS 'Stores scheduled site surveys for Leads';
 
 
 
 ALTER TABLE roles 
-ADD COLUMN can_site_survey SMALLINT DEFAULT 0,
-ADD COLUMN can_installation SMALLINT DEFAULT 0;
+ADD COLUMN IF NOT EXISTS can_site_survey SMALLINT DEFAULT 0,
+ADD COLUMN IF NOT EXISTS can_installation SMALLINT DEFAULT 0;
 
 
 
-CREATE TABLE site_survey_details (
+CREATE TABLE IF NOT EXISTS site_survey_details (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -527,8 +527,8 @@ CREATE TABLE site_survey_details (
   CONSTRAINT uq_site_survey_details_survey UNIQUE (site_survey_uid)
 );
 
-CREATE INDEX idx_site_survey_details_tenant_uid ON site_survey_details(tenant_uid);
-CREATE INDEX idx_site_survey_details_survey_uid ON site_survey_details(site_survey_uid);
+CREATE INDEX IF NOT EXISTS idx_site_survey_details_tenant_uid ON site_survey_details(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_site_survey_details_survey_uid ON site_survey_details(site_survey_uid);
 
 COMMENT ON TABLE site_survey_details IS 'Stores technical specifications for a site survey';
 
@@ -536,7 +536,7 @@ COMMENT ON TABLE site_survey_details IS 'Stores technical specifications for a s
 
 
 -- 1. survey_document_types
-CREATE TABLE survey_document_types (
+CREATE TABLE IF NOT EXISTS survey_document_types (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -562,12 +562,12 @@ CREATE TABLE survey_document_types (
   CONSTRAINT uq_survey_document_types_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_survey_doc_types_tenant_uid ON survey_document_types(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_survey_doc_types_tenant_uid ON survey_document_types(tenant_uid);
 
 COMMENT ON TABLE survey_document_types IS 'Configurable Survey Document Types for each tenant';
 
 -- 2. site_survey_documents
-CREATE TABLE site_survey_documents (
+CREATE TABLE IF NOT EXISTS site_survey_documents (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -595,9 +595,9 @@ CREATE TABLE site_survey_documents (
   CONSTRAINT uq_site_survey_documents_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_site_survey_docs_tenant_uid ON site_survey_documents(tenant_uid);
-CREATE INDEX idx_site_survey_docs_survey_uid ON site_survey_documents(site_survey_uid);
-CREATE INDEX idx_site_survey_docs_type_uid ON site_survey_documents(document_type_uid);
+CREATE INDEX IF NOT EXISTS idx_site_survey_docs_tenant_uid ON site_survey_documents(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_site_survey_docs_survey_uid ON site_survey_documents(site_survey_uid);
+CREATE INDEX IF NOT EXISTS idx_site_survey_docs_type_uid ON site_survey_documents(document_type_uid);
 
 COMMENT ON TABLE site_survey_documents IS 'Stores uploaded documents for a Site Survey';
 
@@ -617,7 +617,7 @@ END $$;
 
 
 
-CREATE TABLE product_categories (
+CREATE TABLE IF NOT EXISTS product_categories (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -642,7 +642,7 @@ COMMENT ON TABLE product_categories IS 'Global master data for product categorie
 
 
 
-CREATE TABLE product_brands (
+CREATE TABLE IF NOT EXISTS product_brands (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -667,7 +667,7 @@ COMMENT ON TABLE product_brands IS 'Global master data for product brands';
 
 
 
-CREATE TABLE product_units (
+CREATE TABLE IF NOT EXISTS product_units (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -692,7 +692,7 @@ COMMENT ON TABLE product_units IS 'Global master data for product units';
 
 
 
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   category_uid VARCHAR(255) NOT NULL,
@@ -720,15 +720,15 @@ CREATE TABLE products (
   CONSTRAINT uq_products_name UNIQUE (name)
 );
 
-CREATE INDEX idx_products_category_uid ON products(category_uid);
-CREATE INDEX idx_products_brand_uid ON products(brand_uid);
+CREATE INDEX IF NOT EXISTS idx_products_category_uid ON products(category_uid);
+CREATE INDEX IF NOT EXISTS idx_products_brand_uid ON products(brand_uid);
 
 COMMENT ON TABLE products IS 'Global master data for products';
 
 
 
 
-CREATE TABLE state_subsidy_rules (
+CREATE TABLE IF NOT EXISTS state_subsidy_rules (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   state VARCHAR(255) NOT NULL,
@@ -752,7 +752,7 @@ COMMENT ON TABLE state_subsidy_rules IS 'Global master data for state subsidy ru
 
 
 
-CREATE TABLE quotation_terms_conditions (
+CREATE TABLE IF NOT EXISTS quotation_terms_conditions (
     uid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_uid UUID NOT NULL,
     title VARCHAR(255) NOT NULL,
@@ -770,16 +770,16 @@ CREATE TABLE quotation_terms_conditions (
 );
 
 -- Index for querying by tenant
-CREATE INDEX idx_quotation_terms_conditions_tenant_uid ON quotation_terms_conditions(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_quotation_terms_conditions_tenant_uid ON quotation_terms_conditions(tenant_uid);
 
 -- Partial unique index on title per tenant for non-deleted records
-CREATE UNIQUE INDEX idx_quotation_terms_conditions_tenant_title ON quotation_terms_conditions(tenant_uid, title) WHERE is_deleted = 0;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_quotation_terms_conditions_tenant_title ON quotation_terms_conditions(tenant_uid, title) WHERE is_deleted = 0;
 
 -- Optional index for sorting
-CREATE INDEX idx_quotation_terms_conditions_sort_order ON quotation_terms_conditions(sort_order);
+CREATE INDEX IF NOT EXISTS idx_quotation_terms_conditions_sort_order ON quotation_terms_conditions(sort_order);
 
 
-CREATE TABLE quotation_scope_of_work (
+CREATE TABLE IF NOT EXISTS quotation_scope_of_work (
     uid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_uid UUID NOT NULL,
     title VARCHAR(255) NOT NULL,
@@ -797,17 +797,17 @@ CREATE TABLE quotation_scope_of_work (
 );
 
 -- Index for querying by tenant
-CREATE INDEX idx_quotation_scope_of_work_tenant_uid ON quotation_scope_of_work(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_quotation_scope_of_work_tenant_uid ON quotation_scope_of_work(tenant_uid);
 
 -- Partial unique index on title per tenant for non-deleted records
-CREATE UNIQUE INDEX idx_quotation_scope_of_work_tenant_title ON quotation_scope_of_work(tenant_uid, title) WHERE is_deleted = 0;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_quotation_scope_of_work_tenant_title ON quotation_scope_of_work(tenant_uid, title) WHERE is_deleted = 0;
 
 -- Optional index for sorting
-CREATE INDEX idx_quotation_scope_of_work_sort_order ON quotation_scope_of_work(sort_order);
+CREATE INDEX IF NOT EXISTS idx_quotation_scope_of_work_sort_order ON quotation_scope_of_work(sort_order);
 
 
 
-CREATE TABLE quotations (
+CREATE TABLE IF NOT EXISTS quotations (
     id BIGSERIAL PRIMARY KEY,
     uid VARCHAR(255) NOT NULL UNIQUE,
     tenant_uid VARCHAR(255) NOT NULL,
@@ -827,7 +827,7 @@ CREATE TABLE quotations (
     deleted_by VARCHAR(255)
 );
 
-CREATE TABLE quotation_items (
+CREATE TABLE IF NOT EXISTS quotation_items (
     id BIGSERIAL PRIMARY KEY,
     uid VARCHAR(255) NOT NULL UNIQUE,
     quotation_uid VARCHAR(255) NOT NULL,
@@ -850,7 +850,7 @@ CREATE TABLE quotation_items (
     deleted_by VARCHAR(255)
 );
 
-CREATE TABLE quotation_scope_of_work_items (
+CREATE TABLE IF NOT EXISTS quotation_scope_of_work_items (
     id BIGSERIAL PRIMARY KEY,
     uid VARCHAR(255) NOT NULL UNIQUE,
     quotation_uid VARCHAR(255) NOT NULL,
@@ -867,7 +867,7 @@ CREATE TABLE quotation_scope_of_work_items (
     deleted_by VARCHAR(255)
 );
 
-CREATE TABLE quotation_terms_conditions_items (
+CREATE TABLE IF NOT EXISTS quotation_terms_conditions_items (
     id BIGSERIAL PRIMARY KEY,
     uid VARCHAR(255) NOT NULL UNIQUE,
     quotation_uid VARCHAR(255) NOT NULL,
@@ -885,14 +885,14 @@ CREATE TABLE quotation_terms_conditions_items (
 );
 
 -- Index for tenant queries
-CREATE INDEX idx_quotations_tenant_uid ON quotations(tenant_uid);
-CREATE INDEX idx_quotations_lead_uid ON quotations(lead_uid);
-CREATE INDEX idx_quotations_number ON quotations(quotation_number);
+CREATE INDEX IF NOT EXISTS idx_quotations_tenant_uid ON quotations(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_quotations_lead_uid ON quotations(lead_uid);
+CREATE INDEX IF NOT EXISTS idx_quotations_number ON quotations(quotation_number);
 
 -- Index for snapshot joins/lookups
-CREATE INDEX idx_quotation_items_quotation_uid ON quotation_items(quotation_uid);
-CREATE INDEX idx_quotation_scope_of_work_items_quotation_uid ON quotation_scope_of_work_items(quotation_uid);
-CREATE INDEX idx_quotation_terms_conditions_items_quotation_uid ON quotation_terms_conditions_items(quotation_uid);
+CREATE INDEX IF NOT EXISTS idx_quotation_items_quotation_uid ON quotation_items(quotation_uid);
+CREATE INDEX IF NOT EXISTS idx_quotation_scope_of_work_items_quotation_uid ON quotation_scope_of_work_items(quotation_uid);
+CREATE INDEX IF NOT EXISTS idx_quotation_terms_conditions_items_quotation_uid ON quotation_terms_conditions_items(quotation_uid);
 
 -- Comment on tables
 COMMENT ON TABLE quotations IS 'Customer quotations main table';
@@ -903,21 +903,21 @@ COMMENT ON TABLE quotation_terms_conditions_items IS 'Snapshotted quotation term
 
 
 
-ALTER TABLE quotations ADD COLUMN pdf_url VARCHAR(1000);
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS pdf_url VARCHAR(1000);
 
 COMMENT ON COLUMN quotations.pdf_url IS 'Public URL of the generated quotation PDF document stored in Cloudflare R2 / local storage';
 
 
 
 
-ALTER TABLE quotations ADD COLUMN pdf_path VARCHAR(1000);
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS pdf_path VARCHAR(1000);
 
 COMMENT ON COLUMN quotations.pdf_path IS 'Storage key/path of the generated quotation PDF document in the storage provider';
 
 
 
 
-ALTER TABLE franchise_business_details ADD COLUMN outlet_name VARCHAR(255);
+ALTER TABLE franchise_business_details ADD COLUMN IF NOT EXISTS outlet_name VARCHAR(255);
 
 COMMENT ON COLUMN franchise_business_details.outlet_name IS 'Brand name or outlet name of the franchise business';
 
@@ -932,7 +932,7 @@ ADD COLUMN IF NOT EXISTS images TEXT[] DEFAULT '{}'::TEXT[];
 
 
 -- 1. Create product_document_types table
-CREATE TABLE product_document_types (
+CREATE TABLE IF NOT EXISTS product_document_types (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   
@@ -961,7 +961,7 @@ CREATE TABLE product_document_types (
 COMMENT ON TABLE product_document_types IS 'Global configuration of product document types';
 
 -- 2. Create product_documents table
-CREATE TABLE product_documents (
+CREATE TABLE IF NOT EXISTS product_documents (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   product_uid VARCHAR(255) NOT NULL,
@@ -988,8 +988,8 @@ CREATE TABLE product_documents (
   CONSTRAINT uq_product_documents_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_product_docs_product_uid ON product_documents(product_uid);
-CREATE INDEX idx_product_docs_type_uid ON product_documents(document_type_uid);
+CREATE INDEX IF NOT EXISTS idx_product_docs_product_uid ON product_documents(product_uid);
+CREATE INDEX IF NOT EXISTS idx_product_docs_type_uid ON product_documents(document_type_uid);
 
 COMMENT ON TABLE product_documents IS 'Stores metadata for product documents';
 
@@ -1010,12 +1010,12 @@ TRUNCATE TABLE product_documents CASCADE;
 TRUNCATE TABLE product_document_types CASCADE;
 
 -- 2. Add tenant_uid to product_document_types
-ALTER TABLE product_document_types ADD COLUMN tenant_uid VARCHAR(255) NOT NULL;
-CREATE INDEX idx_product_doc_types_tenant_uid ON product_document_types(tenant_uid);
+ALTER TABLE product_document_types ADD COLUMN IF NOT EXISTS tenant_uid VARCHAR(255) NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_product_doc_types_tenant_uid ON product_document_types(tenant_uid);
 
 -- 3. Add tenant_uid to product_documents
-ALTER TABLE product_documents ADD COLUMN tenant_uid VARCHAR(255) NOT NULL;
-CREATE INDEX idx_product_docs_tenant_uid ON product_documents(tenant_uid);
+ALTER TABLE product_documents ADD COLUMN IF NOT EXISTS tenant_uid VARCHAR(255) NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_product_docs_tenant_uid ON product_documents(tenant_uid);
 
 -- 4. Adjust uniqueness constraints
 ALTER TABLE product_document_types DROP CONSTRAINT IF EXISTS uq_product_document_types_name;
@@ -1024,7 +1024,7 @@ ALTER TABLE product_document_types ADD CONSTRAINT uq_product_document_types_tena
 
 
 
-CREATE TABLE product_specifications (
+CREATE TABLE IF NOT EXISTS product_specifications (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   product_uid VARCHAR(255) NOT NULL,
@@ -1065,7 +1065,7 @@ CREATE TABLE product_specifications (
   CONSTRAINT uq_product_specifications_product_uid UNIQUE (product_uid)
 );
 
-CREATE INDEX idx_product_specs_product_uid ON product_specifications(product_uid);
+CREATE INDEX IF NOT EXISTS idx_product_specs_product_uid ON product_specifications(product_uid);
 
 COMMENT ON TABLE product_specifications IS 'Stores specification details for products';
 
@@ -1073,7 +1073,7 @@ COMMENT ON TABLE product_specifications IS 'Stores specification details for pro
 
 
 -- Create franchise_document_types table
-CREATE TABLE franchise_document_types (
+CREATE TABLE IF NOT EXISTS franchise_document_types (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -1100,10 +1100,10 @@ CREATE TABLE franchise_document_types (
 );
 
 -- Index for tenant-scoped queries
-CREATE INDEX idx_franchise_doc_types_tenant_uid ON franchise_document_types(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_franchise_doc_types_tenant_uid ON franchise_document_types(tenant_uid);
 
 -- Partial unique index: prevent duplicate names within same tenant for active records
-CREATE UNIQUE INDEX uq_franchise_doc_types_tenant_name
+CREATE UNIQUE INDEX IF NOT EXISTS uq_franchise_doc_types_tenant_name
   ON franchise_document_types(tenant_uid, name)
   WHERE is_deleted = 0;
 
@@ -1113,7 +1113,7 @@ COMMENT ON TABLE franchise_document_types IS 'Configurable Franchise Document Ty
 
 
 -- Create franchise_documents table
-CREATE TABLE franchise_documents (
+CREATE TABLE IF NOT EXISTS franchise_documents (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   tenant_uid VARCHAR(255) NOT NULL,
@@ -1141,14 +1141,14 @@ CREATE TABLE franchise_documents (
   CONSTRAINT uq_franchise_documents_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_franchise_docs_tenant_uid ON franchise_documents(tenant_uid);
-CREATE INDEX idx_franchise_docs_type_uid ON franchise_documents(document_type_uid);
+CREATE INDEX IF NOT EXISTS idx_franchise_docs_tenant_uid ON franchise_documents(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_franchise_docs_type_uid ON franchise_documents(document_type_uid);
 
 COMMENT ON TABLE franchise_documents IS 'Stores metadata for franchise documents uploaded by tenants';
 
 
 
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
     uid UUID DEFAULT gen_random_uuid() NOT NULL UNIQUE,
     tenant_uid UUID,
@@ -1163,12 +1163,12 @@ CREATE TABLE audit_logs (
     created_by UUID
 );
 
-CREATE INDEX idx_audit_logs_tenant_uid ON audit_logs(tenant_uid);
-CREATE INDEX idx_audit_logs_module ON audit_logs(module);
-CREATE INDEX idx_audit_logs_record_uid ON audit_logs(record_uid);
-CREATE INDEX idx_audit_logs_created_by ON audit_logs(created_by);
-CREATE INDEX idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_uid ON audit_logs(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_module ON audit_logs(module);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_record_uid ON audit_logs(record_uid);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_by ON audit_logs(created_by);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
 
 -- Create franchise_service_areas table
@@ -1200,33 +1200,33 @@ ALTER TABLE leads ADD CONSTRAINT uq_leads_lead_number UNIQUE (lead_number);
 
 
 
-ALTER TABLE quotations ADD COLUMN package_uid VARCHAR(255);
-CREATE INDEX idx_quotations_package_uid ON quotations(package_uid);
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS package_uid VARCHAR(255);
+CREATE INDEX IF NOT EXISTS idx_quotations_package_uid ON quotations(package_uid);
 
 
 
 
-ALTER TABLE quotations ADD COLUMN price NUMERIC(15, 2);
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS price NUMERIC(15, 2);
 
 
 
 
-ALTER TABLE quotation_items ADD COLUMN is_extra SMALLINT DEFAULT 0;
+ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS is_extra SMALLINT DEFAULT 0;
 
 
 
 
-ALTER TABLE quotations ADD COLUMN snapshot_data JSONB;
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS snapshot_data JSONB;
 
 
 
 ALTER TABLE quotations 
 DROP COLUMN IF EXISTS price,
-ADD COLUMN subtotal NUMERIC(15, 2) DEFAULT 0,
-ADD COLUMN gst_amount NUMERIC(15, 2) DEFAULT 0,
-ADD COLUMN grand_total NUMERIC(15, 2) DEFAULT 0,
-ADD COLUMN subsidy_data JSONB DEFAULT '[]'::jsonb,
-ADD COLUMN net_customer_cost NUMERIC(15, 2) DEFAULT 0;
+ADD COLUMN IF NOT EXISTS subtotal NUMERIC(15, 2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS gst_amount NUMERIC(15, 2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS grand_total NUMERIC(15, 2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS subsidy_data JSONB DEFAULT '[]'::jsonb,
+ADD COLUMN IF NOT EXISTS net_customer_cost NUMERIC(15, 2) DEFAULT 0;
 
 
 CREATE TABLE IF NOT EXISTS package_scope_of_work_items (
@@ -1250,7 +1250,7 @@ CREATE INDEX IF NOT EXISTS idx_package_scope_of_work_items_package_uid ON packag
 CREATE INDEX IF NOT EXISTS idx_package_scope_of_work_items_is_deleted ON package_scope_of_work_items(is_deleted);
 
 
-ALTER TABLE quotation_scope_of_work_items ADD COLUMN is_extra SMALLINT DEFAULT 0;
+ALTER TABLE quotation_scope_of_work_items ADD COLUMN IF NOT EXISTS is_extra SMALLINT DEFAULT 0;
 
 
 -- Create states table
@@ -1291,7 +1291,7 @@ CREATE TABLE IF NOT EXISTS cities (
 
 
 
-ALTER TABLE state_subsidy_rules ADD COLUMN state_uid VARCHAR(255) NULL;
+ALTER TABLE state_subsidy_rules ADD COLUMN IF NOT EXISTS state_uid VARCHAR(255) NULL;
 
 -- We could add a foreign key constraint here, but sometimes state_uid might be 'All' if they don't send null.
 -- Actually, a foreign key is better if it matches exactly. I will leave it as simple column for now as other tables do.
@@ -1310,7 +1310,7 @@ ADD COLUMN IF NOT EXISTS branch_type VARCHAR(255),
 ADD COLUMN IF NOT EXISTS region VARCHAR(255);
 
 
-CREATE TABLE project_statuses (
+CREATE TABLE IF NOT EXISTS project_statuses (
   id SERIAL,
   uid UUID NOT NULL,
   tenant_uid UUID NOT NULL,
@@ -1331,11 +1331,11 @@ CREATE TABLE project_statuses (
   CONSTRAINT uq_project_statuses_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_project_statuses_tenant_uid ON project_statuses(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_project_statuses_tenant_uid ON project_statuses(tenant_uid);
 
 COMMENT ON TABLE project_statuses IS 'Stores project statuses per tenant';
 
-CREATE TABLE projects (
+CREATE TABLE IF NOT EXISTS projects (
   id SERIAL,
   uid UUID NOT NULL,
   tenant_uid UUID NOT NULL,
@@ -1359,9 +1359,9 @@ CREATE TABLE projects (
   CONSTRAINT uq_projects_quotation UNIQUE (tenant_uid, quotation_uid)
 );
 
-CREATE INDEX idx_projects_tenant_uid ON projects(tenant_uid);
-CREATE INDEX idx_projects_lead_uid ON projects(lead_uid);
-CREATE INDEX idx_projects_project_number ON projects(project_number);
+CREATE INDEX IF NOT EXISTS idx_projects_tenant_uid ON projects(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_projects_lead_uid ON projects(lead_uid);
+CREATE INDEX IF NOT EXISTS idx_projects_project_number ON projects(project_number);
 
 COMMENT ON TABLE projects IS 'Stores project details linked to approved quotations';
 
@@ -1487,9 +1487,9 @@ CREATE TABLE IF NOT EXISTS project_subsidy_documents (
     deleted_by VARCHAR(255)
 );
 
-CREATE INDEX idx_project_subsidy_docs_tenant_uid ON project_subsidy_documents(tenant_uid);
-CREATE INDEX idx_project_subsidy_docs_project_uid ON project_subsidy_documents(project_uid);
-CREATE INDEX idx_project_subsidy_docs_type_uid ON project_subsidy_documents(document_type_uid);
+CREATE INDEX IF NOT EXISTS idx_project_subsidy_docs_tenant_uid ON project_subsidy_documents(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_project_subsidy_docs_project_uid ON project_subsidy_documents(project_uid);
+CREATE INDEX IF NOT EXISTS idx_project_subsidy_docs_type_uid ON project_subsidy_documents(document_type_uid);
 
 COMMENT ON TABLE project_subsidy_documents IS 'Stores uploaded subsidy documents for a Project';
 
@@ -1682,10 +1682,10 @@ CREATE TABLE IF NOT EXISTS subsidy_trackers (
     UNIQUE (uid)
 );
 
-CREATE UNIQUE INDEX idx_subsidy_trackers_project_uid ON subsidy_trackers (tenant_uid, project_uid) WHERE is_deleted = 0;
-CREATE INDEX idx_subsidy_trackers_tenant_uid ON subsidy_trackers(tenant_uid);
-CREATE INDEX idx_subsidy_trackers_lead_uid ON subsidy_trackers(lead_uid);
-CREATE INDEX idx_subsidy_trackers_status ON subsidy_trackers(portal_status, net_meter_status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subsidy_trackers_project_uid ON subsidy_trackers (tenant_uid, project_uid) WHERE is_deleted = 0;
+CREATE INDEX IF NOT EXISTS idx_subsidy_trackers_tenant_uid ON subsidy_trackers(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_subsidy_trackers_lead_uid ON subsidy_trackers(lead_uid);
+CREATE INDEX IF NOT EXISTS idx_subsidy_trackers_status ON subsidy_trackers(portal_status, net_meter_status);
 
 COMMENT ON COLUMN subsidy_trackers.portal_status IS '1=Not Started, 2=Registered, 3=Documents Submitted, 4=Approved, 5=Disbursed';
 COMMENT ON COLUMN subsidy_trackers.net_meter_status IS '1=Not Applied, 2=Applied, 3=Meter Installed';
@@ -1811,7 +1811,7 @@ WHERE NOT EXISTS (
 
 
 ALTER TABLE product_categories
-ADD COLUMN is_dynamic SMALLINT DEFAULT 1;
+ADD COLUMN IF NOT EXISTS is_dynamic SMALLINT DEFAULT 1;
 
 COMMENT ON COLUMN product_categories.is_dynamic IS '1 for dynamic, 0 for static/default';
 
@@ -1919,7 +1919,7 @@ ALTER TABLE product_specifications DROP COLUMN max_power;
 
 
 
-CREATE TABLE product_cell_technologies (
+CREATE TABLE IF NOT EXISTS product_cell_technologies (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -1944,7 +1944,7 @@ COMMENT ON TABLE product_cell_technologies IS 'Global master data for product ce
 
 
 ALTER TABLE products 
-ADD COLUMN cell_technology_uid VARCHAR(255) DEFAULT NULL;
+ADD COLUMN IF NOT EXISTS cell_technology_uid VARCHAR(255) DEFAULT NULL;
 
 ALTER TABLE product_specifications 
 DROP COLUMN cell_technology;
@@ -1953,7 +1953,7 @@ DROP COLUMN cell_technology;
 
 
 ALTER TABLE product_categories
-ADD COLUMN has_cell_category SMALLINT DEFAULT 0;
+ADD COLUMN IF NOT EXISTS has_cell_category SMALLINT DEFAULT 0;
 
 COMMENT ON COLUMN product_categories.has_cell_category IS '1 if products in this category require a cell technology, 0 otherwise';
 
@@ -1963,7 +1963,7 @@ COMMENT ON COLUMN product_categories.has_cell_category IS '1 if products in this
 DROP TABLE IF EXISTS product_specifications;
 
 -- Specifications definitions per Category
-CREATE TABLE product_specifications (
+CREATE TABLE IF NOT EXISTS product_specifications (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   category_uid VARCHAR(255) NOT NULL,
@@ -1984,12 +1984,12 @@ CREATE TABLE product_specifications (
   CONSTRAINT uq_product_specifications_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_product_specs_category_uid ON product_specifications(category_uid);
+CREATE INDEX IF NOT EXISTS idx_product_specs_category_uid ON product_specifications(category_uid);
 
 COMMENT ON TABLE product_specifications IS 'Stores dynamic specification definitions for Product Categories';
 
 -- Options for Dropdown type specifications
-CREATE TABLE product_specification_options (
+CREATE TABLE IF NOT EXISTS product_specification_options (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   specification_uid VARCHAR(255) NOT NULL,
@@ -2007,12 +2007,12 @@ CREATE TABLE product_specification_options (
   CONSTRAINT uq_product_specification_options_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_product_spec_options_spec_uid ON product_specification_options(specification_uid);
+CREATE INDEX IF NOT EXISTS idx_product_spec_options_spec_uid ON product_specification_options(specification_uid);
 
 COMMENT ON TABLE product_specification_options IS 'Stores options for Dropdown product specifications';
 
 -- Values for actual Products
-CREATE TABLE product_specification_values (
+CREATE TABLE IF NOT EXISTS product_specification_values (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   product_uid VARCHAR(255) NOT NULL,
@@ -2030,8 +2030,8 @@ CREATE TABLE product_specification_values (
   CONSTRAINT uq_product_specification_values_uid UNIQUE (uid)
 );
 
-CREATE INDEX idx_product_spec_values_product_uid ON product_specification_values(product_uid);
-CREATE INDEX idx_product_spec_values_spec_uid ON product_specification_values(specification_uid);
+CREATE INDEX IF NOT EXISTS idx_product_spec_values_product_uid ON product_specification_values(product_uid);
+CREATE INDEX IF NOT EXISTS idx_product_spec_values_spec_uid ON product_specification_values(specification_uid);
 
 COMMENT ON TABLE product_specification_values IS 'Stores actual specification values for Products';
 
@@ -2084,7 +2084,7 @@ END $$;
 
 
 -- 1. Create mapping table
-CREATE TABLE product_category_specifications (
+CREATE TABLE IF NOT EXISTS product_category_specifications (
   id BIGSERIAL,
   uid VARCHAR(255) NOT NULL,
   category_uid VARCHAR(255) NOT NULL,
@@ -2105,14 +2105,14 @@ CREATE TABLE product_category_specifications (
   CONSTRAINT uq_product_category_spec_mapping UNIQUE (category_uid, specification_uid)
 );
 
-CREATE INDEX idx_prod_cat_specs_cat ON product_category_specifications(category_uid);
-CREATE INDEX idx_prod_cat_specs_spec ON product_category_specifications(specification_uid);
+CREATE INDEX IF NOT EXISTS idx_prod_cat_specs_cat ON product_category_specifications(category_uid);
+CREATE INDEX IF NOT EXISTS idx_prod_cat_specs_spec ON product_category_specifications(specification_uid);
 
 COMMENT ON TABLE product_category_specifications IS 'Maps master specifications to product categories with category-specific settings';
 
 -- 2. Add is_visible to product_specification_values
 ALTER TABLE product_specification_values 
-ADD COLUMN is_visible SMALLINT DEFAULT 1;
+ADD COLUMN IF NOT EXISTS is_visible SMALLINT DEFAULT 1;
 
 -- 3. Backfill data into mapping table
 -- We assume `gen_random_uuid()` is available. If not, we will rely on application logic to migrate, or use gen_random_uuid() if PG13+.
@@ -2179,7 +2179,7 @@ DROP TABLE IF EXISTS product_cell_technologies;
 
 
 
-CREATE TABLE email_logs (
+CREATE TABLE IF NOT EXISTS email_logs (
     id BIGSERIAL PRIMARY KEY,
     uid VARCHAR(255) NOT NULL UNIQUE,
     tenant_uid VARCHAR(255) NOT NULL,
@@ -2203,11 +2203,11 @@ CREATE TABLE email_logs (
     deleted_by VARCHAR(255)
 );
 
-CREATE INDEX idx_email_logs_tenant_uid ON email_logs(tenant_uid);
-CREATE INDEX idx_email_logs_module ON email_logs(module);
-CREATE INDEX idx_email_logs_reference_uid ON email_logs(reference_uid);
-CREATE INDEX idx_email_logs_status ON email_logs(status);
-CREATE INDEX idx_email_logs_recipient_email ON email_logs(recipient_email);
+CREATE INDEX IF NOT EXISTS idx_email_logs_tenant_uid ON email_logs(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_email_logs_module ON email_logs(module);
+CREATE INDEX IF NOT EXISTS idx_email_logs_reference_uid ON email_logs(reference_uid);
+CREATE INDEX IF NOT EXISTS idx_email_logs_status ON email_logs(status);
+CREATE INDEX IF NOT EXISTS idx_email_logs_recipient_email ON email_logs(recipient_email);
 
 COMMENT ON TABLE email_logs IS 'Stores logs of all outgoing emails and their status';
 
@@ -2240,14 +2240,14 @@ CREATE TABLE IF NOT EXISTS notification_logs (
     deleted_by VARCHAR(255)
 );
 
-CREATE INDEX idx_notification_logs_tenant_uid ON notification_logs(tenant_uid);
-CREATE INDEX idx_notification_logs_module ON notification_logs(module);
-CREATE INDEX idx_notification_logs_reference_uid ON notification_logs(reference_uid);
-CREATE INDEX idx_notification_logs_channel ON notification_logs(channel);
-CREATE INDEX idx_notification_logs_status ON notification_logs(status);
-CREATE INDEX idx_notification_logs_delivery_mode ON notification_logs(delivery_mode);
-CREATE INDEX idx_notification_logs_recipient ON notification_logs(recipient);
-CREATE INDEX idx_notification_logs_template ON notification_logs(template);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_tenant_uid ON notification_logs(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_module ON notification_logs(module);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_reference_uid ON notification_logs(reference_uid);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_channel ON notification_logs(channel);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_status ON notification_logs(status);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_delivery_mode ON notification_logs(delivery_mode);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_recipient ON notification_logs(recipient);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_template ON notification_logs(template);
 
 COMMENT ON TABLE notification_logs IS 'Stores logs of all outgoing notifications across all channels with delivery mode tracking';
 
@@ -2256,10 +2256,10 @@ COMMENT ON TABLE notification_logs IS 'Stores logs of all outgoing notifications
 ALTER TABLE packages RENAME COLUMN price TO recomended_price;
 
 
-ALTER TABLE package_scope_of_work_items ADD COLUMN scope_of_work_uid UUID;
+ALTER TABLE package_scope_of_work_items ADD COLUMN IF NOT EXISTS scope_of_work_uid UUID;
 
 
-ALTER TABLE quotation_scope_of_work_items ADD COLUMN scope_of_work_uid UUID;
+ALTER TABLE quotation_scope_of_work_items ADD COLUMN IF NOT EXISTS scope_of_work_uid UUID;
 
 
 
@@ -2729,7 +2729,7 @@ WHERE is_system = 1
 -- ============================================================
 -- Payments Module
 -- ============================================================
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
   id BIGSERIAL,
   uid UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   tenant_uid UUID NOT NULL,
@@ -2754,8 +2754,8 @@ CREATE TABLE payments (
   CONSTRAINT pk_payments PRIMARY KEY (id)
 );
 
-CREATE INDEX idx_payments_tenant_uid ON payments(tenant_uid);
-CREATE INDEX idx_payments_lead_uid ON payments(lead_uid);
+CREATE INDEX IF NOT EXISTS idx_payments_tenant_uid ON payments(tenant_uid);
+CREATE INDEX IF NOT EXISTS idx_payments_lead_uid ON payments(lead_uid);
 
 COMMENT ON TABLE payments IS 'Stores payment records against a Lead';
 

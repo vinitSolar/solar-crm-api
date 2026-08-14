@@ -175,7 +175,7 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
         .logo-placeholder {
             width: 35px;
             height: 35px;
-            background-color: #f59e0b;
+            background-color: #E1232E;
             color: #ffffff;
             font-size: 14px;
             font-weight: 700;
@@ -193,7 +193,7 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
         .franchise-name {
             font-size: 13px;
             font-weight: 700;
-            color: #0f172a;
+            color: #242F62;
             margin-bottom: 2px;
         }
 
@@ -208,7 +208,7 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
             justify-content: space-between;
             align-items: center;
             background-color: #f8fafc;
-            border-left: 3px solid #f59e0b;
+            border-left: 3px solid #E1232E;
             padding: 6px 12px;
             margin-bottom: 8px;
         }
@@ -216,7 +216,7 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
         .quote-title {
             font-size: 13px;
             font-weight: 700;
-            color: #0f172a;
+            color: #242F62;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -224,7 +224,7 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
         .quote-number {
             font-size: 11px;
             font-weight: 600;
-            color: #0f172a;
+            color: #242F62;
         }
 
         /* 2-column info layout */
@@ -245,7 +245,7 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
         .info-header {
             font-size: 9.5px;
             font-weight: 600;
-            color: #0f172a;
+            color: #242F62;
             border-bottom: 1px solid #e2e8f0;
             padding-bottom: 3px;
             margin-bottom: 6px;
@@ -278,14 +278,14 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
         }
 
         th {
-            background-color: #0f172a;
+            background-color: #242F62;
             color: #ffffff;
             font-weight: 600;
             text-transform: uppercase;
             font-size: 8px;
             letter-spacing: 0.5px;
             padding: 5px 8px;
-            border: 1px solid #0f172a;
+            border: 1px solid #242F62;
         }
 
         td {
@@ -324,7 +324,7 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
             font-weight: 700;
             font-size: 10.5px;
             background-color: #f1f5f9;
-            color: #0f172a;
+            color: #242F62;
         }
 
         .bold-row td {
@@ -370,7 +370,7 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
         .section-title {
             font-size: 9.5px;
             font-weight: 600;
-            color: #0f172a;
+            color: #242F62;
             border-bottom: 1px solid #e2e8f0;
             padding-bottom: 3px;
             margin-bottom: 6px;
@@ -424,7 +424,7 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
 
         .notes-title {
             font-weight: 600;
-            color: #0f172a;
+            color: #242F62;
             margin-bottom: 2px;
         }
 

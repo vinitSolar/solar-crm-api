@@ -16,6 +16,13 @@ const PAYMENT_COLUMNS = `
     updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
 `;
 
+const PAYMENT_COLUMNS_PREFIXED = `
+    p.id, p.uid, p.tenant_uid AS "tenantUid", p.lead_uid AS "leadUid", p.amount, p.payment_method AS "paymentMethod",
+    p.transaction_reference AS "transactionReference", p.payment_date AS "paymentDate", p.status, p.notes,
+    p.is_active AS "isActive", p.is_deleted AS "isDeleted", p.created_at AS "createdAt",
+    p.updated_at AS "updatedAt", p.created_by AS "createdBy", p.updated_by AS "updatedBy", p.deleted_by AS "deletedBy"
+`;
+
 export class PaymentRepository {
     private pool: Pool;
 
@@ -54,8 +61,11 @@ export class PaymentRepository {
             createdBy,
         ];
 
-        const { rows } = await dbClient.query(query, values);
-        return rows[0] as IPayment;
+        await dbClient.query(query, values);
+
+        // Re-fetch with totalAmountDue computed
+        const created = await this.getByUid(uid, tenantUid, client);
+        return created as IPayment;
     }
 
     async update(
@@ -101,22 +111,44 @@ export class PaymentRepository {
             UPDATE payments
             SET ${setClauses.join(", ")}
             WHERE uid = $${valueIndex} AND tenant_uid = $${valueIndex + 1} AND is_deleted = 0
-            RETURNING ${PAYMENT_COLUMNS}
         `;
         values.push(uid, tenantUid);
 
-        const { rows } = await dbClient.query(query, values);
-        return (rows[0] as IPayment) || null;
+        const { rowCount } = await dbClient.query(query, values);
+        if (!rowCount || rowCount === 0) return null;
+
+        // Re-fetch with totalAmountDue computed
+        return this.getByUid(uid, tenantUid, client);
     }
 
     async getByUid(uid: string, tenantUid: string, client?: PoolClient): Promise<IPayment | null> {
         const dbClient = client || this.pool;
         const query = `
-            SELECT ${PAYMENT_COLUMNS}
-            FROM payments
-            WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0
+            SELECT
+                ${PAYMENT_COLUMNS_PREFIXED},
+                COALESCE(q.net_customer_cost, 0) - COALESCE(
+                    SUM(CASE WHEN p2.status = $3 THEN p2.amount ELSE 0 END)
+                , 0) AS "totalAmountDue"
+            FROM payments p
+            LEFT JOIN LATERAL (
+                SELECT net_customer_cost
+                FROM quotations
+                WHERE lead_uid = p.lead_uid::TEXT AND tenant_uid = p.tenant_uid::TEXT AND is_active = 1 AND is_deleted = 0
+                ORDER BY created_at DESC
+                LIMIT 1
+            ) q ON true
+            LEFT JOIN payments p2
+                ON p2.lead_uid = p.lead_uid
+                AND p2.tenant_uid = p.tenant_uid
+                AND p2.is_deleted = 0
+                AND (p2.payment_date < p.payment_date OR (p2.payment_date = p.payment_date AND p2.id <= p.id))
+            WHERE p.uid = $1 AND p.tenant_uid = $2 AND p.is_deleted = 0
+            GROUP BY p.id, p.uid, p.tenant_uid, p.lead_uid, p.amount, p.payment_method,
+                     p.transaction_reference, p.payment_date, p.status, p.notes,
+                     p.is_active, p.is_deleted, p.created_at, p.updated_at,
+                     p.created_by, p.updated_by, p.deleted_by, q.net_customer_cost
         `;
-        const { rows } = await dbClient.query(query, [uid, tenantUid]);
+        const { rows } = await dbClient.query(query, [uid, tenantUid, PAYMENT_STATUS.PAID]);
         return (rows[0] as IPayment) || null;
     }
 
@@ -129,45 +161,82 @@ export class PaymentRepository {
         const { page = 1, limit = 10, search, status = "active", leadUid } = queryFilters;
         const offset = (page - 1) * limit;
 
-        let whereClauses = ["tenant_uid = $1"];
+        const countClauses: string[] = [];
+        const dataClauses: string[] = [];
         const values: any[] = [tenantUid];
         let valueIndex = 2;
 
+        countClauses.push("tenant_uid = $1");
+        dataClauses.push("p.tenant_uid = $1");
+
         if (status === "active") {
-            whereClauses.push(`is_deleted = 0`);
+            countClauses.push("is_deleted = 0");
+            dataClauses.push("p.is_deleted = 0");
         } else if (status === "deleted") {
-            whereClauses.push(`is_deleted = 1`);
+            countClauses.push("is_deleted = 1");
+            dataClauses.push("p.is_deleted = 1");
         }
 
         if (leadUid) {
-            whereClauses.push(`lead_uid = $${valueIndex}`);
+            countClauses.push(`lead_uid = $${valueIndex}`);
+            dataClauses.push(`p.lead_uid = $${valueIndex}`);
             values.push(leadUid);
             valueIndex++;
         }
 
         if (search) {
-            whereClauses.push(`
-                (
-                    transaction_reference ILIKE $${valueIndex} OR 
-                    notes ILIKE $${valueIndex} OR
-                    CAST(amount AS TEXT) ILIKE $${valueIndex}
-                )
-            `);
+            const searchClause = `(
+                transaction_reference ILIKE $${valueIndex} OR 
+                notes ILIKE $${valueIndex} OR
+                CAST(amount AS TEXT) ILIKE $${valueIndex}
+            )`;
+            const searchClausePrefixed = `(
+                p.transaction_reference ILIKE $${valueIndex} OR 
+                p.notes ILIKE $${valueIndex} OR
+                CAST(p.amount AS TEXT) ILIKE $${valueIndex}
+            )`;
+            countClauses.push(searchClause);
+            dataClauses.push(searchClausePrefixed);
             values.push(`%${search}%`);
             valueIndex++;
         }
 
-        const whereString = whereClauses.join(" AND ");
+        const countWhereString = countClauses.join(" AND ");
+        const dataWhereString = dataClauses.join(" AND ");
 
-        const countQuery = `SELECT COUNT(*) FROM payments WHERE ${whereString}`;
+        const countQuery = `SELECT COUNT(*) FROM payments WHERE ${countWhereString}`;
         const countResult = await dbClient.query(countQuery, values);
         const total = parseInt(countResult.rows[0].count, 10);
 
+        const paidStatusParam = `$${valueIndex}`;
+        values.push(PAYMENT_STATUS.PAID);
+        valueIndex++;
+
         const dataQuery = `
-            SELECT ${PAYMENT_COLUMNS}
-            FROM payments
-            WHERE ${whereString}
-            ORDER BY payment_date DESC, created_at DESC
+            SELECT
+                ${PAYMENT_COLUMNS_PREFIXED},
+                COALESCE(q.net_customer_cost, 0) - COALESCE(
+                    SUM(CASE WHEN p2.status = ${paidStatusParam} THEN p2.amount ELSE 0 END)
+                , 0) AS "totalAmountDue"
+            FROM payments p
+            LEFT JOIN LATERAL (
+                SELECT net_customer_cost
+                FROM quotations
+                WHERE lead_uid = p.lead_uid::TEXT AND tenant_uid = p.tenant_uid::TEXT AND is_active = 1 AND is_deleted = 0
+                ORDER BY created_at DESC
+                LIMIT 1
+            ) q ON true
+            LEFT JOIN payments p2
+                ON p2.lead_uid = p.lead_uid
+                AND p2.tenant_uid = p.tenant_uid
+                AND p2.is_deleted = 0
+                AND (p2.payment_date < p.payment_date OR (p2.payment_date = p.payment_date AND p2.id <= p.id))
+            WHERE ${dataWhereString}
+            GROUP BY p.id, p.uid, p.tenant_uid, p.lead_uid, p.amount, p.payment_method,
+                     p.transaction_reference, p.payment_date, p.status, p.notes,
+                     p.is_active, p.is_deleted, p.created_at, p.updated_at,
+                     p.created_by, p.updated_by, p.deleted_by, q.net_customer_cost
+            ORDER BY p.payment_date DESC, p.created_at DESC
             LIMIT $${valueIndex} OFFSET $${valueIndex + 1}
         `;
         

@@ -13,5 +13,6 @@ export function toPaymentSafe(payment: IPayment): IPaymentSafe {
         isActive: payment.isActive,
         isDeleted: payment.isDeleted,
         createdAt: payment.createdAt,
+        totalAmountDue: Number(payment.totalAmountDue),
     };
 }

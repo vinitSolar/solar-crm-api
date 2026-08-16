@@ -16,6 +16,7 @@ export interface IPayment {
     createdBy: string | null;
     updatedBy: string | null;
     deletedBy: string | null;
+    totalAmountDue: number;
 }
 
 export interface ICreatePayment {
@@ -42,6 +43,7 @@ export interface IPaymentSafe {
     isActive: number;
     isDeleted: number;
     createdAt: Date;
+    totalAmountDue: number;
 }
 
 export interface IPaymentSummary {

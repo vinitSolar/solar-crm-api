@@ -39,7 +39,7 @@ export class PaymentService {
         userAgent?: string
     ): Promise<IPaymentSafe> {
         // 1. Validate Lead exists and belongs to tenant
-        const lead = await this.leadRepository.getByUid(data.leadUid, tenantUid);
+        const lead = await this.leadRepository.getByUid(tenantUid, data.leadUid);
         if (!lead) {
             throw new CustomError(PAYMENT_MESSAGES.LEAD_NOT_FOUND, 404);
         }
@@ -120,7 +120,7 @@ export class PaymentService {
 
         // If status changed to Paid
         if (oldPayment.status !== PAYMENT_STATUS.PAID && payment.status === PAYMENT_STATUS.PAID) {
-            const lead = await this.leadRepository.getByUid(payment.leadUid, tenantUid);
+            const lead = await this.leadRepository.getByUid(tenantUid, payment.leadUid);
             if (lead && lead.email) {
                 try {
                     await notificationService.send({
@@ -174,7 +174,7 @@ export class PaymentService {
 
     async getLeadPaymentSummary(leadUid: string, tenantUid: string): Promise<IPaymentSummary> {
         // Validate lead exists
-        const lead = await this.leadRepository.getByUid(leadUid, tenantUid);
+        const lead = await this.leadRepository.getByUid(tenantUid, leadUid);
         if (!lead) {
             throw new CustomError(PAYMENT_MESSAGES.LEAD_NOT_FOUND, 404);
         }

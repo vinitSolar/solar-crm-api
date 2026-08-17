@@ -9,6 +9,7 @@ import fs from "fs";
 import { logger } from "@packages/logger/logger.js";
 import { NOTIFICATION_TEMPLATE, NOTIFICATION_MESSAGES } from "../constants/notification.constants.js";
 import { quotationGeneratedTemplate } from "../templates/quotation-generated/template.js";
+import { paymentReceivedTemplate } from "../templates/payment-received/template.js";
 import type { ITemplateConfig } from "../interfaces/notification.interfaces.js";
 
 /**
@@ -21,6 +22,12 @@ export function getTemplateConfig(template: NOTIFICATION_TEMPLATE): ITemplateCon
                 subject: quotationGeneratedTemplate.subject,
                 htmlPath: quotationGeneratedTemplate.getHtmlPath(),
                 requiredKeys: quotationGeneratedTemplate.requiredKeys
+            };
+        case NOTIFICATION_TEMPLATE.PAYMENT_RECEIVED:
+            return {
+                subject: paymentReceivedTemplate.subject,
+                htmlPath: paymentReceivedTemplate.getHtmlPath(),
+                requiredKeys: paymentReceivedTemplate.requiredKeys
             };
         default:
             throw new Error(`${NOTIFICATION_MESSAGES.TEMPLATE_NOT_FOUND}: ${template}`);

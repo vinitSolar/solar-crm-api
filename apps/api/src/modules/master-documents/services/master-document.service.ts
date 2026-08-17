@@ -318,6 +318,9 @@ export class MasterDocumentService {
       logger.error("MasterDocumentService.deleteMasterDocument failed", {
         error,
       });
+      if (error instanceof CustomError) {
+          throw error;
+      }
       throw new CustomError("Failed to delete master document", 500);
     } finally {
       client.release();

@@ -196,8 +196,9 @@ export class MasterDocumentTypeRepository {
     }
 
     if (module) {
-      whereClause += ` AND $${paramIndex++} = ANY(mdt.applicable_modules)`;
+      whereClause += ` AND ($${paramIndex} = ANY(mdt.applicable_modules) OR mdt.is_common_for_all_modules = 1)`;
       values.push(module);
+      paramIndex++;
     }
 
     if (category) {

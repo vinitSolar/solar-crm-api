@@ -7,6 +7,9 @@ import type { ProjectInstallationMilestoneRepository } from "../repositories/pro
 import type { LeadRepository } from "../../leads/repositories/lead.repository.js";
 import type { SubsidyTrackerRepository } from "../../subsidy-trackers/repositories/subsidy-tracker.repository.js";
 import type { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
+import type { ProjectInstallationMilestoneDocumentRepository } from "../repositories/project-milestone-document.repository.js";
+import { storageService } from "@packages/storage/index.js";
+import path from "path";
 import type { ICreateProject, IUpdateProject, IProjectSafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/project.interface.js";
 import { toProjectSafe } from "../dto/project.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
@@ -24,6 +27,7 @@ export class ProjectService {
     private readonly leadRepository: LeadRepository;
     private readonly subsidyTrackerRepository: SubsidyTrackerRepository;
     private readonly auditLogService: AuditLogService;
+    private readonly milestoneDocumentRepository: ProjectInstallationMilestoneDocumentRepository;
 
     constructor(
         repository: ProjectRepository,
@@ -34,7 +38,8 @@ export class ProjectService {
         requiredDocRepository: SubsidyRequiredDocumentRepository,
         leadRepository: LeadRepository,
         subsidyTrackerRepository: SubsidyTrackerRepository,
-        auditLogService: AuditLogService
+        auditLogService: AuditLogService,
+        milestoneDocumentRepository: ProjectInstallationMilestoneDocumentRepository
     ) {
         this.repository = repository;
         this.statusRepository = statusRepository;
@@ -45,6 +50,7 @@ export class ProjectService {
         this.leadRepository = leadRepository;
         this.subsidyTrackerRepository = subsidyTrackerRepository;
         this.auditLogService = auditLogService;
+        this.milestoneDocumentRepository = milestoneDocumentRepository;
     }
 
     async createProject(tenantUid: string, data: ICreateProject, createdBy: string, ipAddress?: string, userAgent?: string): Promise<IProjectSafe> {
@@ -373,10 +379,17 @@ export class ProjectService {
         if (!project) throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
 
         const milestones = await this.milestoneRepository.getByProjectUid(tenantUid, projectUid);
-        return milestones.map(m => ({
-            ...m,
-            documents: []
+        
+        // Fetch documents for each milestone
+        const milestonesWithDocs = await Promise.all(milestones.map(async (m) => {
+            const documents = await this.milestoneDocumentRepository.getDocumentsByMilestoneUid(tenantUid, m.uid);
+            return {
+                ...m,
+                documents: documents || []
+            };
         }));
+        
+        return milestonesWithDocs;
     }
 
 
@@ -411,5 +424,45 @@ export class ProjectService {
         });
 
         return { updated: true, nextStarted: hasNext };
+    }
+
+    async uploadMilestoneDocument(tenantUid: string, projectUid: string, milestoneUid: string, file: Express.Multer.File, createdBy: string) {
+        // Validate project
+        const project = await this.repository.getByUid(tenantUid, projectUid);
+        if (!project) throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
+
+        // Validate milestone
+        const milestone = await this.milestoneRepository.getByUid(tenantUid, milestoneUid);
+        if (!milestone || milestone.projectUid !== projectUid) {
+            throw new CustomError("Milestone not found for this project", 404);
+        }
+
+        // Upload to storage
+        const folder = `projects/${tenantUid}/${projectUid}/milestones/${milestoneUid}`;
+        const fileUrlResult = await storageService.uploadFileWithPath(
+            file.buffer,
+            file.originalname,
+            file.mimetype,
+            folder
+        );
+
+        const fileUrl = fileUrlResult.url;
+        const fileName = fileUrlResult.path || path.basename(fileUrl);
+
+        // Save metadata
+        const document = await this.milestoneDocumentRepository.addDocument(
+            tenantUid,
+            milestoneUid,
+            {
+                imageName: file.originalname,
+                imagePath: fileName,
+                imageUrl: fileUrl,
+                mimeType: file.mimetype,
+                fileSize: file.size,
+            },
+            createdBy
+        );
+
+        return document;
     }
 }

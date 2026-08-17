@@ -12,6 +12,7 @@ import { LeadRepository } from "../../leads/repositories/lead.repository.js";
 import { SubsidyTrackerRepository } from "../../subsidy-trackers/repositories/subsidy-tracker.repository.js";
 import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
+import { ProjectInstallationMilestoneDocumentRepository } from "../repositories/project-milestone-document.repository.js";
 import {
     createProjectSchema,
     updateProjectSchema,
@@ -40,6 +41,7 @@ function createProjectRouter(): Router {
     const subsidyTrackerRepository = new SubsidyTrackerRepository(pool);
     const auditLogRepo = new AuditLogRepository(pool);
     const auditLogService = new AuditLogService(auditLogRepo);
+    const milestoneDocumentRepository = new ProjectInstallationMilestoneDocumentRepository(pool);
 
     const service = new ProjectService(
         projectRepository,
@@ -50,7 +52,8 @@ function createProjectRouter(): Router {
         requiredDocRepository,
         leadRepository,
         subsidyTrackerRepository,
-        auditLogService
+        auditLogService,
+        milestoneDocumentRepository
     );
     const controller = new ProjectController(service);
 
@@ -407,6 +410,47 @@ function createProjectRouter(): Router {
     );
 
     // --- MILESTONES ---
+    
+    /**
+     * @swagger
+     * /projects/{projectUid}/milestones/{milestoneUid}/upload:
+     *   post:
+     *     tags: [Projects]
+     *     summary: Upload a document for a project milestone
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: projectUid
+     *         required: true
+     *         schema:
+     *           type: string
+     *       - in: path
+     *         name: milestoneUid
+     *         required: true
+     *         schema:
+     *           type: string
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         multipart/form-data:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               file:
+     *                 type: string
+     *                 format: binary
+     *     responses:
+     *       200:
+     *         description: Document uploaded successfully
+     */
+    router.post(
+        "/:uid/milestones/:milestoneUid/upload",
+        upload.single("file"),
+        controller.uploadMilestoneDocument
+    );
+
+    // --- SUBSIDY DOCUMENTS ---
     router.get(
         "/:projectUid/milestones",
         controller.getProjectMilestones,

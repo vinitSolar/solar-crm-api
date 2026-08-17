@@ -78,7 +78,7 @@ export interface IUpdateMasterDocumentType {
 // Master Document Interfaces
 // ============================================================
 
-export type EntityType = "customer" | "lead" | "franchise" | "product";
+export type EntityType = "customer" | "lead" | "franchise" | "product" | "project";
 
 export type ModuleType =
   | "site_survey"

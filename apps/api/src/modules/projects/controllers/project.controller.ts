@@ -240,4 +240,29 @@ export class ProjectController {
             next(error);
         }
     };
+
+    uploadMilestoneDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const projectUid = req.params.uid || req.params.projectUid;
+            const milestoneUid = req.params.milestoneUid as string;
+            const userUid = authReq.user.uid;
+            const file = req.file;
+
+            if (!file) {
+                res.status(400).json({ success: false, message: "No file provided", errors: [] });
+                return;
+            }
+
+            const result = await this.service.uploadMilestoneDocument(tenantUid, projectUid, milestoneUid, file, userUid);
+            res.status(200).json({
+                success: true,
+                message: "Document uploaded successfully",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

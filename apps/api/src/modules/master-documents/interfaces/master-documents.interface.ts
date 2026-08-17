@@ -81,7 +81,13 @@ export interface IUpdateMasterDocumentType {
 export type EntityType = "customer" | "lead" | "franchise" | "product";
 
 export type ModuleType =
-  "site_survey" | "subsidy_tracker" | "project" | "franchise" | "product";
+  | "site_survey"
+  | "subsidy_tracker"
+  | "project"
+  | "franchise"
+  | "product"
+  | "lead"
+  | "customer";
 
 export interface IMasterDocument {
   id: string;

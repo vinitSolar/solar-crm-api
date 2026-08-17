@@ -14,6 +14,5 @@ export { toPaymentSafe } from "./dto/payment.dto.js";
 
 export {
     PAYMENT_METHODS,
-    PAYMENT_STATUS,
     PAYMENT_MESSAGES,
 } from "./constants/payment.constants.js";

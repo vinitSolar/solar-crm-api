@@ -8,13 +8,7 @@ export const PAYMENT_METHODS = {
     OTHER: 6,
 };
 
-export const PAYMENT_STATUS = {
-    PENDING: 0,
-    PAID: 1,
-    FAILED: 2,
-    CANCELLED: 3,
-    REFUNDED: 4,
-};
+
 
 export const PAYMENT_MESSAGES = {
     NOT_FOUND: "Payment not found",

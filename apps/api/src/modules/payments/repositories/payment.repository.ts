@@ -7,18 +7,17 @@ import type {
     IPaymentSummary,
 } from "../interfaces/payment.interface.js";
 import type { IPaginationQuery } from "../../leads/interfaces/lead.interface.js";
-import { PAYMENT_STATUS } from "../constants/payment.constants.js";
 
 const PAYMENT_COLUMNS = `
     id, uid, tenant_uid AS "tenantUid", lead_uid AS "leadUid", amount, payment_method AS "paymentMethod",
-    transaction_reference AS "transactionReference", payment_date AS "paymentDate", status, notes,
+    transaction_reference AS "transactionReference", payment_date AS "paymentDate", image_proof AS "imageProof", notes,
     is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt",
     updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
 `;
 
 const PAYMENT_COLUMNS_PREFIXED = `
     p.id, p.uid, p.tenant_uid AS "tenantUid", p.lead_uid AS "leadUid", p.amount, p.payment_method AS "paymentMethod",
-    p.transaction_reference AS "transactionReference", p.payment_date AS "paymentDate", p.status, p.notes,
+    p.transaction_reference AS "transactionReference", p.payment_date AS "paymentDate", p.image_proof AS "imageProof", p.notes,
     p.is_active AS "isActive", p.is_deleted AS "isDeleted", p.created_at AS "createdAt",
     p.updated_at AS "updatedAt", p.created_by AS "createdBy", p.updated_by AS "updatedBy", p.deleted_by AS "deletedBy"
 `;
@@ -42,7 +41,7 @@ export class PaymentRepository {
         const query = `
             INSERT INTO payments (
                 uid, tenant_uid, lead_uid, amount, payment_method, transaction_reference,
-                payment_date, status, notes, created_by
+                payment_date, image_proof, notes, created_by
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING ${PAYMENT_COLUMNS}
@@ -56,7 +55,7 @@ export class PaymentRepository {
             data.paymentMethod,
             data.transactionReference || null,
             data.paymentDate,
-            data.status ?? PAYMENT_STATUS.PENDING,
+            data.imageProof || null,
             data.notes || null,
             createdBy,
         ];
@@ -85,7 +84,7 @@ export class PaymentRepository {
             { key: "paymentMethod", dbField: "payment_method" },
             { key: "transactionReference", dbField: "transaction_reference" },
             { key: "paymentDate", dbField: "payment_date" },
-            { key: "status", dbField: "status" },
+            { key: "imageProof", dbField: "image_proof" },
             { key: "notes", dbField: "notes" },
         ];
 
@@ -127,7 +126,7 @@ export class PaymentRepository {
             SELECT
                 ${PAYMENT_COLUMNS_PREFIXED},
                 COALESCE(q.net_customer_cost, 0) - COALESCE(
-                    SUM(CASE WHEN p2.status = $3 THEN p2.amount ELSE 0 END)
+                    SUM(p2.amount)
                 , 0) AS "totalAmountDue"
             FROM payments p
             LEFT JOIN LATERAL (
@@ -144,11 +143,11 @@ export class PaymentRepository {
                 AND (p2.payment_date < p.payment_date OR (p2.payment_date = p.payment_date AND p2.id <= p.id))
             WHERE p.uid = $1 AND p.tenant_uid = $2 AND p.is_deleted = 0
             GROUP BY p.id, p.uid, p.tenant_uid, p.lead_uid, p.amount, p.payment_method,
-                     p.transaction_reference, p.payment_date, p.status, p.notes,
+                     p.transaction_reference, p.payment_date, p.notes,
                      p.is_active, p.is_deleted, p.created_at, p.updated_at,
                      p.created_by, p.updated_by, p.deleted_by, q.net_customer_cost
         `;
-        const { rows } = await dbClient.query(query, [uid, tenantUid, PAYMENT_STATUS.PAID]);
+        const { rows } = await dbClient.query(query, [uid, tenantUid]);
         return (rows[0] as IPayment) || null;
     }
 
@@ -208,15 +207,11 @@ export class PaymentRepository {
         const countResult = await dbClient.query(countQuery, values);
         const total = parseInt(countResult.rows[0].count, 10);
 
-        const paidStatusParam = `$${valueIndex}`;
-        values.push(PAYMENT_STATUS.PAID);
-        valueIndex++;
-
         const dataQuery = `
             SELECT
                 ${PAYMENT_COLUMNS_PREFIXED},
                 COALESCE(q.net_customer_cost, 0) - COALESCE(
-                    SUM(CASE WHEN p2.status = ${paidStatusParam} THEN p2.amount ELSE 0 END)
+                    SUM(p2.amount)
                 , 0) AS "totalAmountDue"
             FROM payments p
             LEFT JOIN LATERAL (
@@ -233,7 +228,7 @@ export class PaymentRepository {
                 AND (p2.payment_date < p.payment_date OR (p2.payment_date = p.payment_date AND p2.id <= p.id))
             WHERE ${dataWhereString}
             GROUP BY p.id, p.uid, p.tenant_uid, p.lead_uid, p.amount, p.payment_method,
-                     p.transaction_reference, p.payment_date, p.status, p.notes,
+                     p.transaction_reference, p.payment_date, p.notes,
                      p.is_active, p.is_deleted, p.created_at, p.updated_at,
                      p.created_by, p.updated_by, p.deleted_by, q.net_customer_cost
             ORDER BY p.payment_date DESC, p.created_at DESC
@@ -253,28 +248,21 @@ export class PaymentRepository {
         const query = `
             SELECT 
                 COUNT(id) AS "totalCount",
-                COALESCE(SUM(CASE WHEN status = $3 THEN amount ELSE 0 END), 0) AS "totalPaid",
-                COALESCE(SUM(CASE WHEN status = $4 THEN amount ELSE 0 END), 0) AS "totalPending",
-                COALESCE(SUM(CASE WHEN status = $5 THEN amount ELSE 0 END), 0) AS "totalRefunded"
+                COALESCE(SUM(amount), 0) AS "totalPaid"
             FROM payments
             WHERE lead_uid = $1 AND tenant_uid = $2 AND is_deleted = 0
         `;
         
         const { rows } = await dbClient.query(query, [
             leadUid, 
-            tenantUid, 
-            PAYMENT_STATUS.PAID, 
-            PAYMENT_STATUS.PENDING,
-            PAYMENT_STATUS.REFUNDED
+            tenantUid
         ]);
         
         const result = rows[0];
         
         return {
             totalCount: parseInt(result.totalCount, 10),
-            totalPaid: Number(result.totalPaid),
-            totalPending: Number(result.totalPending),
-            totalRefunded: Number(result.totalRefunded),
+            totalPaid: Number(result.totalPaid)
         };
     }
 

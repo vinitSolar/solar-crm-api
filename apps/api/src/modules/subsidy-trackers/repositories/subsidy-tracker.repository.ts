@@ -143,7 +143,7 @@ export class SubsidyTrackerRepository {
         const countQuery = `
             SELECT COUNT(*) 
             FROM subsidy_trackers st
-            LEFT JOIN projects p ON st.project_uid = p.uid
+            LEFT JOIN projects p ON st.project_uid::uuid = p.uid
             LEFT JOIN leads l ON st.lead_uid = l.uid
             WHERE ${whereClause}
         `;
@@ -159,7 +159,7 @@ export class SubsidyTrackerRepository {
                 l.first_name AS "customerFirstName", l.last_name AS "customerLastName",
                 EXTRACT(DAY FROM (CURRENT_TIMESTAMP - st.created_at)) AS "trackerAgeDays"
             FROM subsidy_trackers st
-            LEFT JOIN projects p ON st.project_uid = p.uid
+            LEFT JOIN projects p ON st.project_uid::uuid = p.uid
             LEFT JOIN leads l ON st.lead_uid = l.uid
             WHERE ${whereClause}
             ORDER BY st.id DESC

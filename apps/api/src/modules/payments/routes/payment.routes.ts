@@ -15,6 +15,7 @@ import {
 } from "../validators/payment.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import multer from "multer";
 
 function createPaymentRouter(): Router {
     const router = Router();
@@ -25,6 +26,13 @@ function createPaymentRouter(): Router {
     const auditLogService = new AuditLogService(auditLogRepository);
     const paymentService = new PaymentService(paymentRepository, leadRepository, auditLogService);
     const paymentController = new PaymentController(paymentService);
+
+    const upload = multer({
+        storage: multer.memoryStorage(),
+        limits: {
+            fileSize: 10 * 1024 * 1024, // 10MB limit
+        },
+    });
 
     router.use(authenticate);
 
@@ -97,12 +105,13 @@ function createPaymentRouter(): Router {
      *     requestBody:
      *       required: true
      *       content:
-     *         application/json:
+     *         multipart/form-data:
      *           schema:
      *             $ref: '#/components/schemas/createPaymentSchemaBody'
      */
     router.post(
         "/",
+        upload.single("imageProof"),
         validatePaymentRequest(createPaymentSchema),
         paymentController.createPayment,
     );
@@ -122,12 +131,13 @@ function createPaymentRouter(): Router {
      *     requestBody:
      *       required: true
      *       content:
-     *         application/json:
+     *         multipart/form-data:
      *           schema:
      *             $ref: '#/components/schemas/updatePaymentSchemaBody'
      */
     router.put(
         "/:uid",
+        upload.single("imageProof"),
         validatePaymentRequest(updatePaymentSchema),
         paymentController.updatePayment,
     );

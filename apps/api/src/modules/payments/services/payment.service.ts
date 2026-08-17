@@ -3,7 +3,7 @@ import type { PaymentRepository } from "../repositories/payment.repository.js";
 import type { LeadRepository } from "../../leads/repositories/lead.repository.js";
 import type { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { notificationService } from "../../notification/services/notification.service.js";
-import { PAYMENT_MESSAGES, PAYMENT_STATUS } from "../constants/payment.constants.js";
+import { PAYMENT_MESSAGES } from "../constants/payment.constants.js";
 import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
 import type {
     IPayment,
@@ -15,6 +15,9 @@ import type {
 import { toPaymentSafe } from "../dto/payment.dto.js";
 import type { IPaginationQuery, IPaginatedResponse } from "../../leads/interfaces/lead.interface.js";
 import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constants.js";
+
+import { storageService } from "@packages/storage/index.js";
+import path from "path";
 
 export class PaymentService {
     private paymentRepository: PaymentRepository;
@@ -34,6 +37,7 @@ export class PaymentService {
     async createPayment(
         tenantUid: string,
         data: ICreatePayment,
+        file: Express.Multer.File | undefined,
         userUid: string,
         ipAddress?: string,
         userAgent?: string
@@ -42,6 +46,18 @@ export class PaymentService {
         const lead = await this.leadRepository.getByUid(tenantUid, data.leadUid);
         if (!lead) {
             throw new CustomError(PAYMENT_MESSAGES.LEAD_NOT_FOUND, 404);
+        }
+
+        // Upload file if provided
+        if (file) {
+            const folder = `payments/${tenantUid}/${data.leadUid}`;
+            const fileUrlResult = await storageService.uploadFileWithPath(
+                file.buffer,
+                file.originalname,
+                file.mimetype,
+                folder,
+            );
+            data.imageProof = fileUrlResult.url;
         }
 
         // 2. Create payment
@@ -63,8 +79,8 @@ export class PaymentService {
             userAgent,
         });
 
-        // 4. Notification logic (if paid)
-        if (payment.status === PAYMENT_STATUS.PAID && lead.email) {
+        // 4. Notification logic
+        if (lead.email) {
             try {
                 await notificationService.send({
                     tenantUid,
@@ -93,6 +109,7 @@ export class PaymentService {
         uid: string,
         tenantUid: string,
         data: IUpdatePayment,
+        file: Express.Multer.File | undefined,
         userUid: string,
         ipAddress?: string,
         userAgent?: string
@@ -100,6 +117,18 @@ export class PaymentService {
         const oldPayment = await this.paymentRepository.getByUid(uid, tenantUid);
         if (!oldPayment) {
             throw new CustomError(PAYMENT_MESSAGES.NOT_FOUND, 404);
+        }
+
+        // Upload file if provided
+        if (file) {
+            const folder = `payments/${tenantUid}/${oldPayment.leadUid}`;
+            const fileUrlResult = await storageService.uploadFileWithPath(
+                file.buffer,
+                file.originalname,
+                file.mimetype,
+                folder,
+            );
+            data.imageProof = fileUrlResult.url;
         }
 
         const payment = await this.paymentRepository.update(uid, tenantUid, data, userUid);
@@ -118,30 +147,7 @@ export class PaymentService {
             userAgent,
         });
 
-        // If status changed to Paid
-        if (oldPayment.status !== PAYMENT_STATUS.PAID && payment.status === PAYMENT_STATUS.PAID) {
-            const lead = await this.leadRepository.getByUid(tenantUid, payment.leadUid);
-            if (lead && lead.email) {
-                try {
-                    await notificationService.send({
-                        tenantUid,
-                        channel: NOTIFICATION_CHANNEL.EMAIL,
-                        template: NOTIFICATION_TEMPLATE.PAYMENT_RECEIVED,
-                        recipient: lead.email,
-                        module: "payments",
-                        referenceUid: payment.uid,
-                        variables: {
-                            leadName: lead.firstName,
-                            amount: payment.amount.toString(),
-                            paymentDate: payment.paymentDate.toISOString(),
-                            transactionReference: payment.transactionReference || "N/A"
-                        }
-                    });
-                } catch (error) {
-                    console.error("Failed to queue payment notification:", error);
-                }
-            }
-        }
+        // Removed status change to Paid notification as status is removed and all payments are considered paid.
 
         return toPaymentSafe(payment);
     }

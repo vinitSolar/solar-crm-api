@@ -67,6 +67,8 @@ export const VALID_MODULES = [
   "project",
   "franchise",
   "product",
+  "lead",
+  "customer",
 ] as const;
 
 export const VALID_CATEGORIES = [1, 2, 3, 4, 5] as const;

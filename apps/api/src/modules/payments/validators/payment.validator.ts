@@ -4,11 +4,11 @@ import type { Request, Response, NextFunction } from "express";
 export const createPaymentSchema = z.object({
     body: z.object({
         leadUid: z.string({ message: "Lead UID is required" }).uuid("Invalid Lead UID format"),
-        amount: z.number({ message: "Amount is required" }).min(0, "Amount must be a positive number"),
-        paymentMethod: z.number({ message: "Payment method is required" }).int().min(0).max(6),
+        amount: z.coerce.number({ message: "Amount is required" }).min(0, "Amount must be a positive number"),
+        paymentMethod: z.coerce.number({ message: "Payment method is required" }).int().min(0).max(6),
         transactionReference: z.string().optional(),
         paymentDate: z.string({ message: "Payment date is required" }), // Accept ISO string
-        status: z.number().int().min(0).max(4).optional(),
+        imageProof: z.string().url("Invalid image proof URL").optional().or(z.literal("")),
         notes: z.string().optional(),
     }),
 });
@@ -18,11 +18,11 @@ export const updatePaymentSchema = z.object({
         uid: z.string().uuid("Invalid UID format"),
     }),
     body: z.object({
-        amount: z.number().min(0, "Amount must be a positive number").optional(),
-        paymentMethod: z.number().int().min(0).max(6).optional(),
+        amount: z.coerce.number().min(0, "Amount must be a positive number").optional(),
+        paymentMethod: z.coerce.number().int().min(0).max(6).optional(),
         transactionReference: z.string().optional(),
         paymentDate: z.string().optional(),
-        status: z.number().int().min(0).max(4).optional(),
+        imageProof: z.string().url("Invalid image proof URL").optional().or(z.literal("")),
         notes: z.string().optional(),
     }).strict(),
 });

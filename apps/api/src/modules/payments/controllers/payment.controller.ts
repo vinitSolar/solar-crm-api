@@ -20,6 +20,7 @@ export class PaymentController {
             const payment = await this.paymentService.createPayment(
                 authReq.tenantUid,
                 authReq.body,
+                authReq.file,
                 authReq.user.uid,
                 authReq.ip,
                 authReq.headers["user-agent"] as string
@@ -45,6 +46,7 @@ export class PaymentController {
                 authReq.params.uid as string,
                 authReq.tenantUid,
                 authReq.body,
+                authReq.file,
                 authReq.user.uid,
                 authReq.ip,
                 authReq.headers["user-agent"] as string

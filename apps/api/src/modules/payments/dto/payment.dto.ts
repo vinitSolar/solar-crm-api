@@ -8,7 +8,7 @@ export function toPaymentSafe(payment: IPayment): IPaymentSafe {
         paymentMethod: payment.paymentMethod,
         transactionReference: payment.transactionReference,
         paymentDate: payment.paymentDate,
-        status: payment.status,
+        imageProof: payment.imageProof,
         notes: payment.notes,
         isActive: payment.isActive,
         isDeleted: payment.isDeleted,

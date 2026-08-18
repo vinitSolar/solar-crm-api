@@ -378,6 +378,9 @@ export class ProjectService {
         const project = await this.repository.getByUid(tenantUid, projectUid);
         if (!project) throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
 
+        // Sync any new installation milestone templates created after project was generated
+        await this.milestoneRepository.syncMissingTemplates(tenantUid, projectUid, "system");
+
         const milestones = await this.milestoneRepository.getByProjectUid(tenantUid, projectUid);
         
         // Fetch documents for each milestone

@@ -1655,8 +1655,8 @@ CREATE TABLE IF NOT EXISTS subsidy_trackers (
     subsidy_uid VARCHAR(255),
     name VARCHAR(255),
     
-    portal_status SMALLINT DEFAULT 1, -- 1=Not Started, 2=Registered, 3=Documents Submitted, 4=Approved, 5=Disbursed
-    net_meter_status SMALLINT DEFAULT 1, -- 1=Not Applied, 2=Applied, 3=Meter Installed
+    portal_status SMALLINT DEFAULT 0, -- 0=NOT_STARTED, 1=REGISTERED, 2=DOCUMENTS_UPLOADED, 3=DOCUMENTS_SUBMITTED, 4=UNDER_VERIFICATION, 5=APPROVED, 6=REJECTED, 7=SUBSIDY_RELEASED, 8=COMPLETED
+    net_meter_status SMALLINT DEFAULT 0, -- 0=NOT_APPLIED, 1=APPLIED, 2=INSPECTION_SCHEDULED, 3=INSPECTION_COMPLETED, 4=METER_INSTALLED, 5=EXPORT_STARTED, 6=COMPLETED
     
     portal_reference_number VARCHAR(255),
     discom_reference_number VARCHAR(255),
@@ -1687,8 +1687,8 @@ CREATE INDEX IF NOT EXISTS idx_subsidy_trackers_tenant_uid ON subsidy_trackers(t
 CREATE INDEX IF NOT EXISTS idx_subsidy_trackers_lead_uid ON subsidy_trackers(lead_uid);
 CREATE INDEX IF NOT EXISTS idx_subsidy_trackers_status ON subsidy_trackers(portal_status, net_meter_status);
 
-COMMENT ON COLUMN subsidy_trackers.portal_status IS '1=Not Started, 2=Registered, 3=Documents Submitted, 4=Approved, 5=Disbursed';
-COMMENT ON COLUMN subsidy_trackers.net_meter_status IS '1=Not Applied, 2=Applied, 3=Meter Installed';
+COMMENT ON COLUMN subsidy_trackers.portal_status IS '0: NOT_STARTED, 1: REGISTERED, 2: DOCUMENTS_UPLOADED, 3: DOCUMENTS_SUBMITTED, 4: UNDER_VERIFICATION, 5: APPROVED, 6: REJECTED, 7: SUBSIDY_RELEASED, 8: COMPLETED';
+COMMENT ON COLUMN subsidy_trackers.net_meter_status IS '0: NOT_APPLIED, 1: APPLIED, 2: INSPECTION_SCHEDULED, 3: INSPECTION_COMPLETED, 4: METER_INSTALLED, 5: EXPORT_STARTED, 6: COMPLETED';
 
 
 

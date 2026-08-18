@@ -465,4 +465,37 @@ export class ProjectService {
 
         return document;
     }
+
+    async deleteMilestoneDocument(tenantUid: string, projectUid: string, milestoneUid: string, documentUid: string, deletedBy: string) {
+        // Validate project
+        const project = await this.repository.getByUid(tenantUid, projectUid);
+        if (!project) throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
+
+        // Validate milestone
+        const milestone = await this.milestoneRepository.getByUid(tenantUid, milestoneUid);
+        if (!milestone || milestone.projectUid !== projectUid) {
+            throw new CustomError("Milestone not found for this project", 404);
+        }
+
+        const document = await this.milestoneDocumentRepository.getByUid(tenantUid, documentUid);
+        if (!document || document.projectMilestoneUid !== milestoneUid) {
+            throw new CustomError("Document not found", 404);
+        }
+
+        const deleted = await this.milestoneDocumentRepository.softDeleteDocument(tenantUid, documentUid, deletedBy);
+        if (!deleted) {
+            throw new CustomError("Failed to delete document", 500);
+        }
+
+        await this.auditLogService.log({
+            tenantUid,
+            module: "Project",
+            recordUid: projectUid,
+            action: AUDIT_LOG_ACTIONS.DELETE,
+            message: `Deleted milestone document: ${document.imageName} for milestone '${milestone.title}'`,
+            createdBy: deletedBy
+        });
+
+        return true;
+    }
 }

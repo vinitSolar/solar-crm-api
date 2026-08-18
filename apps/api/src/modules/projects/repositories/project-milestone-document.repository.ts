@@ -65,4 +65,24 @@ export class ProjectInstallationMilestoneDocumentRepository {
         );
         return parseInt(result.rows[0]?.count || "0", 10);
     }
+
+    async getByUid(tenantUid: string, uid: string): Promise<IProjectInstallationMilestoneDocument | null> {
+        const result = await this.pool.query(
+            `SELECT ${DOC_COLUMNS} 
+             FROM project_installation_milestone_documents 
+             WHERE uid::varchar = $1 AND tenant_uid::varchar = $2 AND is_deleted = 0`,
+            [uid, tenantUid]
+        );
+        return result.rows.length ? (result.rows[0] as IProjectInstallationMilestoneDocument) : null;
+    }
+
+    async softDeleteDocument(tenantUid: string, uid: string, deletedBy: string): Promise<boolean> {
+        const result = await this.pool.query(
+            `UPDATE project_installation_milestone_documents 
+             SET is_deleted = 1, deleted_by = $1, deleted_at = CURRENT_TIMESTAMP
+             WHERE uid::varchar = $2 AND tenant_uid::varchar = $3 AND is_deleted = 0`,
+            [deletedBy, uid, tenantUid]
+        );
+        return (result.rowCount ?? 0) > 0;
+    }
 }

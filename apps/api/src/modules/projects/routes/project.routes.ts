@@ -450,6 +450,39 @@ function createProjectRouter(): Router {
         controller.uploadMilestoneDocument
     );
 
+    /**
+     * @swagger
+     * /projects/{projectUid}/milestones/{milestoneUid}/documents/{documentUid}:
+     *   delete:
+     *     tags: [Projects]
+     *     summary: Delete a document for a project milestone
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: projectUid
+     *         required: true
+     *         schema:
+     *           type: string
+     *       - in: path
+     *         name: milestoneUid
+     *         required: true
+     *         schema:
+     *           type: string
+     *       - in: path
+     *         name: documentUid
+     *         required: true
+     *         schema:
+     *           type: string
+     *     responses:
+     *       200:
+     *         description: Document deleted successfully
+     */
+    router.delete(
+        "/:uid/milestones/:milestoneUid/documents/:documentUid",
+        controller.deleteMilestoneDocument
+    );
+
     // --- SUBSIDY DOCUMENTS ---
     router.get(
         "/:projectUid/milestones",

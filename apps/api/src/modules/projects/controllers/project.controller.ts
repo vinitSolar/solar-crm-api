@@ -245,7 +245,7 @@ export class ProjectController {
         try {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
-            const projectUid = req.params.uid || req.params.projectUid;
+            const projectUid = (req.params.uid || req.params.projectUid) as string;
             const milestoneUid = req.params.milestoneUid as string;
             const userUid = authReq.user.uid;
             const file = req.file;
@@ -260,6 +260,26 @@ export class ProjectController {
                 success: true,
                 message: "Document uploaded successfully",
                 data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    deleteMilestoneDocument = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const projectUid = (req.params.projectUid || req.params.uid) as string;
+            const milestoneUid = req.params.milestoneUid as string;
+            const documentUid = req.params.documentUid as string;
+            const userUid = authReq.user.uid;
+
+            await this.service.deleteMilestoneDocument(tenantUid, projectUid, milestoneUid, documentUid, userUid);
+            res.status(200).json({
+                success: true,
+                message: "Document deleted successfully",
+                data: {},
             });
         } catch (error) {
             next(error);

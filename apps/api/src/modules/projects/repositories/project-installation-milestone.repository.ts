@@ -60,6 +60,49 @@ export class ProjectInstallationMilestoneRepository {
         }
     }
 
+    async syncMissingTemplates(
+        tenantUid: string,
+        projectUid: string,
+        createdBy: string
+    ): Promise<void> {
+        // Find active templates not in this project yet
+        const missingTemplatesRes = await this.pool.query(
+            `SELECT t.uid, t.name, t.description, t.sort_order 
+             FROM installation_milestones t
+             WHERE t.tenant_uid::varchar = $1 AND t.is_deleted = 0 AND t.is_active = 1
+               AND NOT EXISTS (
+                   SELECT 1 
+                   FROM project_installation_milestones pm
+                   WHERE pm.tenant_uid::varchar = $1 
+                     AND pm.project_uid::varchar = $2 
+                     AND pm.milestone_uid::varchar = t.uid 
+                     AND pm.is_deleted = 0
+               )
+             ORDER BY t.sort_order ASC`,
+            [tenantUid, projectUid]
+        );
+
+        const missingTemplates = missingTemplatesRes.rows;
+        if (missingTemplates.length === 0) return;
+
+        for (const template of missingTemplates) {
+            const uid = uuidv4();
+            await this.pool.query(
+                `INSERT INTO project_installation_milestones (
+                    uid, tenant_uid, project_uid, milestone_uid, title, description, 
+                    sequence_no, status, created_by
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [
+                    uid, tenantUid, projectUid, template.uid, template.name, template.description,
+                    template.sort_order, // fallback to template's sort order
+                    0, // Pending
+                    createdBy
+                ]
+            );
+        }
+    }
+
     async getByProjectUid(tenantUid: string, projectUid: string): Promise<IProjectInstallationMilestone[]> {
         const result = await this.pool.query(
             `SELECT ${PROJECT_MILESTONE_COLUMNS} 

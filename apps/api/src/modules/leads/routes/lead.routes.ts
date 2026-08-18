@@ -15,6 +15,7 @@ import {
 } from "../validators/lead.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { leadNoteRoutes } from "./lead-note.routes.js";
 
 function createLeadRouter(): Router {
     const router = Router();
@@ -28,6 +29,8 @@ function createLeadRouter(): Router {
     const controller = new LeadController(service);
 
     router.use(authenticate);
+
+    router.use("/:leadUid/notes", leadNoteRoutes);
 
     /**
      * @swagger

@@ -4,6 +4,8 @@ import { SubsidyTrackerService } from "../services/subsidy-tracker.service.js";
 import { SubsidyTrackerRepository } from "../repositories/subsidy-tracker.repository.js";
 import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
+import { NoteService } from "../../notes/services/note.service.js";
+import { NoteRepository } from "../../notes/repositories/note.repository.js";
 import {
     updateSubsidyTrackerSchema,
     getByUidSchema,
@@ -19,8 +21,10 @@ function createSubsidyTrackerRouter(): Router {
     const repository = new SubsidyTrackerRepository(pool);
     const auditLogRepo = new AuditLogRepository(pool);
     const auditLogService = new AuditLogService(auditLogRepo);
+    const noteRepository = new NoteRepository(pool);
+    const noteService = new NoteService(noteRepository);
 
-    const service = new SubsidyTrackerService(repository, auditLogService);
+    const service = new SubsidyTrackerService(repository, auditLogService, noteService);
     const controller = new SubsidyTrackerController(service);
 
     router.use(authenticate);

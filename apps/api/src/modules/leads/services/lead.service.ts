@@ -2,6 +2,7 @@ import type { LeadRepository } from "../repositories/lead.repository.js";
 import type { LeadSourceRepository } from "../repositories/lead-source.repository.js";
 import type { LeadStatusRepository } from "../repositories/lead-status.repository.js";
 import type { UserRepository } from "../../users/repositories/user.repository.js";
+import type { NoteService } from "../../notes/services/note.service.js";
 import type { ICreateLead, IUpdateLead, ILeadSafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/lead.interface.js";
 import { toLeadSafe } from "../dto/lead.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
@@ -13,17 +14,20 @@ export class LeadService {
     private readonly sourceRepository: LeadSourceRepository;
     private readonly statusRepository: LeadStatusRepository;
     private readonly userRepository: UserRepository;
+    private readonly noteService: NoteService;
 
     constructor(
         repository: LeadRepository,
         sourceRepository: LeadSourceRepository,
         statusRepository: LeadStatusRepository,
-        userRepository: UserRepository
+        userRepository: UserRepository,
+        noteService: NoteService
     ) {
         this.repository = repository;
         this.sourceRepository = sourceRepository;
         this.statusRepository = statusRepository;
         this.userRepository = userRepository;
+        this.noteService = noteService;
     }
 
     async createLead(tenantUid: string, data: ICreateLead, createdBy: string): Promise<ILeadSafe> {
@@ -69,6 +73,12 @@ export class LeadService {
 
             const createData = { ...data, statusUid: finalStatusUid, leadNumber: nextLeadNumber };
             const lead = await this.repository.create(tenantUid, createData, createdBy);
+            
+            if (data.remarks) {
+                await this.noteService.handleIncomingNote(tenantUid, 'lead', lead.uid, data.remarks, createdBy);
+                lead.remarks = data.remarks;
+            }
+            
             return toLeadSafe(lead);
         } catch (error) {
             logger.error("LeadService.createLead error", { error });
@@ -135,9 +145,15 @@ export class LeadService {
         }
 
         try {
+            if (data.remarks !== undefined) {
+                await this.noteService.handleIncomingNote(tenantUid, 'lead', uid, data.remarks, updatedBy);
+            }
             const updated = await this.repository.update(tenantUid, uid, data, updatedBy);
             if (!updated) {
                 throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
+            }
+            if (data.remarks !== undefined) {
+                updated.remarks = data.remarks || null;
             }
             return toLeadSafe(updated);
         } catch (error) {

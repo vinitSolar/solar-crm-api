@@ -10,6 +10,7 @@ import type { AuditLogService } from "../../audit-logs/services/audit-logs.servi
 import type { ProjectInstallationMilestoneDocumentRepository } from "../repositories/project-milestone-document.repository.js";
 import { storageService } from "@packages/storage/index.js";
 import path from "path";
+import type { NoteService } from "../../notes/services/note.service.js";
 import type { ICreateProject, IUpdateProject, IProjectSafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/project.interface.js";
 import { toProjectSafe } from "../dto/project.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
@@ -28,6 +29,7 @@ export class ProjectService {
     private readonly subsidyTrackerRepository: SubsidyTrackerRepository;
     private readonly auditLogService: AuditLogService;
     private readonly milestoneDocumentRepository: ProjectInstallationMilestoneDocumentRepository;
+    private readonly noteService: NoteService;
 
     constructor(
         repository: ProjectRepository,
@@ -39,7 +41,8 @@ export class ProjectService {
         leadRepository: LeadRepository,
         subsidyTrackerRepository: SubsidyTrackerRepository,
         auditLogService: AuditLogService,
-        milestoneDocumentRepository: ProjectInstallationMilestoneDocumentRepository
+        milestoneDocumentRepository: ProjectInstallationMilestoneDocumentRepository,
+        noteService: NoteService
     ) {
         this.repository = repository;
         this.statusRepository = statusRepository;
@@ -51,6 +54,7 @@ export class ProjectService {
         this.subsidyTrackerRepository = subsidyTrackerRepository;
         this.auditLogService = auditLogService;
         this.milestoneDocumentRepository = milestoneDocumentRepository;
+        this.noteService = noteService;
     }
 
     async createProject(tenantUid: string, data: ICreateProject, createdBy: string, ipAddress?: string, userAgent?: string): Promise<IProjectSafe> {
@@ -111,6 +115,11 @@ export class ProjectService {
 
         try {
             const project = await this.repository.create(tenantUid, createData, createdBy);
+
+            if (data.remarks) {
+                await this.noteService.handleIncomingNote(tenantUid, 'project', project.uid, data.remarks, createdBy);
+                project.remarks = data.remarks;
+            }
 
             // Generate Milestones from Templates
             await this.milestoneRepository.bulkInsertFromTemplates(tenantUid, project.uid, createdBy);
@@ -227,9 +236,15 @@ export class ProjectService {
         }
 
         try {
+            if (data.remarks !== undefined) {
+                await this.noteService.handleIncomingNote(tenantUid, 'project', uid, data.remarks, updatedBy);
+            }
             const updated = await this.repository.update(tenantUid, uid, data, updatedBy);
             if (!updated) {
                 throw new CustomError(PROJECT_MESSAGES.UPDATE_FAILED, 500);
+            }
+            if (data.remarks !== undefined) {
+                updated.remarks = data.remarks || null;
             }
 
             await this.auditLogService.logUpdate({
@@ -409,7 +424,11 @@ export class ProjectService {
         // If completing, we'll bypass the backend document check since documents are now handled by master-documents.
 
         // Update the milestone status
-        await this.milestoneRepository.updateMilestoneStatus(tenantUid, milestoneUid, status, remarks, updatedBy);
+        await this.milestoneRepository.updateMilestoneStatus(tenantUid, milestoneUid, status, updatedBy);
+        
+        if (remarks) {
+            await this.noteService.handleIncomingNote(tenantUid, 'project_installation_milestone', milestoneUid, remarks, updatedBy);
+        }
 
         let hasNext = false;
         // Start next milestone if marked as complete

@@ -37,10 +37,9 @@ const LEAD_RELATIONS_COLUMNS = `
     TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS "assignedUserName",
     (
         SELECT q.system_size 
-        FROM projects p 
-        JOIN quotations q ON p.quotation_uid::varchar = q.uid 
-        WHERE p.lead_uid::varchar = l.uid AND p.is_deleted = 0 
-        ORDER BY p.created_at DESC 
+        FROM quotations q 
+        WHERE q.lead_uid::varchar = l.uid AND q.is_deleted = 0 
+        ORDER BY q.created_at DESC 
         LIMIT 1
     ) AS "finalSystemSize"
 `;

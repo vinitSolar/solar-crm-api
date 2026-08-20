@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 const PROJECT_COLUMNS = `
     p.id, p.uid, p.tenant_uid AS "tenantUid", p.lead_uid AS "leadUid", p.quotation_uid AS "quotationUid",
     p.project_number AS "projectNumber", p.project_name AS "projectName", p.project_status_uid AS "projectStatusUid",
-    p.project_manager_uid AS "projectManagerUid", p.project_date AS "projectDate", p.remarks,
+    p.project_manager_uid AS "projectManagerUid", p.project_date AS "projectDate", n.note AS "remarks",
     p.is_active AS "isActive", p.is_deleted AS "isDeleted", 
     p.created_at AS "createdAt", p.updated_at AS "updatedAt",
     p.created_by AS "createdBy", p.updated_by AS "updatedBy", p.deleted_by AS "deletedBy"
@@ -34,16 +34,16 @@ export class ProjectRepository {
         const query = `
             INSERT INTO projects (
                 uid, tenant_uid, lead_uid, quotation_uid, project_number, project_name, 
-                project_status_uid, project_manager_uid, project_date, remarks, created_by
+                project_status_uid, project_manager_uid, project_date, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
             )
             RETURNING uid
         `;
         const values = [
             uid, tenantUid, data.leadUid, data.quotationUid, data.projectNumber, data.projectName, 
-            data.statusUid, data.projectManagerUid || null, data.projectDate || null, data.remarks || null, createdBy
+            data.statusUid, data.projectManagerUid || null, data.projectDate || null, createdBy
         ];
 
         const result = client 
@@ -60,6 +60,7 @@ export class ProjectRepository {
         const query = `
              SELECT ${PROJECT_COLUMNS}, ${PROJECT_RELATIONS_COLUMNS}
              FROM projects p
+             LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'project' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = p.uid::varchar
              LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid 
              LEFT JOIN users u ON p.project_manager_uid::varchar = u.uid
              LEFT JOIN leads l ON p.lead_uid::varchar = l.uid
@@ -189,6 +190,7 @@ export class ProjectRepository {
         const dataQuery = `
             SELECT ${PROJECT_COLUMNS}, ${PROJECT_RELATIONS_COLUMNS} 
             FROM projects p
+            LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'project' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = p.uid::varchar
             LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid 
             LEFT JOIN users u ON p.project_manager_uid::varchar = u.uid
             LEFT JOIN leads l ON p.lead_uid::varchar = l.uid
@@ -211,7 +213,6 @@ export class ProjectRepository {
         if (data.projectStatusUid !== undefined) { updates.push(`project_status_uid = $${index++}`); values.push(data.projectStatusUid); }
         if (data.projectManagerUid !== undefined) { updates.push(`project_manager_uid = $${index++}`); values.push(data.projectManagerUid || null); }
         if (data.projectDate !== undefined) { updates.push(`project_date = $${index++}`); values.push(data.projectDate || null); }
-        if (data.remarks !== undefined) { updates.push(`remarks = $${index++}`); values.push(data.remarks || null); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 

@@ -5,16 +5,21 @@ import { SUBSIDY_TRACKER_MESSAGES } from "../constants/subsidy-tracker.constants
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constants.js";
+import type { NoteService } from "../../notes/services/note.service.js";
+
 export class SubsidyTrackerService {
     private readonly repository: SubsidyTrackerRepository;
     private readonly auditLogService: AuditLogService;
+    private readonly noteService: NoteService;
 
     constructor(
         repository: SubsidyTrackerRepository,
-        auditLogService: AuditLogService
+        auditLogService: AuditLogService,
+        noteService: NoteService
     ) {
         this.repository = repository;
         this.auditLogService = auditLogService;
+        this.noteService = noteService;
     }
 
     async getByUid(tenantUid: string, uid: string) {
@@ -32,8 +37,16 @@ export class SubsidyTrackerService {
         const existing = await this.repository.getByUid(tenantUid, uid);
         if (!existing) throw new CustomError(SUBSIDY_TRACKER_MESSAGES.NOT_FOUND, 404);
 
+        if (data.remarks !== undefined) {
+            await this.noteService.handleIncomingNote(tenantUid, 'subsidy_tracker', uid, data.remarks, updatedBy);
+        }
+
         const updated = await this.repository.update(tenantUid, uid, data, updatedBy);
         if (!updated) throw new CustomError(SUBSIDY_TRACKER_MESSAGES.NOT_FOUND, 404);
+
+        if (data.remarks !== undefined) {
+            updated.remarks = data.remarks || null;
+        }
 
         const auditMessages = [];
         if (data.portalStatus !== undefined && data.portalStatus !== existing.portalStatus) {

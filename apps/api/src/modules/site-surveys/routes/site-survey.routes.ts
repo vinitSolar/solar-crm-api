@@ -16,7 +16,11 @@ import {
     validateSiteSurveyRequest,
 } from "../validators/site-survey.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
+import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
+import { NoteService } from "../../notes/services/note.service.js";
+import { NoteRepository } from "../../notes/repositories/note.repository.js";
 import pool from "@packages/connection.js";
+import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
 
 function createSiteSurveyRouter(): Router {
     const router = Router();
@@ -25,8 +29,10 @@ function createSiteSurveyRouter(): Router {
     const detailsRepository = new SiteSurveyDetailsRepository(pool);
     const leadRepository = new LeadRepository(pool);
     const userRepository = new UserRepository(pool);
+    const noteRepository = new NoteRepository(pool);
+    const noteService = new NoteService(noteRepository);
     
-    const service = new SiteSurveyService(repository, detailsRepository, leadRepository, userRepository);
+    const service = new SiteSurveyService(repository, detailsRepository, leadRepository, userRepository, noteService);
     const controller = new SiteSurveyController(service);
 
     router.use(authenticate);

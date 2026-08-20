@@ -44,7 +44,7 @@ export const MASTER_DOCUMENT_VALIDATION_MESSAGES = {
   ENTITY_TYPE_INVALID:
     "Invalid entity type. Must be one of: customer, lead, franchise, product, project",
   MODULE_INVALID:
-    "Invalid module. Must be one of: site_survey, subsidy_tracker, project, franchise, product",
+    "Invalid module. Must be one of: site_survey, subsidy_tracker, project, franchise, product, lead, customer, discom, finance",
   DOC_TYPE_UID_REQUIRED: "Document type UID is required",
   ENTITY_UID_REQUIRED: "Entity UID is required",
   CONTEXT_UID_REQUIRED: "Context UID is required",
@@ -70,6 +70,8 @@ export const VALID_MODULES = [
   "product",
   "lead",
   "customer",
+  "discom",
+  "finance",
 ] as const;
 
 export const VALID_CATEGORIES = [1, 2, 3, 4, 5] as const;

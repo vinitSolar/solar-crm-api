@@ -13,6 +13,8 @@ import { SubsidyTrackerRepository } from "../../subsidy-trackers/repositories/su
 import { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
 import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
 import { ProjectInstallationMilestoneDocumentRepository } from "../repositories/project-milestone-document.repository.js";
+import { NoteService } from "../../notes/services/note.service.js";
+import { NoteRepository } from "../../notes/repositories/note.repository.js";
 import {
     createProjectSchema,
     updateProjectSchema,
@@ -42,6 +44,8 @@ function createProjectRouter(): Router {
     const auditLogRepo = new AuditLogRepository(pool);
     const auditLogService = new AuditLogService(auditLogRepo);
     const milestoneDocumentRepository = new ProjectInstallationMilestoneDocumentRepository(pool);
+    const noteRepository = new NoteRepository(pool);
+    const noteService = new NoteService(noteRepository);
 
     const service = new ProjectService(
         projectRepository,
@@ -53,7 +57,8 @@ function createProjectRouter(): Router {
         leadRepository,
         subsidyTrackerRepository,
         auditLogService,
-        milestoneDocumentRepository
+        milestoneDocumentRepository,
+        noteService
     );
     const controller = new ProjectController(service);
 

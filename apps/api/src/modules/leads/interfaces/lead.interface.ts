@@ -75,6 +75,7 @@ export interface ILead {
     createdBy: string | null;
     updatedBy: string | null;
     deletedBy: string | null;
+    finalSystemSize?: number | null;
 }
 
 export interface ICreateLeadSource {
@@ -145,6 +146,7 @@ export interface ILeadSafe {
     createdAt: Date;
     leadSource?: ILeadSourceSafe | null;
     leadStatus?: ILeadStatusSafe | null;
+    finalSystemSize?: number | null;
 }
 
 export interface ILeadSourceSafe {

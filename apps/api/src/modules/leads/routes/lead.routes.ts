@@ -15,22 +15,25 @@ import {
 } from "../validators/lead.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
-import { leadNoteRoutes } from "./lead-note.routes.js";
+import { createNoteRouter } from "../../notes/routes/note.routes.js";
+import { NoteService } from "../../notes/services/note.service.js";
+import { NoteRepository } from "../../notes/repositories/note.repository.js";
 
 function createLeadRouter(): Router {
     const router = Router();
 
+    const userRepository = new UserRepository(pool);
+    const noteRepository = new NoteRepository(pool);
+    const noteService = new NoteService(noteRepository);
     const repository = new LeadRepository(pool);
     const sourceRepository = new LeadSourceRepository(pool);
     const statusRepository = new LeadStatusRepository(pool);
-    const userRepository = new UserRepository(pool);
-    
-    const service = new LeadService(repository, sourceRepository, statusRepository, userRepository);
+    const service = new LeadService(repository, sourceRepository, statusRepository, userRepository, noteService);
     const controller = new LeadController(service);
 
     router.use(authenticate);
 
-    router.use("/:leadUid/notes", leadNoteRoutes);
+    router.use("/:moduleUid/notes", createNoteRouter('lead'));
 
     /**
      * @swagger

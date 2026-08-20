@@ -9,7 +9,7 @@ const LEAD_COLUMNS = `
     email, address, state, city, pin_code AS "pinCode",
     monthly_bill_amount AS "monthlyBillAmount", system_size AS "systemSize", 
     follow_up_date AS "followUpDate", lead_source_uid AS "leadSourceUid", 
-    status_uid AS "statusUid", assigned_to AS "assignedTo", remarks,
+    status_uid AS "statusUid", assigned_to AS "assignedTo",
     is_active AS "isActive", is_deleted AS "isDeleted", 
     created_at AS "createdAt", updated_at AS "updatedAt",
     created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
@@ -22,7 +22,7 @@ const LEAD_JOIN_COLUMNS = `
     l.email, l.address, l.state, l.city, l.pin_code AS "pinCode",
     l.monthly_bill_amount AS "monthlyBillAmount", l.system_size AS "systemSize", 
     l.follow_up_date AS "followUpDate", l.lead_source_uid AS "leadSourceUid", 
-    l.status_uid AS "statusUid", l.assigned_to AS "assignedTo", l.remarks,
+    l.status_uid AS "statusUid", l.assigned_to AS "assignedTo", n.note AS "remarks",
     l.is_active AS "isActive", l.is_deleted AS "isDeleted", 
     l.created_at AS "createdAt", l.updated_at AS "updatedAt",
     l.created_by AS "createdBy", l.updated_by AS "updatedBy", l.deleted_by AS "deletedBy"
@@ -55,10 +55,10 @@ export class LeadRepository {
             INSERT INTO leads (
                 uid, tenant_uid, lead_number, first_name, last_name, mobile_number, alternate_number, email, 
                 address, state, city, pin_code, monthly_bill_amount, system_size, follow_up_date, 
-                lead_source_uid, status_uid, assigned_to, remarks, created_by
+                lead_source_uid, status_uid, assigned_to, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
             )
             RETURNING ${LEAD_COLUMNS}
         `;
@@ -67,7 +67,7 @@ export class LeadRepository {
             data.alternateNumber ?? null, data.email ?? null, data.address ?? null, 
             data.state, data.city, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
             data.systemSize, data.followUpDate || null, data.leadSourceUid ?? null, 
-            data.statusUid, data.assignedTo ?? null, data.remarks ?? null, createdBy
+            data.statusUid, data.assignedTo ?? null, createdBy
         ];
 
         const result = client 
@@ -97,6 +97,7 @@ export class LeadRepository {
         const query = `
              SELECT ${LEAD_JOIN_COLUMNS}, ${LEAD_RELATIONS_COLUMNS}
              FROM leads l
+             LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'lead' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = l.uid
              LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid 
              LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
              LEFT JOIN users u ON l.assigned_to = u.uid
@@ -145,6 +146,7 @@ export class LeadRepository {
         const result = await this.pool.query(
             `SELECT ${LEAD_JOIN_COLUMNS}, ${LEAD_RELATIONS_COLUMNS} 
              FROM leads l
+             LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'lead' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = l.uid
              LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid 
              LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
              LEFT JOIN users u ON l.assigned_to = u.uid
@@ -170,6 +172,7 @@ export class LeadRepository {
         const result = await this.pool.query(
             `SELECT ${LEAD_JOIN_COLUMNS}, ${LEAD_RELATIONS_COLUMNS} 
              FROM leads l
+             LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'lead' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = l.uid
              LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid 
              LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
              LEFT JOIN users u ON l.assigned_to = u.uid
@@ -201,7 +204,6 @@ export class LeadRepository {
         if (data.leadSourceUid !== undefined) { updates.push(`lead_source_uid = $${index++}`); values.push(data.leadSourceUid); }
         if (data.statusUid !== undefined) { updates.push(`status_uid = $${index++}`); values.push(data.statusUid); }
         if (data.assignedTo !== undefined) { updates.push(`assigned_to = $${index++}`); values.push(data.assignedTo); }
-        if (data.remarks !== undefined) { updates.push(`remarks = $${index++}`); values.push(data.remarks); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 

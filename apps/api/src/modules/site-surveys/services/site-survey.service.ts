@@ -3,6 +3,7 @@ import type { SiteSurveyRepository } from "../repositories/site-survey.repositor
 import type { LeadRepository } from "../../leads/repositories/lead.repository.js";
 // Assume UserRepository is available in users module
 import type { UserRepository } from "../../users/repositories/user.repository.js";
+import type { NoteService } from "../../notes/services/note.service.js";
 import type { ICreateSiteSurvey, IUpdateSiteSurvey, ISiteSurveySafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/site-survey.interface.js";
 import type { ISaveSiteSurveyDetails, IUpdateSiteSurveyDetails, ISiteSurveyDetailsSafe } from "../interfaces/site-survey-details.interface.js";
 import { toSiteSurveySafe, toSiteSurveyDetailsSafe } from "../dto/site-survey.dto.js";
@@ -15,17 +16,20 @@ export class SiteSurveyService {
     private readonly detailsRepository: SiteSurveyDetailsRepository;
     private readonly leadRepository: LeadRepository;
     private readonly userRepository: UserRepository;
+    private readonly noteService: NoteService;
 
     constructor(
         repository: SiteSurveyRepository,
         detailsRepository: SiteSurveyDetailsRepository,
         leadRepository: LeadRepository,
-        userRepository: UserRepository
+        userRepository: UserRepository,
+        noteService: NoteService
     ) {
         this.repository = repository;
         this.detailsRepository = detailsRepository;
         this.leadRepository = leadRepository;
         this.userRepository = userRepository;
+        this.noteService = noteService;
     }
 
     async createSiteSurvey(tenantUid: string, data: ICreateSiteSurvey, createdBy: string): Promise<ISiteSurveySafe> {
@@ -54,6 +58,10 @@ export class SiteSurveyService {
 
         try {
             const survey = await this.repository.create(tenantUid, data, createdBy);
+            if (data.remarks) {
+                await this.noteService.handleIncomingNote(tenantUid, 'site_survey', survey.uid, data.remarks, createdBy);
+                survey.remarks = data.remarks;
+            }
             return toSiteSurveySafe(survey);
         } catch (error) {
             logger.error("SiteSurveyService.createSiteSurvey error", { error });
@@ -130,7 +138,13 @@ export class SiteSurveyService {
         }
 
         try {
+            if (data.remarks !== undefined) {
+                await this.noteService.handleIncomingNote(tenantUid, 'site_survey', uid, data.remarks, updatedBy);
+            }
             const updated = await this.repository.update(tenantUid, uid, data, updatedBy);
+            if (data.remarks !== undefined) {
+                updated.remarks = data.remarks || null;
+            }
             return toSiteSurveySafe(updated);
         } catch (error) {
             logger.error("SiteSurveyService.updateSiteSurvey error", { error });
@@ -197,6 +211,10 @@ export class SiteSurveyService {
 
         try {
             const details = await this.detailsRepository.create(tenantUid, uid, data, userUid);
+            if (data.notes) {
+                await this.noteService.handleIncomingNote(tenantUid, 'site_survey_details', details.uid, data.notes, userUid);
+                details.notes = data.notes;
+            }
             // Update survey status to Completed (1)
             const updatedSurvey = await this.repository.update(tenantUid, uid, { status: 1 }, userUid);
             return toSiteSurveySafe(updatedSurvey, toSiteSurveyDetailsSafe(details));
@@ -227,7 +245,13 @@ export class SiteSurveyService {
         }
 
         try {
+            if (data.notes !== undefined) {
+                await this.noteService.handleIncomingNote(tenantUid, 'site_survey_details', existingDetails.uid, data.notes, userUid);
+            }
             const details = await this.detailsRepository.update(tenantUid, uid, data, userUid);
+            if (data.notes !== undefined) {
+                details.notes = data.notes || null;
+            }
             return toSiteSurveySafe(survey, toSiteSurveyDetailsSafe(details));
         } catch (error) {
             logger.error("SiteSurveyService.updateSurveyDetails error", { error });

@@ -87,7 +87,9 @@ export type ModuleType =
   | "franchise"
   | "product"
   | "lead"
-  | "customer";
+  | "customer"
+  | "discom"
+  | "finance";
 
 export interface IMasterDocument {
   id: string;

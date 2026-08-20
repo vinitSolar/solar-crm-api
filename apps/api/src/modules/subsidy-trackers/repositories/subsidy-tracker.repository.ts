@@ -3,14 +3,14 @@ import type { ISubsidyTracker, ICreateSubsidyTracker, IUpdateSubsidyTracker, IPa
 import { v4 as uuidv4 } from "uuid";
 
 const SUBSIDY_TRACKER_COLUMNS = `
-    id, uid, tenant_uid AS "tenantUid", project_uid AS "projectUid", lead_uid AS "leadUid",
-    subsidy_uid AS "subsidyUid", name, portal_status AS "portalStatus", net_meter_status AS "netMeterStatus",
-    portal_reference_number AS "portalReferenceNumber", discom_reference_number AS "discomReferenceNumber",
-    expected_subsidy_amount AS "expectedSubsidyAmount", approved_subsidy_amount AS "approvedSubsidyAmount", received_subsidy_amount AS "receivedSubsidyAmount",
-    approved_date AS "approvedDate", disbursed_date AS "disbursedDate", remarks,
-    is_active AS "isActive", is_deleted AS "isDeleted",
-    created_at AS "createdAt", updated_at AS "updatedAt",
-    created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
+    st.id, st.uid, st.tenant_uid AS "tenantUid", st.project_uid AS "projectUid", st.lead_uid AS "leadUid",
+    st.subsidy_uid AS "subsidyUid", st.name, st.portal_status AS "portalStatus", st.net_meter_status AS "netMeterStatus",
+    st.portal_reference_number AS "portalReferenceNumber", st.discom_reference_number AS "discomReferenceNumber",
+    st.expected_subsidy_amount AS "expectedSubsidyAmount", st.approved_subsidy_amount AS "approvedSubsidyAmount", st.received_subsidy_amount AS "receivedSubsidyAmount",
+    st.approved_date AS "approvedDate", st.disbursed_date AS "disbursedDate", n.note AS "remarks",
+    st.is_active AS "isActive", st.is_deleted AS "isDeleted",
+    st.created_at AS "createdAt", st.updated_at AS "updatedAt",
+    st.created_by AS "createdBy", st.updated_by AS "updatedBy", st.deleted_by AS "deletedBy"
 `;
 
 export class SubsidyTrackerRepository {
@@ -34,7 +34,7 @@ export class SubsidyTrackerRepository {
                 portal_status, net_meter_status, expected_subsidy_amount, created_by, updated_by
             )
             VALUES ($1, $2, $3, $4, $5, $6, 0, 0, $7, $8, $8)
-            RETURNING ${SUBSIDY_TRACKER_COLUMNS}
+            RETURNING uid
         `;
         
         const values = [
@@ -48,18 +48,26 @@ export class SubsidyTrackerRepository {
             createdBy
         ];
 
-        const result = await executor.query(query, values);
-        return this.mapToCamelCase(result.rows[0]);
+        await executor.query(query, values);
+        return (await this.getByUid(tenantUid, uid)) as ISubsidyTracker;
     }
 
     async getByUid(tenantUid: string, uid: string): Promise<ISubsidyTracker | null> {
-        const query = `SELECT ${SUBSIDY_TRACKER_COLUMNS} FROM subsidy_trackers WHERE tenant_uid = $1 AND uid = $2 AND is_deleted = 0`;
+        const query = `
+            SELECT ${SUBSIDY_TRACKER_COLUMNS} 
+            FROM subsidy_trackers st
+            LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'subsidy_tracker' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = st.uid
+            WHERE st.tenant_uid = $1 AND st.uid = $2 AND st.is_deleted = 0`;
         const result = await this.pool.query(query, [tenantUid, uid]);
         return result.rows.length > 0 ? this.mapToCamelCase(result.rows[0]) : null;
     }
 
     async getByProjectUid(tenantUid: string, projectUid: string): Promise<ISubsidyTracker | null> {
-        const query = `SELECT ${SUBSIDY_TRACKER_COLUMNS} FROM subsidy_trackers WHERE tenant_uid = $1 AND project_uid = $2 AND is_deleted = 0`;
+        const query = `
+            SELECT ${SUBSIDY_TRACKER_COLUMNS} 
+            FROM subsidy_trackers st
+            LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'subsidy_tracker' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = st.uid
+            WHERE st.tenant_uid = $1 AND st.project_uid = $2 AND st.is_deleted = 0`;
         const result = await this.pool.query(query, [tenantUid, projectUid]);
         return result.rows.length > 0 ? this.mapToCamelCase(result.rows[0]) : null;
     }
@@ -86,8 +94,6 @@ export class SubsidyTrackerRepository {
             updates.push(`disbursed_date = ${data.disbursedDate ? `$${index++}` : 'NULL'}`); 
             if (data.disbursedDate) values.push(data.disbursedDate); 
         }
-        
-        if (data.remarks !== undefined) { updates.push(`remarks = $${index++}`); values.push(data.remarks); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 
@@ -101,11 +107,11 @@ export class SubsidyTrackerRepository {
             UPDATE subsidy_trackers
             SET ${updates.join(", ")}
             WHERE uid = $${index} AND tenant_uid = $${index + 1} AND is_deleted = 0
-            RETURNING ${SUBSIDY_TRACKER_COLUMNS}
+            RETURNING uid
         `;
 
         const result = await executor.query(query, values);
-        return result.rows.length > 0 ? this.mapToCamelCase(result.rows[0]) : null;
+        return result.rows.length > 0 ? this.getByUid(tenantUid, uid) : null;
     }
 
     async listPaginated(tenantUid: string, queryParams: IPaginationQuery): Promise<IPaginatedResponse<any>> {

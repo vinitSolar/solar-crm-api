@@ -3,13 +3,13 @@ import type { IProjectInstallationMilestone } from "../interfaces/project.interf
 import { v4 as uuidv4 } from "uuid";
 
 const PROJECT_MILESTONE_COLUMNS = `
-    id, uid, tenant_uid AS "tenantUid", project_uid AS "projectUid", 
-    milestone_uid AS "milestoneUid", title, description, sequence_no AS "sequenceNo", 
-    status, started_at AS "startedAt", completed_at AS "completedAt", 
-    completed_by AS "completedBy", remarks,
-    is_active AS "isActive", is_deleted AS "isDeleted", 
-    created_at AS "createdAt", updated_at AS "updatedAt",
-    created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
+    pim.id, pim.uid, pim.tenant_uid AS "tenantUid", pim.project_uid AS "projectUid", 
+    pim.milestone_uid AS "milestoneUid", pim.title, pim.description, pim.sequence_no AS "sequenceNo", 
+    pim.status, pim.started_at AS "startedAt", pim.completed_at AS "completedAt", 
+    pim.completed_by AS "completedBy", n.note AS "remarks",
+    pim.is_active AS "isActive", pim.is_deleted AS "isDeleted", 
+    pim.created_at AS "createdAt", pim.updated_at AS "updatedAt",
+    pim.created_by AS "createdBy", pim.updated_by AS "updatedBy", pim.deleted_by AS "deletedBy"
 `;
 
 export class ProjectInstallationMilestoneRepository {
@@ -106,9 +106,10 @@ export class ProjectInstallationMilestoneRepository {
     async getByProjectUid(tenantUid: string, projectUid: string): Promise<IProjectInstallationMilestone[]> {
         const result = await this.pool.query(
             `SELECT ${PROJECT_MILESTONE_COLUMNS} 
-             FROM project_installation_milestones 
-             WHERE project_uid::varchar = $1 AND tenant_uid::varchar = $2 AND is_deleted = 0
-             ORDER BY sequence_no ASC`,
+             FROM project_installation_milestones pim
+             LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'project_installation_milestone' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = pim.uid::varchar
+             WHERE pim.project_uid::varchar = $1 AND pim.tenant_uid::varchar = $2 AND pim.is_deleted = 0
+             ORDER BY pim.sequence_no ASC`,
             [projectUid, tenantUid]
         );
         return result.rows as IProjectInstallationMilestone[];
@@ -117,8 +118,9 @@ export class ProjectInstallationMilestoneRepository {
     async getByUid(tenantUid: string, uid: string): Promise<IProjectInstallationMilestone | null> {
         const result = await this.pool.query(
             `SELECT ${PROJECT_MILESTONE_COLUMNS} 
-             FROM project_installation_milestones 
-             WHERE uid::varchar = $1 AND tenant_uid::varchar = $2 AND is_deleted = 0`,
+             FROM project_installation_milestones pim
+             LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'project_installation_milestone' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = pim.uid::varchar
+             WHERE pim.uid::varchar = $1 AND pim.tenant_uid::varchar = $2 AND pim.is_deleted = 0`,
             [uid, tenantUid]
         );
         return result.rows.length > 0 ? (result.rows[0] as IProjectInstallationMilestone) : null;
@@ -128,7 +130,6 @@ export class ProjectInstallationMilestoneRepository {
         tenantUid: string,
         uid: string,
         status: number,
-        remarks: string | null,
         updatedBy: string,
         client?: PoolClient
     ): Promise<void> {
@@ -136,13 +137,13 @@ export class ProjectInstallationMilestoneRepository {
         
         let updateQuery = `
             UPDATE project_installation_milestones 
-            SET status = $1, remarks = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $3
+            SET status = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
         `;
-        const values: any[] = [status, remarks, updatedBy];
-        let index = 4;
+        const values: any[] = [status, updatedBy];
+        let index = 3;
 
         if (status === 2) { // 2 = Completed
-            updateQuery += `, completed_at = CURRENT_TIMESTAMP, completed_by = $3`;
+            updateQuery += `, completed_at = CURRENT_TIMESTAMP, completed_by = $2`;
         }
 
         updateQuery += ` WHERE uid::varchar = $${index} AND tenant_uid::varchar = $${index + 1}`;

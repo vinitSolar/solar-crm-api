@@ -46,6 +46,7 @@ export interface IProject {
     customerFirstName?: string;
     customerLastName?: string | null;
     customerMobileNumber?: string;
+    finalSystemSize?: number | null;
 }
 
 export interface ICreateProjectStatus {
@@ -106,6 +107,7 @@ export interface IProjectSafe {
     projectManagerName?: string | null;
     customerName?: string | null;
     customerMobileNumber?: string | null;
+    finalSystemSize?: number | null;
 }
 
 export interface IProjectDetail extends IProjectSafe {

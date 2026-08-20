@@ -14,7 +14,8 @@ const PROJECT_COLUMNS = `
 const PROJECT_RELATIONS_COLUMNS = `
     ps.name AS "statusName", ps.color AS "statusColor", ps.sort_order AS "statusSortOrder", ps.is_closed AS "statusIsClosed",
     TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS "projectManagerName",
-    l.first_name AS "customerFirstName", l.last_name AS "customerLastName", l.mobile_number AS "customerMobileNumber"
+    l.first_name AS "customerFirstName", l.last_name AS "customerLastName", l.mobile_number AS "customerMobileNumber",
+    q.system_size AS "finalSystemSize"
 `;
 
 export class ProjectRepository {
@@ -64,6 +65,7 @@ export class ProjectRepository {
              LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid 
              LEFT JOIN users u ON p.project_manager_uid::varchar = u.uid
              LEFT JOIN leads l ON p.lead_uid::varchar = l.uid
+             LEFT JOIN quotations q ON p.quotation_uid::varchar = q.uid
              WHERE p.uid::varchar = $1 AND p.tenant_uid::varchar = $2 AND p.is_deleted = 0
         `;
         const result = client
@@ -194,6 +196,7 @@ export class ProjectRepository {
             LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid 
             LEFT JOIN users u ON p.project_manager_uid::varchar = u.uid
             LEFT JOIN leads l ON p.lead_uid::varchar = l.uid
+            LEFT JOIN quotations q ON p.quotation_uid::varchar = q.uid
             WHERE ${whereClause} 
             ORDER BY p.created_at DESC 
             LIMIT $${params.length - 1} OFFSET $${params.length}

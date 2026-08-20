@@ -34,7 +34,15 @@ const LEAD_RELATIONS_COLUMNS = `
     ls.is_active AS "statusIsActive", ls.is_deleted AS "statusIsDeleted",
     lsrc.name AS "sourceName", lsrc.color AS "sourceColor", lsrc.sort_order AS "sourceSortOrder", 
     lsrc.is_default AS "sourceIsDefault", lsrc.is_active AS "sourceIsActive", lsrc.is_deleted AS "sourceIsDeleted",
-    TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS "assignedUserName"
+    TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS "assignedUserName",
+    (
+        SELECT q.system_size 
+        FROM projects p 
+        JOIN quotations q ON p.quotation_uid::varchar = q.uid 
+        WHERE p.lead_uid::varchar = l.uid AND p.is_deleted = 0 
+        ORDER BY p.created_at DESC 
+        LIMIT 1
+    ) AS "finalSystemSize"
 `;
 
 export class LeadRepository {

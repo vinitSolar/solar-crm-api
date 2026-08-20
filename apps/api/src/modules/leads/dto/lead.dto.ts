@@ -33,6 +33,7 @@ export function toLeadSafe(lead: ILead): ILeadSafe {
         isActive: lead.isActive,
         isDeleted: lead.isDeleted,
         createdAt: lead.createdAt,
+        finalSystemSize: lead.finalSystemSize ? Number(lead.finalSystemSize) : null,
         leadSource: lead.leadSourceUid ? {
             uid: lead.leadSourceUid,
             name: lead.sourceName || "",

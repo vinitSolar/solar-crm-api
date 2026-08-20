@@ -38,6 +38,7 @@ export function toProjectSafe(project: IProject): IProjectSafe {
         projectManagerName: project.projectManagerName ?? null,
         customerName: customerName.length > 0 ? customerName : null,
         customerMobileNumber: project.customerMobileNumber ?? null,
+        finalSystemSize: project.finalSystemSize ?? null,
         projectStatus: project.projectStatusUid ? {
             uid: project.projectStatusUid,
             name: project.statusName || "",

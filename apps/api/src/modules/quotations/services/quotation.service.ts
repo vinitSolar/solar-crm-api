@@ -2,6 +2,7 @@ import pool from "@packages/connection.js";
 import { QuotationRepository } from "../repositories/quotation.repository.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
+import { BankDetailRepository } from "../../bank-details/repositories/bank-detail.repository.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { isRedisAvailable } from "../../notification/helpers/redis-health.helper.js";
 import { QueueSnapshotStrategy, DirectSnapshotStrategy } from "../strategies/snapshot.strategy.js";
@@ -71,10 +72,10 @@ export class QuotationService {
             throw new CustomError(QUOTATION_VALIDATION_MESSAGES.LEAD_NOT_FOUND, 400);
         }
 
-        // Determine system size from lead first, fall back to input if lead does not have it, or throw if neither has it
-        const systemSize = lead.systemSize ?? data.systemSize ?? 0;
+        // Determine system size from input first, fall back to lead if input does not have it, or throw if neither has it
+        const systemSize = data.systemSize ?? lead.systemSize ?? 0;
         if (systemSize <= 0) {
-            throw new CustomError("System size must be a positive number (not found on lead or input)", 400);
+            throw new CustomError("System size must be a positive number (not found on input or lead)", 400);
         }
 
         const client = await this.repository.getPoolClient();
@@ -747,12 +748,16 @@ export class QuotationService {
             });
         };
 
+        const bankDetailRepo = new BankDetailRepository(pool);
+        const bankDetails = await bankDetailRepo.getDefault(tenantUid);
+
         // Prepare PDF Data payload
         const pdfData = {
             franchise: {
                 ...franchise,
                 logo: franchise.logo || getDefaultLogoBase64()
             },
+            bankDetails,
             customer,
             quotation: {
                 quotationNumber: quotation.quotationNumber,

@@ -157,3 +157,57 @@ export function authorize(...allowedRoles: string[]) {
         next();
     };
 }
+
+/**
+ * Authorization middleware by role name.
+ * 
+ * Verifies that the authenticated user's role name is included in the list.
+ */
+export function authorizeRoleName(...allowedRoleNames: string[]) {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        const authReq = req as IAuthenticatedRequest;
+
+        if (!authReq.user || !authReq.roleUid) {
+            res.status(401).json({
+                success: false,
+                message: AUTH_MESSAGES.UNAUTHORIZED,
+            });
+            return;
+        }
+
+        try {
+            const result = await pool.query(`SELECT name FROM roles WHERE uid = $1`, [authReq.roleUid]);
+            if (result.rows.length === 0) {
+                res.status(403).json({
+                    success: false,
+                    message: AUTH_MESSAGES.FORBIDDEN,
+                });
+                return;
+            }
+
+            const roleName = result.rows[0].name;
+
+            if (allowedRoleNames.length > 0 && !allowedRoleNames.includes(roleName)) {
+                logger.warn("Authorization failed by role name", {
+                    userUid: authReq.user.uid,
+                    roleName: roleName,
+                    requiredRoles: allowedRoleNames,
+                });
+
+                res.status(403).json({
+                    success: false,
+                    message: AUTH_MESSAGES.FORBIDDEN,
+                });
+                return;
+            }
+
+            next();
+        } catch (error) {
+            logger.error("Authorization middleware error", { error });
+            res.status(500).json({
+                success: false,
+                message: "Internal server error during authorization",
+            });
+        }
+    };
+}

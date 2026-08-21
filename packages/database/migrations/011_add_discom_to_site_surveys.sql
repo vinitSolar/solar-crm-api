@@ -1,0 +1,1 @@
+ALTER TABLE site_survey_details ADD COLUMN discom VARCHAR(255) DEFAULT NULL;

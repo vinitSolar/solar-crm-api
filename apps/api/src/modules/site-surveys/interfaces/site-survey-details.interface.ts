@@ -11,6 +11,7 @@ export interface ISiteSurveyDetails {
     needsStructureExtension: number;
     needsOptimizer: number;
     optimizerCount: number | null;
+    discom: string | null;
     notes: string | null;
     latitude: number | null;
     longitude: number | null;
@@ -32,6 +33,7 @@ export interface ISaveSiteSurveyDetails {
     needsStructureExtension?: number;
     needsOptimizer?: number;
     optimizerCount?: number;
+    discom?: string;
     notes?: string;
     latitude?: number;
     longitude?: number;
@@ -46,6 +48,7 @@ export interface IUpdateSiteSurveyDetails {
     needsStructureExtension?: number;
     needsOptimizer?: number;
     optimizerCount?: number;
+    discom?: string;
     notes?: string;
     latitude?: number;
     longitude?: number;
@@ -62,6 +65,7 @@ export interface ISiteSurveyDetailsSafe {
     needsStructureExtension: number;
     needsOptimizer: number;
     optimizerCount: number | null;
+    discom: string | null;
     notes: string | null;
     latitude: number | null;
     longitude: number | null;

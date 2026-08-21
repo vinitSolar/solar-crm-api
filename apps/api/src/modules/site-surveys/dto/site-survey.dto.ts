@@ -13,6 +13,7 @@ export function toSiteSurveyDetailsSafe(details: ISiteSurveyDetails): ISiteSurve
         needsStructureExtension: details.needsStructureExtension,
         needsOptimizer: details.needsOptimizer,
         optimizerCount: details.optimizerCount,
+        discom: details.discom,
         notes: details.notes,
         latitude: details.latitude,
         longitude: details.longitude,

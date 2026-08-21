@@ -7,7 +7,7 @@ const SITE_SURVEY_DETAILS_COLUMNS = `
     ssd.roof_area_sqft AS "roofAreaSqft", ssd.shading, ssd.connection_type AS "connectionType",
     ssd.sanctioned_load_kw AS "sanctionedLoadKw", ssd.recommended_kw AS "recommendedKw", 
     ssd.needs_structure_extension AS "needsStructureExtension", ssd.needs_optimizer AS "needsOptimizer",
-    ssd.optimizer_count AS "optimizerCount", n.note AS "notes", ssd.latitude, ssd.longitude,
+    ssd.optimizer_count AS "optimizerCount", ssd.discom, n.note AS "notes", ssd.latitude, ssd.longitude,
     ssd.is_active AS "isActive", ssd.is_deleted AS "isDeleted", ssd.created_at AS "createdAt",
     ssd.updated_at AS "updatedAt", ssd.created_by AS "createdBy", ssd.updated_by AS "updatedBy",
     ssd.deleted_by AS "deletedBy"
@@ -30,15 +30,15 @@ export class SiteSurveyDetailsRepository {
         const uid = uuidv4();
         const query = `
             INSERT INTO site_survey_details (
-                uid, tenant_uid, site_survey_uid, roof_area_sqft, shading, connection_type, sanctioned_load_kw, recommended_kw, needs_structure_extension, needs_optimizer, optimizer_count, latitude, longitude, created_by
+                uid, tenant_uid, site_survey_uid, roof_area_sqft, shading, connection_type, sanctioned_load_kw, recommended_kw, needs_structure_extension, needs_optimizer, optimizer_count, discom, latitude, longitude, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
             )
-            RETURNING id, uid, tenant_uid AS "tenantUid", site_survey_uid AS "siteSurveyUid", roof_area_sqft AS "roofAreaSqft", shading, connection_type AS "connectionType", sanctioned_load_kw AS "sanctionedLoadKw", recommended_kw AS "recommendedKw", needs_structure_extension AS "needsStructureExtension", needs_optimizer AS "needsOptimizer", optimizer_count AS "optimizerCount", latitude, longitude, is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
+            RETURNING id, uid, tenant_uid AS "tenantUid", site_survey_uid AS "siteSurveyUid", roof_area_sqft AS "roofAreaSqft", shading, connection_type AS "connectionType", sanctioned_load_kw AS "sanctionedLoadKw", recommended_kw AS "recommendedKw", needs_structure_extension AS "needsStructureExtension", needs_optimizer AS "needsOptimizer", optimizer_count AS "optimizerCount", discom, latitude, longitude, is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
         `;
         const values = [
-            uid, tenantUid, siteSurveyUid, data.roofAreaSqft, data.shading, data.connectionType, data.sanctionedLoadKw, data.recommendedKw ?? null, data.needsStructureExtension ?? 0, data.needsOptimizer ?? 0, data.optimizerCount ?? null, data.latitude ?? null, data.longitude ?? null, createdBy
+            uid, tenantUid, siteSurveyUid, data.roofAreaSqft, data.shading, data.connectionType, data.sanctionedLoadKw, data.recommendedKw ?? null, data.needsStructureExtension ?? 0, data.needsOptimizer ?? 0, data.optimizerCount ?? null, data.discom ?? null, data.latitude ?? null, data.longitude ?? null, createdBy
         ];
 
         const result = client 
@@ -104,6 +104,10 @@ export class SiteSurveyDetailsRepository {
             setFields.push(`optimizer_count = $${paramIndex++}`);
             values.push(data.optimizerCount);
         }
+        if (data.discom !== undefined) {
+            setFields.push(`discom = $${paramIndex++}`);
+            values.push(data.discom);
+        }
         if (data.latitude !== undefined) {
             setFields.push(`latitude = $${paramIndex++}`);
             values.push(data.latitude);
@@ -123,7 +127,7 @@ export class SiteSurveyDetailsRepository {
             UPDATE site_survey_details
             SET ${setFields.join(", ")}
             WHERE site_survey_uid = $${paramIndex - 2} AND tenant_uid = $${paramIndex - 1} AND is_deleted = 0
-            RETURNING id, uid, tenant_uid AS "tenantUid", site_survey_uid AS "siteSurveyUid", roof_area_sqft AS "roofAreaSqft", shading, connection_type AS "connectionType", sanctioned_load_kw AS "sanctionedLoadKw", recommended_kw AS "recommendedKw", needs_structure_extension AS "needsStructureExtension", needs_optimizer AS "needsOptimizer", optimizer_count AS "optimizerCount", latitude, longitude, is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
+            RETURNING id, uid, tenant_uid AS "tenantUid", site_survey_uid AS "siteSurveyUid", roof_area_sqft AS "roofAreaSqft", shading, connection_type AS "connectionType", sanctioned_load_kw AS "sanctionedLoadKw", recommended_kw AS "recommendedKw", needs_structure_extension AS "needsStructureExtension", needs_optimizer AS "needsOptimizer", optimizer_count AS "optimizerCount", discom, latitude, longitude, is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
         `;
 
         const result = client

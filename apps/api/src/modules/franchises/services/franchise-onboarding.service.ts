@@ -104,8 +104,11 @@ export class FranchiseOnboardingService {
             const firstName = nameParts[0] || "Admin";
             const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-            // Use the provided email, or a dummy one if none provided
-            const email = ownerDetails.email || `admin_${tenantUid.substring(0, 8)}@example.com`;
+            // Ensure owner email is provided for credentials
+            if (!ownerDetails.email) {
+                throw new Error("Owner email is required to create franchise credentials");
+            }
+            const email = ownerDetails.email;
 
             // For now, keep the password the same as the email
             const plainPassword = email;

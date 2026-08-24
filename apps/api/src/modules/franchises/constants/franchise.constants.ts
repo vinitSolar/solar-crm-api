@@ -30,6 +30,7 @@ export const FRANCHISE_MESSAGES = {
     INVALID_MOBILE: "Invalid mobile number",
     OWNER_FULL_NAME_REQUIRED: "Owner full name must be between 2 and 255 characters",
     OWNER_MOBILE_REQUIRED: "Owner mobile number is required",
+    OWNER_EMAIL_REQUIRED: "Owner email is required",
     BUSINESS_NAME_REQUIRED: "Business name must be between 2 and 255 characters",
     GST_NUMBER_REQUIRED: "GST number is required",
     GST_NUMBER_INVALID: "Invalid GST number format",

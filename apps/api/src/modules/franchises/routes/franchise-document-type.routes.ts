@@ -40,6 +40,11 @@ function createFranchiseDocumentTypeRouter(): Router {
     );
 
     router.get(
+        "/dropdown",
+        controller.getAll
+    );
+
+    router.get(
         "/:uid",
         validateFranchiseDocumentTypeRequest(getFranchiseDocumentTypeSchema),
         controller.getByUid

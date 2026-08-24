@@ -5,7 +5,6 @@ import type { IFranchiseDocumentType } from "../interfaces/franchise.interface.j
 const TYPE_COLUMNS = `
     id,
     uid,
-    tenant_uid AS "tenantUid",
     name,
     description,
     allow_multiple AS "allowMultiple",
@@ -25,20 +24,18 @@ export class FranchiseDocumentTypeRepository {
      * Creates a new franchise document type.
      */
     async create(
-        tenantUid: string,
         data: { name: string; description?: string; allowMultiple?: number; isRequired?: number; sortOrder?: number },
         createdBy: string
     ): Promise<IFranchiseDocumentType> {
         const uid = uuidv4();
         const query = `
             INSERT INTO franchise_document_types (
-                uid, tenant_uid, name, description, allow_multiple, is_required, sort_order, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                uid, name, description, allow_multiple, is_required, sort_order, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING ${TYPE_COLUMNS}
         `;
         const values = [
             uid,
-            tenantUid,
             data.name,
             data.description ?? null,
             data.allowMultiple ?? 0,
@@ -53,16 +50,16 @@ export class FranchiseDocumentTypeRepository {
     }
 
     /**
-     * Retrieves all active document types for a tenant.
+     * Retrieves all active document types.
      */
-    async getActiveTypesByTenant(tenantUid: string): Promise<IFranchiseDocumentType[]> {
+    async getActiveTypes(): Promise<IFranchiseDocumentType[]> {
         const query = `
             SELECT ${TYPE_COLUMNS} 
             FROM franchise_document_types 
-            WHERE tenant_uid = $1 AND is_deleted = 0 AND is_active = 1
+            WHERE is_deleted = 0 AND is_active = 1
             ORDER BY sort_order ASC, name ASC
         `;
-        const result = await pool.query(query, [tenantUid]);
+        const result = await pool.query(query);
         return result.rows as IFranchiseDocumentType[];
     }
 
@@ -80,43 +77,41 @@ export class FranchiseDocumentTypeRepository {
     }
 
     /**
-     * Checks if a document type name exists for a tenant.
+     * Checks if a document type name exists.
      */
-    async checkNameExists(tenantUid: string, name: string): Promise<boolean> {
+    async checkNameExists(name: string): Promise<boolean> {
         const query = `
             SELECT 1 FROM franchise_document_types 
-            WHERE tenant_uid = $1 AND name = $2 AND is_deleted = 0
+            WHERE name = $1 AND is_deleted = 0
             LIMIT 1
         `;
-        const result = await pool.query(query, [tenantUid, name]);
+        const result = await pool.query(query, [name]);
         return (result.rowCount ?? 0) > 0;
     }
 
     /**
-     * Upserts a document type for a tenant based on name.
+     * Upserts a document type based on name.
      */
     async upsert(
-        tenantUid: string,
         data: { name: string; description?: string; allowMultiple?: number; isRequired?: number; sortOrder?: number },
         createdBy: string
     ): Promise<IFranchiseDocumentType> {
         const query = `
             INSERT INTO franchise_document_types (
-                uid, tenant_uid, name, description, allow_multiple, is_required, sort_order, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            ON CONFLICT (tenant_uid, name) WHERE is_deleted = 0
+                uid, name, description, allow_multiple, is_required, sort_order, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (name) WHERE is_deleted = 0
             DO UPDATE SET 
                 description = EXCLUDED.description,
                 allow_multiple = EXCLUDED.allow_multiple,
                 is_required = EXCLUDED.is_required,
                 sort_order = EXCLUDED.sort_order,
                 updated_at = CURRENT_TIMESTAMP,
-                updated_by = $8
+                updated_by = $7
             RETURNING ${TYPE_COLUMNS}
         `;
         const values = [
             uuidv4(),
-            tenantUid,
             data.name,
             data.description ?? null,
             data.allowMultiple ?? 0,
@@ -129,16 +124,15 @@ export class FranchiseDocumentTypeRepository {
     }
 
     /**
-     * Gets all document types for a tenant, optionally filtered by status.
+     * Gets all document types, optionally filtered by status.
      */
-    async getAll(tenantUid: string, status?: string): Promise<IFranchiseDocumentType[]> {
+    async getAll(status?: string): Promise<IFranchiseDocumentType[]> {
         let query = `
             SELECT ${TYPE_COLUMNS} 
             FROM franchise_document_types 
-            WHERE tenant_uid = $1
+            WHERE 1=1
         `;
-        const params: any[] = [tenantUid];
-
+        
         if (status === "active") {
             query += ` AND is_active = 1 AND is_deleted = 0`;
         } else if (status === "deleted") {
@@ -149,23 +143,22 @@ export class FranchiseDocumentTypeRepository {
 
         query += ` ORDER BY sort_order ASC, name ASC`;
 
-        const result = await pool.query(query, params);
+        const result = await pool.query(query);
         return result.rows as IFranchiseDocumentType[];
     }
 
     /**
-     * Gets paginated document types for a tenant.
+     * Gets paginated document types.
      */
     async getPaginated(
-        tenantUid: string,
         page: number,
         limit: number,
         search?: string,
         status?: string
     ): Promise<{ rows: IFranchiseDocumentType[]; total: number }> {
         const offset = (page - 1) * limit;
-        const params: any[] = [tenantUid];
-        let whereClause = `WHERE tenant_uid = $1`;
+        const params: any[] = [];
+        let whereClause = `WHERE 1=1`;
 
         if (status === "active") {
             whereClause += ` AND is_active = 1 AND is_deleted = 0`;
@@ -204,7 +197,6 @@ export class FranchiseDocumentTypeRepository {
      */
     async update(
         uid: string,
-        tenantUid: string,
         data: { name?: string; description?: string; allowMultiple?: number; isRequired?: number; sortOrder?: number; isActive?: number },
         updatedBy: string
     ): Promise<IFranchiseDocumentType | null> {
@@ -244,14 +236,12 @@ export class FranchiseDocumentTypeRepository {
         values.push(updatedBy);
 
         const uidParamIndex = paramIndex++;
-        const tenantUidParamIndex = paramIndex++;
-        
-        values.push(uid, tenantUid);
+        values.push(uid);
 
         const query = `
             UPDATE franchise_document_types
             SET ${fields.join(", ")}
-            WHERE uid = $${uidParamIndex} AND tenant_uid = $${tenantUidParamIndex} AND is_deleted = 0
+            WHERE uid = $${uidParamIndex} AND is_deleted = 0
             RETURNING ${TYPE_COLUMNS}
         `;
 
@@ -262,26 +252,26 @@ export class FranchiseDocumentTypeRepository {
     /**
      * Soft deletes a franchise document type.
      */
-    async softDelete(uid: string, tenantUid: string, deletedBy: string): Promise<boolean> {
+    async softDelete(uid: string, deletedBy: string): Promise<boolean> {
         const query = `
             UPDATE franchise_document_types
             SET is_deleted = 1, is_active = 0, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
-            WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 0
+            WHERE uid = $2 AND is_deleted = 0
         `;
-        const result = await pool.query(query, [deletedBy, uid, tenantUid]);
+        const result = await pool.query(query, [deletedBy, uid]);
         return (result.rowCount ?? 0) > 0;
     }
 
     /**
      * Restores a soft-deleted franchise document type.
      */
-    async restore(uid: string, tenantUid: string, updatedBy: string): Promise<boolean> {
+    async restore(uid: string, updatedBy: string): Promise<boolean> {
         const query = `
             UPDATE franchise_document_types
             SET is_deleted = 0, is_active = 1, updated_by = $1, deleted_by = NULL, updated_at = CURRENT_TIMESTAMP
-            WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 1
+            WHERE uid = $2 AND is_deleted = 1
         `;
-        const result = await pool.query(query, [updatedBy, uid, tenantUid]);
+        const result = await pool.query(query, [updatedBy, uid]);
         return (result.rowCount ?? 0) > 0;
     }
 }

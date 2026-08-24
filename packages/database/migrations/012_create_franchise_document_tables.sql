@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS franchise_document_types (
     id BIGSERIAL,
     uid VARCHAR(255) NOT NULL,
-    tenant_uid VARCHAR(255) NOT NULL,
   
     -- Details
     name VARCHAR(255) NOT NULL,
@@ -24,8 +23,7 @@ CREATE TABLE IF NOT EXISTS franchise_document_types (
     CONSTRAINT uq_franchise_document_types_uid UNIQUE (uid)
 );
 
-CREATE INDEX IF NOT EXISTS idx_franchise_doc_types_tenant_uid ON franchise_document_types(tenant_uid);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_franchise_doc_types_tenant_name ON franchise_document_types(tenant_uid, name) WHERE is_deleted = 0;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_franchise_doc_types_name ON franchise_document_types(name) WHERE is_deleted = 0;
 
 CREATE TABLE IF NOT EXISTS franchise_documents (
     id BIGSERIAL,

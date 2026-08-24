@@ -336,7 +336,17 @@ export class FranchiseService {
 
     async getDocumentTypes(tenantUid: string) {
         logger.info("FranchiseService.getDocumentTypes", { tenantUid });
-        return this.franchiseDocumentTypeRepository.getActiveTypesByTenant(tenantUid);
+        const types = await this.franchiseDocumentTypeRepository.getActiveTypes();
+        const docs = await this.franchiseRepository.getDocumentsByTenantUid(tenantUid);
+
+        return types.map(type => {
+            return {
+                ...type,
+                documents: docs
+                    .filter(doc => doc.documentTypeUid === type.uid)
+                    .map(toFranchiseDocumentSafe)
+            };
+        });
     }
 
     async getDocuments(tenantUid: string) {

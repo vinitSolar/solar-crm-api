@@ -100,7 +100,6 @@ export interface IFranchiseDocument {
 export interface IFranchiseDocumentType {
     id: number;
     uid: string;
-    tenantUid: string;
     name: string;
     description: string | null;
     allowMultiple: number;

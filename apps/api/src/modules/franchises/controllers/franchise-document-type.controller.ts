@@ -13,16 +13,9 @@ export class FranchiseDocumentTypeController {
     create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.user.tenantUid; // Franchise Admin has a tenantUid, or SuperAdmin acts on behalf. Wait, if it's Franchise Document Types, tenantUid must be from token.
-            // If the user doesn't have a tenantUid (e.g. system admin), they shouldn't be creating franchise document types without specifying a tenant.
-            // But this controller is for Franchise Admins to configure their own document types.
-            if (!tenantUid) {
-                res.status(403).json({ success: false, message: "Forbidden: No tenant associated with user" });
-                return;
-            }
 
-            logger.info("FranchiseDocumentTypeController.create", { tenantUid, userUid: authReq.user.uid });
-            const docType = await this.service.createDocumentType(tenantUid, req.body, authReq.user.uid);
+            logger.info("FranchiseDocumentTypeController.create", { userUid: authReq.user.uid });
+            const docType = await this.service.createDocumentType(req.body, authReq.user.uid);
 
             res.status(201).json({
                 success: true,
@@ -36,16 +29,10 @@ export class FranchiseDocumentTypeController {
 
     getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.user.tenantUid;
-            if (!tenantUid) {
-                res.status(403).json({ success: false, message: "Forbidden: No tenant associated with user" });
-                return;
-            }
             const status = req.query.status as string | undefined;
 
-            logger.info("FranchiseDocumentTypeController.getAll", { tenantUid, status });
-            const docTypes = await this.service.getAllDocumentTypes(tenantUid, status);
+            logger.info("FranchiseDocumentTypeController.getAll", { status });
+            const docTypes = await this.service.getAllDocumentTypes(status);
 
             res.status(200).json({
                 success: true,
@@ -59,18 +46,10 @@ export class FranchiseDocumentTypeController {
 
     getPaginated = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.user.tenantUid;
-            if (!tenantUid) {
-                res.status(403).json({ success: false, message: "Forbidden: No tenant associated with user" });
-                return;
-            }
-
             const { page = 1, limit = 10, search, status } = req.body;
 
-            logger.info("FranchiseDocumentTypeController.getPaginated", { tenantUid, page, limit });
+            logger.info("FranchiseDocumentTypeController.getPaginated", { page, limit });
             const result = await this.service.getPaginatedDocumentTypes(
-                tenantUid,
                 Number(page),
                 Number(limit),
                 search as string | undefined,
@@ -95,16 +74,10 @@ export class FranchiseDocumentTypeController {
 
     getByUid = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.user.tenantUid;
-            if (!tenantUid) {
-                res.status(403).json({ success: false, message: "Forbidden: No tenant associated with user" });
-                return;
-            }
             const uid = req.params.uid as string;
 
-            logger.info("FranchiseDocumentTypeController.getByUid", { tenantUid, uid });
-            const docType = await this.service.getDocumentTypeByUid(tenantUid, uid);
+            logger.info("FranchiseDocumentTypeController.getByUid", { uid });
+            const docType = await this.service.getDocumentTypeByUid(uid);
 
             res.status(200).json({
                 success: true,
@@ -119,15 +92,10 @@ export class FranchiseDocumentTypeController {
     update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.user.tenantUid;
-            if (!tenantUid) {
-                res.status(403).json({ success: false, message: "Forbidden: No tenant associated with user" });
-                return;
-            }
             const uid = req.params.uid as string;
 
-            logger.info("FranchiseDocumentTypeController.update", { tenantUid, uid });
-            const docType = await this.service.updateDocumentType(tenantUid, uid, req.body, authReq.user.uid);
+            logger.info("FranchiseDocumentTypeController.update", { uid });
+            const docType = await this.service.updateDocumentType(uid, req.body, authReq.user.uid);
 
             res.status(200).json({
                 success: true,
@@ -142,15 +110,10 @@ export class FranchiseDocumentTypeController {
     delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.user.tenantUid;
-            if (!tenantUid) {
-                res.status(403).json({ success: false, message: "Forbidden: No tenant associated with user" });
-                return;
-            }
             const uid = req.params.uid as string;
 
-            logger.info("FranchiseDocumentTypeController.delete", { tenantUid, uid });
-            await this.service.deleteDocumentType(tenantUid, uid, authReq.user.uid);
+            logger.info("FranchiseDocumentTypeController.delete", { uid });
+            await this.service.deleteDocumentType(uid, authReq.user.uid);
 
             res.status(200).json({
                 success: true,
@@ -165,15 +128,10 @@ export class FranchiseDocumentTypeController {
     restore = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.user.tenantUid;
-            if (!tenantUid) {
-                res.status(403).json({ success: false, message: "Forbidden: No tenant associated with user" });
-                return;
-            }
             const uid = req.params.uid as string;
 
-            logger.info("FranchiseDocumentTypeController.restore", { tenantUid, uid });
-            await this.service.restoreDocumentType(tenantUid, uid, authReq.user.uid);
+            logger.info("FranchiseDocumentTypeController.restore", { uid });
+            await this.service.restoreDocumentType(uid, authReq.user.uid);
 
             res.status(200).json({
                 success: true,

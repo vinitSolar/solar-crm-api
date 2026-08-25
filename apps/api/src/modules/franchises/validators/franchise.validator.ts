@@ -25,6 +25,11 @@ const parseJsonPreprocess = (val: unknown) => {
     return val;
 };
 
+const emptyStringToNull = (val: unknown) => {
+    if (val === "") return null;
+    return val;
+};
+
 const parseArrayPreprocess = (val: unknown) => {
     if (val === undefined || val === null || val === "") return [];
     if (Array.isArray(val)) return val.map(String);
@@ -51,6 +56,7 @@ export const createFranchiseSchema = z.object({
                 .min(2, FRANCHISE_MESSAGES.INVALID_CODE)
                 .max(100, FRANCHISE_MESSAGES.INVALID_CODE),
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
+            password: z.preprocess(emptyStringToNull, z.string().nullable().optional()),
             mobile: z.string().max(20, FRANCHISE_MESSAGES.INVALID_MOBILE).optional(),
             logo: z.string().max(500).optional(),
         }),
@@ -64,7 +70,7 @@ export const createFranchiseSchema = z.object({
                 .min(1, FRANCHISE_MESSAGES.OWNER_MOBILE_REQUIRED)
                 .max(20),
             alternateNumber: z.string().max(20).optional(),
-            email: z.string({ required_error: FRANCHISE_MESSAGES.OWNER_EMAIL_REQUIRED }).min(1, FRANCHISE_MESSAGES.OWNER_EMAIL_REQUIRED).email(FRANCHISE_MESSAGES.INVALID_EMAIL),
+            email: z.string().min(1, FRANCHISE_MESSAGES.OWNER_EMAIL_REQUIRED).email(FRANCHISE_MESSAGES.INVALID_EMAIL),
             residentialAddress: z.string().optional(),
         }),
         business: z.object({
@@ -100,6 +106,7 @@ export const updateFranchiseSchema = z.object({
         franchise: z.object({
             name: z.string().min(2, FRANCHISE_MESSAGES.INVALID_NAME).max(255, FRANCHISE_MESSAGES.INVALID_NAME).optional(),
             email: z.string().email(FRANCHISE_MESSAGES.INVALID_EMAIL).optional(),
+            password: z.preprocess(emptyStringToNull, z.string().nullable().optional()),
             mobile: z.string().max(20, FRANCHISE_MESSAGES.INVALID_MOBILE).optional(),
             logo: z.string().max(500).optional(),
         }).optional(),

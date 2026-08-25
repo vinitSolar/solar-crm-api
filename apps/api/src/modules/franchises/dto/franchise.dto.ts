@@ -13,8 +13,6 @@ export function toCreateFranchiseDTO(
         franchiseName: tenant.name,
         franchiseCode: tenant.code,
         onboardingStatus: tenant.onboardingStatus,
-        ...(credentials?.adminEmail && { adminEmail: credentials.adminEmail }),
-        ...(credentials?.adminPassword && { adminPassword: credentials.adminPassword }),
     };
 }
 

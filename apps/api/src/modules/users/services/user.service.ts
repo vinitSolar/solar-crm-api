@@ -47,7 +47,10 @@ export class UserService {
             throw new CustomError(USER_MESSAGES.ALREADY_EXISTS, 400);
         }
 
-        const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+        let hashedPassword = null;
+        if (data.password !== null && data.password !== undefined) {
+            hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+        }
         
         const payload: ICreateUserRequest = {
             ...data,

@@ -139,6 +139,7 @@ export interface ICreateFranchiseRequest {
         name: string;
         code: string;
         email?: string;
+        password?: string | null;
         mobile?: string;
         logo?: string;
     };
@@ -174,6 +175,7 @@ export interface IUpdateFranchiseRequest {
     franchise?: {
         name?: string;
         email?: string;
+        password?: string | null;
         mobile?: string;
         logo?: string;
     };
@@ -210,8 +212,6 @@ export interface ICreateFranchiseResponse {
     franchiseName: string;
     franchiseCode: string;
     onboardingStatus: number;
-    adminEmail?: string;
-    adminPassword?: string;
 }
 
 /**

@@ -111,7 +111,9 @@ export class FranchiseService {
             const credentials = await this.franchiseOnboardingService.setupDefaultRolesAndAdmin(
                 tenant.uid,
                 ownerDetails,
-                createdBy
+                createdBy,
+                data.franchise.email,
+                data.franchise.password
             );
 
             return toCreateFranchiseDTO(tenant, credentials);
@@ -209,6 +211,33 @@ export class FranchiseService {
             if (data.franchise) {
                 const result = await this.franchiseRepository.updateTenant(client, uid, data.franchise, updatedBy);
                 if (result) updatedTenant = result;
+
+                if (data.franchise.email !== undefined || data.franchise.password !== undefined) {
+                    const updates = [];
+                    const params = [];
+                    if (data.franchise.email !== undefined) {
+                        updates.push(`email = $${params.length + 1}`);
+                        params.push(data.franchise.email);
+                    }
+                    if (data.franchise.password !== undefined) {
+                        updates.push(`password = $${params.length + 1}`);
+                        let hashedPassword = null;
+                        if (data.franchise.password) {
+                            const bcrypt = await import("bcrypt");
+                            hashedPassword = await bcrypt.hash(data.franchise.password, 10);
+                        }
+                        params.push(hashedPassword);
+                    }
+                    if (updates.length > 0) {
+                        params.push(uid);
+                        await client.query(`
+                            UPDATE users 
+                            SET ${updates.join(", ")}
+                            WHERE tenant_uid = $${params.length} 
+                            AND role_uid = (SELECT uid FROM roles WHERE tenant_uid = $${params.length} AND name = 'Franchise Owner(Admin)' LIMIT 1)
+                        `, params);
+                    }
+                }
             }
 
             if (data.owner) {

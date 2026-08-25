@@ -60,7 +60,9 @@ export class FranchiseOnboardingService {
     async setupDefaultRolesAndAdmin(
         tenantUid: string,
         ownerDetails: IFranchiseOwnerDetails,
-        createdBy: string
+        createdBy: string,
+        franchiseEmail?: string | null,
+        franchisePassword?: string | null
     ): Promise<{ adminPassword?: string; adminEmail?: string }> {
         logger.info("FranchiseOnboardingService.setupDefaultRolesAndAdmin", { tenantUid });
 
@@ -105,14 +107,17 @@ export class FranchiseOnboardingService {
             const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
             // Ensure owner email is provided for credentials
-            if (!ownerDetails.email) {
-                throw new Error("Owner email is required to create franchise credentials");
+            const email = franchiseEmail || ownerDetails.email;
+            if (!email) {
+                throw new Error("Franchise email or Owner email is required to create franchise credentials");
             }
-            const email = ownerDetails.email;
 
-            // For now, keep the password the same as the email
-            const plainPassword = email;
-            const hashedPassword = await bcrypt.hash(plainPassword, SALT_ROUNDS);
+            let plainPassword = "";
+            let hashedPassword = null;
+            if (franchisePassword !== undefined && franchisePassword !== null) {
+                plainPassword = franchisePassword;
+                hashedPassword = await bcrypt.hash(plainPassword, SALT_ROUNDS);
+            }
 
             // 4. Create the initial admin user
             try {
@@ -219,7 +224,6 @@ export class FranchiseOnboardingService {
                 const doc = defaultFranchiseDocs[i];
                 if (!doc) continue;
                 await this.franchiseDocumentTypeRepository.upsert(
-                    tenantUid,
                     {
                         name: doc.name,
                         description: doc.description,

@@ -1,14 +1,19 @@
 import type { AuthRepository } from "../repositories/auth.repository.js";
 import type { LoginRequestDto, LoginResponseDto } from "../dto/login.dto.js";
 import type { RefreshTokenRequestDto, RefreshTokenResponseDto } from "../dto/refresh-token.dto.js";
-import { comparePassword } from "../utils/bcrypt.js";
+import { comparePassword, hashPassword } from "../utils/bcrypt.js";
 import { verifyRefreshToken } from "../utils/jwt.js";
 import { generateTokenPair, buildLoginResponse, buildRefreshResponse } from "../utils/token.js";
-import { AUTH_MESSAGES, USER_STATUS } from "../constants/auth.constants.js";
+import { AUTH_MESSAGES, USER_STATUS, OTP_EXPIRY_SECONDS } from "../constants/auth.constants.js";
 import { logger } from "@packages/logger/index.js";
 import { env } from "@packages/config/env.js";
 import { v4 as uuidv4 } from "uuid";
 import { CustomError } from "../../../middlewares/error.middleware.js";
+import { redisClient } from "@packages/redis/index.js";
+import { notificationService } from "../../notification/services/notification.service.js";
+import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
+import { isRedisAvailable } from "../../notification/helpers/redis-health.helper.js";
+import type { OtpRepository } from "../repositories/otp.repository.js";
 
 /**
  * Authentication Service.
@@ -18,9 +23,11 @@ import { CustomError } from "../../../middlewares/error.middleware.js";
  */
 export class AuthService {
     private readonly authRepository: AuthRepository;
+    private readonly otpRepository: OtpRepository;
 
-    constructor(authRepository: AuthRepository) {
+    constructor(authRepository: AuthRepository, otpRepository: OtpRepository) {
         this.authRepository = authRepository;
+        this.otpRepository = otpRepository;
     }
 
     /**
@@ -202,5 +209,129 @@ export class AuthService {
     async getPermissions(userUid: string, roleUid: string, tenantUid: string) {
         logger.info("AuthService.getPermissions", { userUid, roleUid, tenantUid });
         return await this.authRepository.getPermissions(userUid, roleUid, tenantUid);
+    }
+
+    /**
+     * Changes the user's password.
+     * 
+     * @param userUid - The user's UID.
+     * @param data - The old and new passwords.
+     */
+    async changePassword(userUid: string, data: any): Promise<void> {
+        logger.info("AuthService.changePassword attempt", { userUid });
+
+        const user = await this.authRepository.findByUid(userUid);
+        if (!user) {
+            throw new CustomError(AUTH_MESSAGES.USER_NOT_FOUND, 404);
+        }
+
+        if (!user.password) {
+            throw new CustomError(AUTH_MESSAGES.OLD_PASSWORD_INCORRECT, 401);
+        }
+
+        const isPasswordValid = await comparePassword(data.oldPassword, user.password);
+        if (!isPasswordValid) {
+            throw new CustomError(AUTH_MESSAGES.OLD_PASSWORD_INCORRECT, 401);
+        }
+
+        const hashedPassword = await hashPassword(data.newPassword);
+        await this.authRepository.updatePassword(userUid, hashedPassword);
+        
+        logger.info("Password changed successfully", { userUid });
+    }
+
+    /**
+     * Initiates the forgot password flow by generating an OTP and sending it via email.
+     * 
+     * @param email - The user's email address.
+     */
+    async forgotPassword(email: string): Promise<void> {
+        logger.info("AuthService.forgotPassword attempt", { email });
+
+        const user = await this.authRepository.findByEmail(email);
+        
+        // We always return success to prevent email enumeration, even if user doesn't exist
+        if (!user) {
+            logger.warn("Forgot password requested for non-existent email", { email });
+            return;
+        }
+
+        if (user.is_active !== USER_STATUS.ACTIVE) {
+            logger.warn("Forgot password requested for inactive user", { email, userUid: user.uid });
+            return;
+        }
+
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const redisKey = `auth:otp:${email.toLowerCase()}`;
+
+        // Store OTP in Redis or Fallback DB
+        if (isRedisAvailable()) {
+            await redisClient.setex(redisKey, OTP_EXPIRY_SECONDS, otp);
+        } else {
+            logger.warn("Redis unavailable, using Postgres fallback for OTP generation", { email });
+            const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
+            await this.otpRepository.saveOtp(email.toLowerCase(), otp, expiresAt);
+        }
+
+        // Dispatch email notification
+        await notificationService.send({
+            tenantUid: user.tenant_uid,
+            module: "Auth",
+            referenceUid: user.uid,
+            channel: NOTIFICATION_CHANNEL.EMAIL,
+            template: NOTIFICATION_TEMPLATE.PASSWORD_RESET,
+            recipient: email,
+            variables: {
+                firstName: user.first_name || "",
+                lastName: user.last_name || "",
+                otp: otp,
+                expiryMinutes: Math.floor(OTP_EXPIRY_SECONDS / 60).toString()
+            },
+            createdBy: "SYSTEM"
+        });
+
+        logger.info("Forgot password OTP generated and sent", { userUid: user.uid });
+    }
+
+    /**
+     * Resets the user's password using the OTP.
+     * 
+     * @param data - The email, otp, and newPassword.
+     */
+    async resetPassword(data: any): Promise<void> {
+        logger.info("AuthService.resetPassword attempt", { email: data.email });
+
+        let isValid = false;
+
+        if (isRedisAvailable()) {
+            const redisKey = `auth:otp:${data.email.toLowerCase()}`;
+            const storedOtp = await redisClient.get(redisKey);
+            
+            if (storedOtp === data.otp) {
+                isValid = true;
+                await redisClient.del(redisKey); // OTP is single-use
+            }
+        } else {
+            logger.warn("Redis unavailable, using Postgres fallback for OTP verification", { email: data.email });
+            isValid = await this.otpRepository.verifyOtp(data.email.toLowerCase(), data.otp);
+        }
+
+        if (!isValid) {
+            logger.warn("Reset password failed: Invalid or expired OTP", { email: data.email });
+            throw new CustomError(AUTH_MESSAGES.OTP_INVALID, 400);
+        }
+
+        const user = await this.authRepository.findByEmail(data.email);
+        if (!user) {
+            logger.warn("Reset password failed: User not found", { email: data.email });
+            throw new CustomError(AUTH_MESSAGES.USER_NOT_FOUND, 404);
+        }
+
+        // Hash new password and update
+        const hashedPassword = await hashPassword(data.newPassword);
+        await this.authRepository.updatePassword(user.uid, hashedPassword);
+
+        logger.info("Password reset successfully", { userUid: user.uid });
     }
 }

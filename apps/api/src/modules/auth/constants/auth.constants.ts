@@ -20,7 +20,17 @@ export const AUTH_MESSAGES = {
     TENANT_REQUIRED: "Tenant identifier is required",
     LOGOUT_SUCCESS: "Logout successful",
     SESSION_INVALID: "Session is invalid or expired",
+    PASSWORD_CHANGED: "Password changed successfully",
+    OLD_PASSWORD_INCORRECT: "Old password is incorrect",
+    OTP_SENT: "OTP sent to your email successfully",
+    OTP_INVALID: "Invalid or expired OTP",
+    PASSWORD_RESET_SUCCESS: "Password reset successfully",
 } as const;
+
+/**
+ * OTP Expiry time in seconds (e.g. 300 seconds = 5 minutes).
+ */
+export const OTP_EXPIRY_SECONDS = 300;
 
 /**
  * User account status values.

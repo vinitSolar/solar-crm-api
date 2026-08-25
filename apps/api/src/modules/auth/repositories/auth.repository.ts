@@ -285,4 +285,23 @@ export class AuthRepository {
                 : null
         };
     }
+
+    /**
+     * Updates the password hash for a user.
+     *
+     * @param uid - The user's UID.
+     * @param passwordHash - The new hashed password.
+     */
+    async updatePassword(uid: string, passwordHash: string): Promise<void> {
+        logger.debug("AuthRepository.updatePassword", { uid });
+
+        const query = `
+            UPDATE users
+            SET password = $1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE uid = $2
+        `;
+
+        await this.pool.query(query, [passwordHash, uid]);
+    }
 }

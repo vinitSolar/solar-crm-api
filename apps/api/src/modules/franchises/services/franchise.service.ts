@@ -14,7 +14,10 @@ import { toCreateFranchiseDTO, toFranchiseSafe, toOwnerDetailsSafe, toBusinessDe
 import { FRANCHISE_MESSAGES } from "../constants/franchise.constants.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { logger } from "@packages/logger/index.js";
-import type { FranchiseOnboardingService } from "./franchise-onboarding.service.js";
+import { FranchiseOnboardingService } from "./franchise-onboarding.service.js";
+import { notificationService } from "../../notification/services/notification.service.js";
+import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
+import { env } from "@packages/config/env.js";
 import { storageService as storageServiceInstance } from "@packages/storage/index.js";
 
 import { FranchiseDocumentTypeRepository } from "../repositories/franchise-document-type.repository.js";
@@ -236,6 +239,30 @@ export class FranchiseService {
                             WHERE tenant_uid = $${params.length} 
                             AND role_uid = (SELECT uid FROM roles WHERE tenant_uid = $${params.length} AND name = 'Franchise Owner(Admin)' LIMIT 1)
                         `, params);
+                        
+                        // Dispatch Credentials Email if password was updated
+                        if (data.franchise.password) {
+                            const recipientEmail = data.franchise.email || existingTenant.email;
+                            const franchiseName = data.franchise.name || existingTenant.name;
+                            try {
+                                await notificationService.send({
+                                    tenantUid: uid,
+                                    module: "Franchise",
+                                    referenceUid: uid,
+                                    channel: NOTIFICATION_CHANNEL.EMAIL,
+                                    template: NOTIFICATION_TEMPLATE.FRANCHISE_CREDENTIALS,
+                                    recipient: recipientEmail as string,
+                                    variables: {
+                                        franchiseName: franchiseName,
+                                        email: recipientEmail as string,
+                                        password: data.franchise.password,
+                                        loginUrl: `${env.APP.URL || 'http://localhost:3000'}/login`
+                                    }
+                                });
+                            } catch (emailError) {
+                                logger.error("Failed to dispatch credentials email on update", { error: emailError, tenantUid: uid });
+                            }
+                        }
                     }
                 }
             }

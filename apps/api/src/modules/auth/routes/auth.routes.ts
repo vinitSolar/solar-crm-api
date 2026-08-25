@@ -2,7 +2,8 @@ import { Router } from "express";
 import { AuthController } from "../controllers/auth.controller.js";
 import { AuthService } from "../services/auth.service.js";
 import { AuthRepository } from "../repositories/auth.repository.js";
-import { validateRequest, loginSchema, refreshTokenSchema, logoutSchema } from "../validators/auth.validator.js";
+import { OtpRepository } from "../repositories/otp.repository.js";
+import { validateRequest, loginSchema, refreshTokenSchema, logoutSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.validator.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
 
@@ -20,7 +21,8 @@ function createAuthRouter(): Router {
 
     // Dependency injection chain
     const authRepository = new AuthRepository(pool);
-    const authService = new AuthService(authRepository);
+    const otpRepository = new OtpRepository(pool);
+    const authService = new AuthService(authRepository, otpRepository);
     const authController = new AuthController(authService);
 
     /**
@@ -328,6 +330,112 @@ function createAuthRouter(): Router {
         "/permissions",
         authenticate,
         authController.permissions,
+    );
+
+    /**
+     * @swagger
+     * /auth/change-password:
+     *   put:
+     *     tags: [Authentication]
+     *     summary: Change user password
+     *     description: Allows an authenticated user to change their own password. Requires a valid access token.
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [oldPassword, newPassword]
+     *             properties:
+     *               oldPassword:
+     *                 type: string
+     *               newPassword:
+     *                 type: string
+     *                 minLength: 6
+     *     responses:
+     *       200:
+     *         description: Password changed successfully
+     *       400:
+     *         description: Validation failed
+     *       401:
+     *         description: Old password incorrect or unauthorized
+     *       404:
+     *         description: User not found
+     */
+    router.put(
+        "/change-password",
+        authenticate,
+        validateRequest(changePasswordSchema),
+        authController.changePassword
+    );
+
+    /**
+     * @swagger
+     * /auth/forgot-password:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Initiates the forgot password flow
+     *     description: Generates an OTP and sends it to the user's email address if it exists.
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [email]
+     *             properties:
+     *               email:
+     *                 type: string
+     *                 format: email
+     *     responses:
+     *       200:
+     *         description: OTP sent successfully (or simulated success)
+     *       400:
+     *         description: Validation failed
+     */
+    router.post(
+        "/forgot-password",
+        validateRequest(forgotPasswordSchema),
+        authController.forgotPassword
+    );
+
+    /**
+     * @swagger
+     * /auth/reset-password:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Resets the user's password using an OTP
+     *     description: Validates the OTP and sets a new password.
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [email, otp, newPassword]
+     *             properties:
+     *               email:
+     *                 type: string
+     *                 format: email
+     *               otp:
+     *                 type: string
+     *               newPassword:
+     *                 type: string
+     *                 minLength: 6
+     *     responses:
+     *       200:
+     *         description: Password reset successfully
+     *       400:
+     *         description: Invalid OTP or Validation failed
+     *       404:
+     *         description: User not found
+     */
+    router.post(
+        "/reset-password",
+        validateRequest(resetPasswordSchema),
+        authController.resetPassword
     );
 
     return router;

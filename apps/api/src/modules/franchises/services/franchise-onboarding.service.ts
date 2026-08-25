@@ -15,6 +15,9 @@ import type { RolePermissionRepository } from "../../role-permissions/repositori
 import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import { FranchiseDocumentTypeRepository } from "../repositories/franchise-document-type.repository.js";
+import { notificationService } from "../../notification/services/notification.service.js";
+import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
+import { env } from "@packages/config/env.js";
 
 const SALT_ROUNDS = 10;
 
@@ -146,9 +149,28 @@ export class FranchiseOnboardingService {
                 });
             }
 
-            // Note: In a real system, we might trigger an email here containing the 'plainPassword' 
-            // so the franchise owner can log in.
-            
+            // 4.1 Dispatch Credentials Email
+            if (plainPassword) {
+                try {
+                    await notificationService.send({
+                        tenantUid: tenantUid,
+                        module: "Franchise",
+                        referenceUid: tenantUid,
+                        channel: NOTIFICATION_CHANNEL.EMAIL,
+                        template: NOTIFICATION_TEMPLATE.FRANCHISE_CREDENTIALS,
+                        recipient: email,
+                        variables: {
+                            franchiseName: `${firstName} ${lastName}`.trim(),
+                            email: email,
+                            password: plainPassword,
+                            loginUrl: `${env.APP.URL || 'http://localhost:3000'}/login`
+                        }
+                    });
+                } catch (emailError) {
+                    logger.error("Failed to dispatch credentials email for franchise", { error: emailError, tenantUid });
+                }
+            }
+
             // 4.5 Assign all menu permissions to Admin Role
             const allMenus = await this.menuRepository.findAll("active");
             if (allMenus.length > 0) {

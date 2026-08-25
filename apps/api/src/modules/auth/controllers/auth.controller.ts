@@ -157,4 +157,71 @@ export class AuthController {
             next(error);
         }
     };
+
+    /**
+     * PUT /auth/change-password
+     *
+     * Allows an authenticated user to change their own password.
+     */
+    changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+
+            logger.info("AuthController.changePassword", { userUid: authReq.user.uid });
+
+            await this.authService.changePassword(authReq.user.uid, req.body);
+
+            res.status(200).json({
+                success: true,
+                message: AUTH_MESSAGES.PASSWORD_CHANGED,
+                data: null,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    /**
+     * POST /auth/forgot-password
+     *
+     * Initiates the forgot password flow.
+     */
+    forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const { email } = req.body;
+
+            logger.info("AuthController.forgotPassword", { email });
+
+            await this.authService.forgotPassword(email);
+
+            res.status(200).json({
+                success: true,
+                message: AUTH_MESSAGES.OTP_SENT,
+                data: null,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    /**
+     * POST /auth/reset-password
+     *
+     * Resets the password using an OTP.
+     */
+    resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            logger.info("AuthController.resetPassword", { email: req.body.email });
+
+            await this.authService.resetPassword(req.body);
+
+            res.status(200).json({
+                success: true,
+                message: AUTH_MESSAGES.PASSWORD_RESET_SUCCESS,
+                data: null,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

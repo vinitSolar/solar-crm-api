@@ -33,6 +33,43 @@ export const refreshTokenSchema = z.object({
 export const logoutSchema = refreshTokenSchema;
 
 /**
+ * Change password request validation schema.
+ */
+export const changePasswordSchema = z.object({
+    oldPassword: z.string({ error: "Old password is required" }).min(1, "Old password is required"),
+    newPassword: z.string({ error: "New password is required" }).min(6, "New password must be at least 6 characters"),
+});
+
+/**
+ * Forgot password request validation schema.
+ */
+export const forgotPasswordSchema = z.object({
+    email: z
+        .string({ error: "Email is required" })
+        .email("Invalid email format")
+        .trim()
+        .toLowerCase(),
+});
+
+/**
+ * Reset password request validation schema.
+ */
+export const resetPasswordSchema = z.object({
+    email: z
+        .string({ error: "Email is required" })
+        .email("Invalid email format")
+        .trim()
+        .toLowerCase(),
+    otp: z
+        .string({ error: "OTP is required" })
+        .min(6, "OTP must be 6 characters")
+        .max(6, "OTP must be 6 characters"),
+    newPassword: z
+        .string({ error: "New password is required" })
+        .min(6, "New password must be at least 6 characters"),
+});
+
+/**
  * Generic Zod validation middleware factory.
  * Validates `req.body` against the provided schema.
  *

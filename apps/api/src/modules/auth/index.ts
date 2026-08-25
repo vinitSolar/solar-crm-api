@@ -21,6 +21,7 @@ export type { IJwtPayload, IJwtRefreshPayload } from "./interfaces/jwt-payload.i
 export { AuthController } from "./controllers/auth.controller.js";
 export { AuthService } from "./services/auth.service.js";
 export { AuthRepository } from "./repositories/auth.repository.js";
+export { OtpRepository } from "./repositories/otp.repository.js";
 
 // Constants
 export { AUTH_MESSAGES, USER_STATUS, TOKEN_TYPES } from "./constants/auth.constants.js";

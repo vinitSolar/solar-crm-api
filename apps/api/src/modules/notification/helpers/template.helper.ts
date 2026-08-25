@@ -10,6 +10,8 @@ import { logger } from "@packages/logger/logger.js";
 import { NOTIFICATION_TEMPLATE, NOTIFICATION_MESSAGES } from "../constants/notification.constants.js";
 import { quotationGeneratedTemplate } from "../templates/quotation-generated/template.js";
 import { paymentReceivedTemplate } from "../templates/payment-received/template.js";
+import { passwordResetTemplate } from "../templates/password-reset/template.js";
+import { franchiseCredentialsTemplate } from "../templates/franchise-credentials/template.js";
 import type { ITemplateConfig } from "../interfaces/notification.interfaces.js";
 
 /**
@@ -28,6 +30,18 @@ export function getTemplateConfig(template: NOTIFICATION_TEMPLATE): ITemplateCon
                 subject: paymentReceivedTemplate.subject,
                 htmlPath: paymentReceivedTemplate.getHtmlPath(),
                 requiredKeys: paymentReceivedTemplate.requiredKeys
+            };
+        case NOTIFICATION_TEMPLATE.PASSWORD_RESET:
+            return {
+                subject: passwordResetTemplate.subject,
+                htmlPath: passwordResetTemplate.getHtmlPath(),
+                requiredKeys: passwordResetTemplate.requiredKeys
+            };
+        case NOTIFICATION_TEMPLATE.FRANCHISE_CREDENTIALS:
+            return {
+                subject: franchiseCredentialsTemplate.subject,
+                htmlPath: franchiseCredentialsTemplate.getHtmlPath(),
+                requiredKeys: franchiseCredentialsTemplate.requiredKeys
             };
         default:
             throw new Error(`${NOTIFICATION_MESSAGES.TEMPLATE_NOT_FOUND}: ${template}`);

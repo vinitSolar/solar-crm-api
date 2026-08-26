@@ -84,14 +84,24 @@ export class MenuRepository {
         return result.rows[0] || null;
     }
 
-    async findAll(status?: "active" | "deleted" | "all"): Promise<IMenu[]> {
+    async findAll(status?: "active" | "deleted" | "all", tenantUid?: string): Promise<IMenu[]> {
         let query = `SELECT * FROM menus`;
         const conditions: string[] = [];
+        const values: any[] = [];
+        let index = 1;
 
         if (status === "active") {
             conditions.push(`deleted_at IS NULL`);
         } else if (status === "deleted") {
             conditions.push(`deleted_at IS NOT NULL`);
+        }
+
+        if (tenantUid) {
+            conditions.push(`(
+                (SELECT type FROM tenants WHERE uid = $${index++} AND is_deleted = 0 LIMIT 1) = 0 
+                OR code NOT ILIKE '%franchise%'
+            )`);
+            values.push(tenantUid);
         }
 
         if (conditions.length > 0) {
@@ -100,11 +110,11 @@ export class MenuRepository {
 
         query += ` ORDER BY sort_order ASC NULLS LAST, created_at DESC`;
 
-        const result = await this.pool.query(query);
+        const result = await this.pool.query(query, values);
         return result.rows;
     }
 
-    async findPaginated(page: number, limit: number, search?: string, status: "active" | "deleted" | "all" = "active"): Promise<{ menus: IMenu[]; total: number }> {
+    async findPaginated(page: number, limit: number, search?: string, status: "active" | "deleted" | "all" = "active", tenantUid?: string): Promise<{ menus: IMenu[]; total: number }> {
         const offset = (page - 1) * limit;
         const values: any[] = [];
         const conditions: string[] = [];
@@ -120,6 +130,14 @@ export class MenuRepository {
             conditions.push(`(name ILIKE $${index} OR code ILIKE $${index})`);
             values.push(`%${search}%`);
             index++;
+        }
+
+        if (tenantUid) {
+            conditions.push(`(
+                (SELECT type FROM tenants WHERE uid = $${index++} AND is_deleted = 0 LIMIT 1) = 0 
+                OR code NOT ILIKE '%franchise%'
+            )`);
+            values.push(tenantUid);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

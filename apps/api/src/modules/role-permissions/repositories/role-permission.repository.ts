@@ -41,6 +41,10 @@ export class RolePermissionRepository {
                 AND rmp.role_uid = $1
                 AND rmp.tenant_uid = $2
             WHERE m.is_active = 1 AND m.deleted_at IS NULL
+            AND (
+                (SELECT type FROM tenants WHERE uid = $2 AND is_deleted = 0 LIMIT 1) = 0 
+                OR m.code NOT ILIKE '%franchise%'
+            )
             ORDER BY m.sort_order ASC NULLS LAST, m.name ASC
         `;
 

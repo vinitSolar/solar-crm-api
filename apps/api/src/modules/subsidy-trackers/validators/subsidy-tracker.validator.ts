@@ -15,6 +15,13 @@ export const updateSubsidyTrackerSchema = z.object({
         approvedDate: z.string().optional().nullable(),
         disbursedDate: z.string().optional().nullable(),
         remarks: z.string().optional().nullable(),
+        bankDetails: z.object({
+            accountName: z.string().max(255).optional().nullable(),
+            accountNumber: z.string().max(100).optional().nullable(),
+            ifscCode: z.string().max(50).optional().nullable(),
+            bankName: z.string().max(255).optional().nullable(),
+            branchName: z.string().max(255).optional().nullable(),
+        }).optional().nullable(),
     }),
 });
 

@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import type { IUpsertRoleMenuPermission } from "../interfaces/role-permission.interface.js";
+import { HEAD_OFFICE_ONLY_MENUS } from "../../menus/constants/menu.constants.js";
 import { logger } from "@packages/logger/index.js";
 
 /**
@@ -43,12 +44,12 @@ export class RolePermissionRepository {
             WHERE m.is_active = 1 AND m.deleted_at IS NULL
             AND (
                 (SELECT type FROM tenants WHERE uid = $2 AND is_deleted = 0 LIMIT 1) = 0 
-                OR m.code NOT ILIKE '%franchise%'
+                OR NOT (m.code = ANY($3))
             )
             ORDER BY m.sort_order ASC NULLS LAST, m.name ASC
         `;
 
-        const result = await this.pool.query(query, [roleUid, tenantUid]);
+        const result = await this.pool.query(query, [roleUid, tenantUid, HEAD_OFFICE_ONLY_MENUS]);
         return result.rows;
     }
 

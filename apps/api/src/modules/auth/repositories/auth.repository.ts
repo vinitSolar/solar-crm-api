@@ -261,9 +261,13 @@ export class AuthRepository {
             (menu) => menu.canView === 1 && menu.canCreate === 1 && menu.canEdit === 1 && menu.canDelete === 1
         );
 
+        const filteredMenus = menus.filter(
+            (menu) => menu.canView === 1 || menu.canCreate === 1 || menu.canEdit === 1 || menu.canDelete === 1 || menu.canSetting === 1
+        );
+
         return {
             allMenuAccess,
-            menus,
+            menus: filteredMenus,
             features: featuresResult.rows.map((row) => ({
                 feature_uid: row.feature_uid,
                 menu_uid: row.menu_uid,

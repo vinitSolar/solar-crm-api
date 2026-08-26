@@ -23,11 +23,21 @@ export class RoleRepository {
             SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
             FROM roles
             WHERE tenant_uid = $1
+            AND name != 'Master'
+            AND (
+                (SELECT type FROM tenants WHERE uid = $1 AND is_deleted = 0 LIMIT 1) = 0 
+                OR name != 'Franchise Owner(Admin)'
+            )
         `;
         let countQuery = `
             SELECT COUNT(*)
             FROM roles
             WHERE tenant_uid = $1
+            AND name != 'Master'
+            AND (
+                (SELECT type FROM tenants WHERE uid = $1 AND is_deleted = 0 LIMIT 1) = 0 
+                OR name != 'Franchise Owner(Admin)'
+            )
         `;
 
         if (status === "active") {
@@ -72,6 +82,11 @@ export class RoleRepository {
             SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
             FROM roles
             WHERE tenant_uid = $1
+            AND name != 'Master'
+            AND (
+                (SELECT type FROM tenants WHERE uid = $1 AND is_deleted = 0 LIMIT 1) = 0 
+                OR name != 'Franchise Owner(Admin)'
+            )
         `;
 
         if (status === "active") {

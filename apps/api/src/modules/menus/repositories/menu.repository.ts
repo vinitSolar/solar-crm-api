@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import type { IMenu } from "../dto/menu.dto.js";
+import { HEAD_OFFICE_ONLY_MENUS } from "../constants/menu.constants.js";
 
 export class MenuRepository {
     private readonly pool: Pool;
@@ -99,9 +100,9 @@ export class MenuRepository {
         if (tenantUid) {
             conditions.push(`(
                 (SELECT type FROM tenants WHERE uid = $${index++} AND is_deleted = 0 LIMIT 1) = 0 
-                OR code NOT ILIKE '%franchise%'
+                OR NOT (code = ANY($${index++}))
             )`);
-            values.push(tenantUid);
+            values.push(tenantUid, HEAD_OFFICE_ONLY_MENUS);
         }
 
         if (conditions.length > 0) {
@@ -135,9 +136,9 @@ export class MenuRepository {
         if (tenantUid) {
             conditions.push(`(
                 (SELECT type FROM tenants WHERE uid = $${index++} AND is_deleted = 0 LIMIT 1) = 0 
-                OR code NOT ILIKE '%franchise%'
+                OR NOT (code = ANY($${index++}))
             )`);
-            values.push(tenantUid);
+            values.push(tenantUid, HEAD_OFFICE_ONLY_MENUS);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

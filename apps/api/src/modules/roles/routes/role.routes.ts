@@ -15,6 +15,8 @@ function createRoleRouter(): Router {
     const roleService = new RoleService(roleRepository);
     const roleController = new RoleController(roleService);
 
+    router.use(authenticate);
+
     /**
      * @swagger
      * /roles/list:

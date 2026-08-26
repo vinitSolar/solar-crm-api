@@ -5,6 +5,7 @@ import { BankDetailRepository } from "../repositories/bank-detail.repository.js"
 import { createBankDetailSchema, updateBankDetailSchema, validateBankDetailRequest } from "../validators/bank-detail.validator.js";
 import { authenticate, authorizeRoleName } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 export function createBankDetailRouter(): Router {
     const router = Router();
@@ -19,12 +20,14 @@ export function createBankDetailRouter(): Router {
     // GET /api/v1/bank-details/default
     router.get(
         "/default",
+        requirePermission("FRANCHISES", "can_view"),
         controller.getDefault
     );
 
     // GET /api/v1/bank-details
     router.get(
         "/",
+        requirePermission("FRANCHISES", "can_view"),
         authorizeRoleName("Master"),
         controller.getAll
     );
@@ -32,6 +35,7 @@ export function createBankDetailRouter(): Router {
     // POST /api/v1/bank-details
     router.post(
         "/",
+        requirePermission("FRANCHISES", "can_create"),
         authorizeRoleName("Master"),
         validateBankDetailRequest(createBankDetailSchema),
         controller.create
@@ -40,6 +44,7 @@ export function createBankDetailRouter(): Router {
     // PUT /api/v1/bank-details/:uid
     router.put(
         "/:uid",
+        requirePermission("FRANCHISES", "can_edit"),
         authorizeRoleName("Master"),
         validateBankDetailRequest(updateBankDetailSchema),
         controller.update
@@ -48,6 +53,7 @@ export function createBankDetailRouter(): Router {
     // DELETE /api/v1/bank-details/:uid
     router.delete(
         "/:uid",
+        requirePermission("FRANCHISES", "can_delete"),
         authorizeRoleName("Master"),
         controller.delete
     );

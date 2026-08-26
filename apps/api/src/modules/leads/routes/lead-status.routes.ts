@@ -11,6 +11,7 @@ import {
 } from "../validators/lead.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createLeadStatusRouter(): Router {
     const router = Router();
@@ -45,6 +46,7 @@ function createLeadStatusRouter(): Router {
      */
     router.get(
         "/all",
+        requirePermission("LEAD_STATUSES", "can_view"),
         validateLeadRequest(getAllSchema),
         controller.getAllLeadStatuses,
     );
@@ -75,6 +77,7 @@ function createLeadStatusRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("LEAD_STATUSES", "can_view"),
         validateLeadRequest(getByUidSchema),
         controller.getLeadStatusByUid,
     );
@@ -117,6 +120,7 @@ function createLeadStatusRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("LEAD_STATUSES", "can_create"),
         validateLeadRequest(createLeadStatusSchema),
         controller.createLeadStatus,
     );
@@ -166,6 +170,7 @@ function createLeadStatusRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("LEAD_STATUSES", "can_edit"),
         validateLeadRequest(updateLeadStatusSchema),
         controller.updateLeadStatus,
     );
@@ -196,6 +201,7 @@ function createLeadStatusRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("LEAD_STATUSES", "can_delete"),
         validateLeadRequest(getByUidSchema),
         controller.deleteLeadStatus,
     );
@@ -226,6 +232,7 @@ function createLeadStatusRouter(): Router {
      */
     router.put(
         "/:uid/restore",
+        requirePermission("LEAD_STATUSES", "can_edit"),
         validateLeadRequest(getByUidSchema),
         controller.restoreLeadStatus,
     );

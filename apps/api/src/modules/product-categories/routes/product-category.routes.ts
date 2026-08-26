@@ -6,6 +6,7 @@ import { ProductCategoryRepository } from "../repositories/product-category.repo
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import { createProductCategorySchema, updateProductCategorySchema, paginationSchema, validateProductCategoryRequest } from "../validators/product-category.validator.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 const router = Router();
 
@@ -55,7 +56,7 @@ router.use(authenticate);
  *       200:
  *         description: Product categories fetched successfully
  */
-router.post("/list", validateProductCategoryRequest(paginationSchema), controller.getPaginatedCategories);
+router.post("/list", requirePermission("PRODUCT_CATEGORIES", "can_view"), validateProductCategoryRequest(paginationSchema), controller.getPaginatedCategories);
 
 /**
  * @swagger
@@ -75,7 +76,7 @@ router.post("/list", validateProductCategoryRequest(paginationSchema), controlle
  *       200:
  *         description: Product categories fetched successfully
  */
-router.get("/all", controller.getDropdownCategories);
+router.get("/all", requirePermission("PRODUCT_CATEGORIES", "can_view"), controller.getDropdownCategories);
 
 /**
  * @swagger
@@ -95,7 +96,7 @@ router.get("/all", controller.getDropdownCategories);
  *       200:
  *         description: Product category fetched successfully
  */
-router.get("/:uid", controller.getCategoryByUid);
+router.get("/:uid", requirePermission("PRODUCT_CATEGORIES", "can_view"), controller.getCategoryByUid);
 
 /**
  * @swagger
@@ -130,7 +131,7 @@ router.get("/:uid", controller.getCategoryByUid);
  *       201:
  *         description: Product category created successfully
  */
-router.post("/", upload.single("image"), validateProductCategoryRequest(createProductCategorySchema), controller.createCategory);
+router.post("/", requirePermission("PRODUCT_CATEGORIES", "can_create"), upload.single("image"), validateProductCategoryRequest(createProductCategorySchema), controller.createCategory);
 
 /**
  * @swagger
@@ -172,7 +173,7 @@ router.post("/", upload.single("image"), validateProductCategoryRequest(createPr
  *       200:
  *         description: Product category updated successfully
  */
-router.put("/:uid", upload.single("image"), validateProductCategoryRequest(updateProductCategorySchema), controller.updateCategory);
+router.put("/:uid", requirePermission("PRODUCT_CATEGORIES", "can_edit"), upload.single("image"), validateProductCategoryRequest(updateProductCategorySchema), controller.updateCategory);
 
 /**
  * @swagger
@@ -192,7 +193,7 @@ router.put("/:uid", upload.single("image"), validateProductCategoryRequest(updat
  *       200:
  *         description: Product category deleted successfully
  */
-router.delete("/:uid", controller.deleteCategory);
+router.delete("/:uid", requirePermission("PRODUCT_CATEGORIES", "can_delete"), controller.deleteCategory);
 
 /**
  * @swagger
@@ -212,6 +213,6 @@ router.delete("/:uid", controller.deleteCategory);
  *       200:
  *         description: Product category restored successfully
  */
-router.put("/:uid/restore", controller.restoreCategory);
+router.put("/:uid/restore", requirePermission("PRODUCT_CATEGORIES", "can_edit"), controller.restoreCategory);
 
 export default router;

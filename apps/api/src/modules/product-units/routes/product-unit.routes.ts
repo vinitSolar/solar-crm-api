@@ -5,6 +5,7 @@ import { ProductUnitRepository } from "../repositories/product-unit.repository.j
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import { createProductUnitSchema, updateProductUnitSchema, paginationSchema, validateProductUnitRequest } from "../validators/product-unit.validator.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 const router = Router();
 
@@ -49,7 +50,7 @@ router.use(authenticate);
  *       200:
  *         description: Product units fetched successfully
  */
-router.post("/list", validateProductUnitRequest(paginationSchema), controller.getPaginatedUnits);
+router.post("/list", requirePermission("PRODUCT_UNITS", "can_view"), validateProductUnitRequest(paginationSchema), controller.getPaginatedUnits);
 
 /**
  * @swagger
@@ -69,7 +70,7 @@ router.post("/list", validateProductUnitRequest(paginationSchema), controller.ge
  *       200:
  *         description: Product units fetched successfully
  */
-router.get("/all", controller.getDropdownUnits);
+router.get("/all", requirePermission("PRODUCT_UNITS", "can_view"), controller.getDropdownUnits);
 
 /**
  * @swagger
@@ -89,7 +90,7 @@ router.get("/all", controller.getDropdownUnits);
  *       200:
  *         description: Product unit fetched successfully
  */
-router.get("/:uid", controller.getUnitByUid);
+router.get("/:uid", requirePermission("PRODUCT_UNITS", "can_view"), controller.getUnitByUid);
 
 /**
  * @swagger
@@ -114,7 +115,7 @@ router.get("/:uid", controller.getUnitByUid);
  *       201:
  *         description: Product unit created successfully
  */
-router.post("/", validateProductUnitRequest(createProductUnitSchema), controller.createUnit);
+router.post("/", requirePermission("PRODUCT_UNITS", "can_create"), validateProductUnitRequest(createProductUnitSchema), controller.createUnit);
 
 /**
  * @swagger
@@ -147,7 +148,7 @@ router.post("/", validateProductUnitRequest(createProductUnitSchema), controller
  *       200:
  *         description: Product unit updated successfully
  */
-router.put("/:uid", validateProductUnitRequest(updateProductUnitSchema), controller.updateUnit);
+router.put("/:uid", requirePermission("PRODUCT_UNITS", "can_edit"), validateProductUnitRequest(updateProductUnitSchema), controller.updateUnit);
 
 /**
  * @swagger
@@ -167,7 +168,7 @@ router.put("/:uid", validateProductUnitRequest(updateProductUnitSchema), control
  *       200:
  *         description: Product unit deleted successfully
  */
-router.delete("/:uid", controller.deleteUnit);
+router.delete("/:uid", requirePermission("PRODUCT_UNITS", "can_delete"), controller.deleteUnit);
 
 /**
  * @swagger
@@ -187,6 +188,6 @@ router.delete("/:uid", controller.deleteUnit);
  *       200:
  *         description: Product unit restored successfully
  */
-router.put("/:uid/restore", controller.restoreUnit);
+router.put("/:uid/restore", requirePermission("PRODUCT_UNITS", "can_edit"), controller.restoreUnit);
 
 export default router;

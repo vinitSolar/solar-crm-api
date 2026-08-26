@@ -16,6 +16,7 @@ import {
     getQuotationTermsConditionDropdown,
     deleteQuotationTermsCondition
 } from "../controllers/quotation-terms-condition.controller.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 const router = Router();
 
@@ -37,6 +38,7 @@ router.use(authenticate);
  */
 router.get(
     "/all",
+    requirePermission("QUOTATION_TERMS", "can_view"),
     getAllQuotationTermsConditions
 );
 
@@ -55,6 +57,7 @@ router.get(
  */
 router.get(
     "/dropdown",
+    requirePermission("QUOTATION_TERMS", "can_view"),
     getQuotationTermsConditionDropdown
 );
 
@@ -100,6 +103,7 @@ router.get(
  */
 router.post(
     "/list",
+    requirePermission("QUOTATION_TERMS", "can_view"),
     validateRequest(listQuotationTermsConditionSchema),
     listQuotationTermsCondition
 );
@@ -128,6 +132,7 @@ router.post(
  */
 router.get(
     "/:uid",
+    requirePermission("QUOTATION_TERMS", "can_view"),
     validateRequest(getQuotationTermsConditionParamsSchema),
     getQuotationTermsCondition
 );
@@ -168,6 +173,7 @@ router.get(
  */
 router.post(
     "/",
+    requirePermission("QUOTATION_TERMS", "can_create"),
     validateRequest(createQuotationTermsConditionSchema),
     createQuotationTermsCondition
 );
@@ -214,6 +220,7 @@ router.post(
  */
 router.put(
     "/:uid",
+    requirePermission("QUOTATION_TERMS", "can_edit"),
     validateRequest(updateQuotationTermsConditionSchema),
     updateQuotationTermsCondition
 );
@@ -244,6 +251,7 @@ router.put(
  */
 router.delete(
     "/:uid",
+    requirePermission("QUOTATION_TERMS", "can_delete"),
     validateRequest(getQuotationTermsConditionParamsSchema),
     deleteQuotationTermsCondition
 );

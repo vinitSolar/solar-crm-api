@@ -10,6 +10,7 @@ export interface IRoleMenuPermission {
     can_create: number;
     can_edit: number;
     can_delete: number;
+    can_setting: number;
     created_at: Date;
 }
 
@@ -25,6 +26,7 @@ export interface IRoleMenuPermissionSafe {
     canCreate: number;
     canEdit: number;
     canDelete: number;
+    canSetting: number;
 }
 
 /**
@@ -36,4 +38,5 @@ export interface IUpsertRoleMenuPermission {
     canCreate: number;
     canEdit: number;
     canDelete: number;
+    canSetting: number;
 }

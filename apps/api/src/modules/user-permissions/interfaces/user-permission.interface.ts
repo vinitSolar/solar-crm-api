@@ -10,6 +10,7 @@ export interface IUserMenuPermission {
     can_create: number;
     can_edit: number;
     can_delete: number;
+    can_setting: number;
     created_at: Date;
 }
 
@@ -25,6 +26,7 @@ export interface IUserMenuPermissionSafe {
     canCreate: number;
     canEdit: number;
     canDelete: number;
+    canSetting: number;
 }
 
 /**
@@ -36,4 +38,5 @@ export interface IUpsertUserMenuPermission {
     canCreate: number;
     canEdit: number;
     canDelete: number;
+    canSetting: number;
 }

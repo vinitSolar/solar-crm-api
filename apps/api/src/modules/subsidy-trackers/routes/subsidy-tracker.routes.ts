@@ -14,6 +14,7 @@ import {
 } from "../validators/subsidy-tracker.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createSubsidyTrackerRouter(): Router {
     const router = Router();
@@ -69,6 +70,7 @@ function createSubsidyTrackerRouter(): Router {
      */
     router.post(
         "/list",
+        requirePermission("subsidy_tracker", "can_view"),
         validateSubsidyTrackerRequest(paginationSchema),
         controller.listPaginated
     );
@@ -95,6 +97,7 @@ function createSubsidyTrackerRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("subsidy_tracker", "can_view"),
         validateSubsidyTrackerRequest(getByUidSchema),
         controller.getByUid
     );
@@ -144,6 +147,7 @@ function createSubsidyTrackerRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("subsidy_tracker", "can_edit"),
         validateSubsidyTrackerRequest(updateSubsidyTrackerSchema),
         controller.update
     );

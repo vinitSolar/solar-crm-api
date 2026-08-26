@@ -6,6 +6,7 @@ import { ProductRepository } from "../repositories/product.repository.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import { createProductSchema, updateProductSchema, paginationSchema, validateProductRequest } from "../validators/product.validator.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 const router = Router();
 
@@ -153,7 +154,7 @@ router.use(authenticate);
  *                     totalPages:
  *                       type: integer
  */
-router.post("/list", validateProductRequest(paginationSchema), controller.getPaginatedProducts);
+router.post("/list", requirePermission("PRODUCTS", "can_view"), validateProductRequest(paginationSchema), controller.getPaginatedProducts);
 
 
 /**
@@ -174,7 +175,7 @@ router.post("/list", validateProductRequest(paginationSchema), controller.getPag
  *       200:
  *         description: Products fetched successfully
  */
-router.get("/all", controller.getDropdownProducts);
+router.get("/all", requirePermission("PRODUCTS", "can_view"), controller.getDropdownProducts);
 
 
 
@@ -196,7 +197,7 @@ router.get("/all", controller.getDropdownProducts);
  *       200:
  *         description: Product fetched successfully
  */
-router.get("/:uid", controller.getProductByUid);
+router.get("/:uid", requirePermission("PRODUCTS", "can_view"), controller.getProductByUid);
 
 /**
  * @swagger
@@ -269,7 +270,7 @@ router.get("/:uid", controller.getProductByUid);
  *       201:
  *         description: Product created successfully
  */
-router.post("/", upload.any(), validateProductRequest(createProductSchema), controller.createProduct);
+router.post("/", requirePermission("PRODUCTS", "can_create"), upload.any(), validateProductRequest(createProductSchema), controller.createProduct);
 
 /**
  * @swagger
@@ -354,7 +355,7 @@ router.post("/", upload.any(), validateProductRequest(createProductSchema), cont
  *       200:
  *         description: Product updated successfully
  */
-router.put("/:uid", upload.any(), validateProductRequest(updateProductSchema), controller.updateProduct);
+router.put("/:uid", requirePermission("PRODUCTS", "can_edit"), upload.any(), validateProductRequest(updateProductSchema), controller.updateProduct);
 
 /**
  * @swagger
@@ -374,7 +375,7 @@ router.put("/:uid", upload.any(), validateProductRequest(updateProductSchema), c
  *       200:
  *         description: Product deleted successfully
  */
-router.delete("/:uid", controller.deleteProduct);
+router.delete("/:uid", requirePermission("PRODUCTS", "can_delete"), controller.deleteProduct);
 
 /**
  * @swagger
@@ -394,6 +395,6 @@ router.delete("/:uid", controller.deleteProduct);
  *       200:
  *         description: Product restored successfully
  */
-router.put("/:uid/restore", controller.restoreProduct);
+router.put("/:uid/restore", requirePermission("PRODUCTS", "can_edit"), controller.restoreProduct);
 
 export default router;

@@ -15,6 +15,7 @@ import {
     validateStateSubsidyRuleRequest
 } from "../validators/state-subsidy-rule.validator.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 const router = Router();
 
@@ -66,7 +67,7 @@ router.use(authenticate);
  *       200:
  *         description: State subsidy rules fetched successfully
  */
-router.post("/list", validateStateSubsidyRuleRequest(paginationSchema), controller.getPaginatedRules);
+router.post("/list", requirePermission("STATE_SUBSIDY_RULES", "can_view"), validateStateSubsidyRuleRequest(paginationSchema), controller.getPaginatedRules);
 
 /**
  * @swagger
@@ -96,6 +97,7 @@ router.post("/list", validateStateSubsidyRuleRequest(paginationSchema), controll
  */
 router.post(
     "/required-documents",
+    requirePermission("STATE_SUBSIDY_RULES", "can_create"),
     validateStateSubsidyRuleRequest(combinedRequiredDocumentsSchema),
     controller.getCombinedRequiredDocuments
 );
@@ -112,7 +114,7 @@ router.post(
  *       200:
  *         description: State subsidy rules fetched successfully
  */
-router.get("/all", controller.getDropdownRules);
+router.get("/all", requirePermission("STATE_SUBSIDY_RULES", "can_view"), controller.getDropdownRules);
 
 /**
  * @swagger
@@ -126,7 +128,7 @@ router.get("/all", controller.getDropdownRules);
  *       200:
  *         description: State subsidy rules fetched successfully
  */
-router.get("/dropdown", controller.getDropdownRules);
+router.get("/dropdown", requirePermission("STATE_SUBSIDY_RULES", "can_view"), controller.getDropdownRules);
 
 /**
  * @swagger
@@ -146,7 +148,7 @@ router.get("/dropdown", controller.getDropdownRules);
  *       200:
  *         description: State subsidy rules fetched successfully
  */
-router.get("/by-state-uid/:stateUid", controller.getRulesByStateUid);
+router.get("/by-state-uid/:stateUid", requirePermission("STATE_SUBSIDY_RULES", "can_view"), controller.getRulesByStateUid);
 
 /**
  * @swagger
@@ -166,7 +168,7 @@ router.get("/by-state-uid/:stateUid", controller.getRulesByStateUid);
  *       200:
  *         description: State subsidy rule fetched successfully
  */
-router.get("/:uid", controller.getRuleByUid);
+router.get("/:uid", requirePermission("STATE_SUBSIDY_RULES", "can_view"), controller.getRuleByUid);
 
 /**
  * @swagger
@@ -211,7 +213,7 @@ router.get("/:uid", controller.getRuleByUid);
  *       201:
  *         description: State subsidy rule created successfully
  */
-router.post("/", validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), controller.createRule);
+router.post("/", requirePermission("STATE_SUBSIDY_RULES", "can_create"), validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), controller.createRule);
 
 /**
  * @swagger
@@ -254,7 +256,7 @@ router.post("/", validateStateSubsidyRuleRequest(createStateSubsidyRuleSchema), 
  *       200:
  *         description: State subsidy rule updated successfully
  */
-router.put("/:uid", validateStateSubsidyRuleRequest(updateStateSubsidyRuleSchema), controller.updateRule);
+router.put("/:uid", requirePermission("STATE_SUBSIDY_RULES", "can_edit"), validateStateSubsidyRuleRequest(updateStateSubsidyRuleSchema), controller.updateRule);
 
 /**
  * @swagger
@@ -274,7 +276,7 @@ router.put("/:uid", validateStateSubsidyRuleRequest(updateStateSubsidyRuleSchema
  *       200:
  *         description: State subsidy rule deleted successfully
  */
-router.delete("/:uid", controller.deleteRule);
+router.delete("/:uid", requirePermission("STATE_SUBSIDY_RULES", "can_delete"), controller.deleteRule);
 
 /**
  * @swagger
@@ -294,6 +296,6 @@ router.delete("/:uid", controller.deleteRule);
  *       200:
  *         description: State subsidy rule restored successfully
  */
-router.put("/:uid/restore", controller.restoreRule);
+router.put("/:uid/restore", requirePermission("STATE_SUBSIDY_RULES", "can_edit"), controller.restoreRule);
 
 export default router;

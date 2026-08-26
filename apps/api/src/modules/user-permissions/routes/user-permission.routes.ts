@@ -11,6 +11,7 @@ import {
 } from "../validators/user-permission.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 /**
  * User Permission module route factory.
@@ -70,6 +71,7 @@ function createUserPermissionRouter(): Router {
      */
     router.get(
         "/:userUid/menu-permissions",
+        requirePermission("USERS", "can_view"),
         authenticate,
         validateUserPermissionRequest(getMenuPermissionsSchema),
         userPermissionController.getMenuPermissions,
@@ -135,6 +137,7 @@ function createUserPermissionRouter(): Router {
      */
     router.put(
         "/:userUid/menu-permissions",
+        requirePermission("USERS", "can_edit"),
         authenticate,
         validateUserPermissionRequest(upsertMenuPermissionsSchema),
         userPermissionController.upsertMenuPermissions,

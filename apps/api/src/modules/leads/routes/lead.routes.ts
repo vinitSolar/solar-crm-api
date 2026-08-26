@@ -18,6 +18,7 @@ import pool from "@packages/connection.js";
 import { createNoteRouter } from "../../notes/routes/note.routes.js";
 import { NoteService } from "../../notes/services/note.service.js";
 import { NoteRepository } from "../../notes/repositories/note.repository.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createLeadRouter(): Router {
     const router = Router();
@@ -95,6 +96,7 @@ function createLeadRouter(): Router {
      */
     router.post(
         "/list",
+        requirePermission("LEADS", "can_view"),
         validateLeadRequest(paginationSchema),
         controller.getLeadsPaginated,
     );
@@ -136,6 +138,7 @@ function createLeadRouter(): Router {
      */
     router.get(
         "/all",
+        requirePermission("LEADS", "can_view"),
         controller.getAllLeads,
     );
 
@@ -176,6 +179,7 @@ function createLeadRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("LEADS", "can_view"),
         validateLeadRequest(getByUidSchema),
         controller.getLeadByUid,
     );
@@ -255,6 +259,7 @@ function createLeadRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("LEADS", "can_create"),
         validateLeadRequest(createLeadSchema),
         controller.createLead,
     );
@@ -339,6 +344,7 @@ function createLeadRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("LEADS", "can_edit"),
         validateLeadRequest(updateLeadSchema),
         controller.updateLead,
     );
@@ -392,6 +398,7 @@ function createLeadRouter(): Router {
      */
     router.put(
         "/:uid/status",
+        requirePermission("LEADS", "can_edit"),
         validateLeadRequest(changeLeadStatusSchema),
         controller.changeStatus,
     );
@@ -422,6 +429,7 @@ function createLeadRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("LEADS", "can_delete"),
         validateLeadRequest(getByUidSchema),
         controller.deleteLead,
     );
@@ -452,6 +460,7 @@ function createLeadRouter(): Router {
      */
     router.put(
         "/:uid/restore",
+        requirePermission("LEADS", "can_edit"),
         validateLeadRequest(getByUidSchema),
         controller.restoreLead,
     );

@@ -25,7 +25,8 @@ export class UserPermissionRepository {
                 ump.can_view,
                 ump.can_create,
                 ump.can_edit,
-                ump.can_delete
+                ump.can_delete,
+                ump.can_setting
             FROM user_menu_permissions ump
             JOIN menus m ON ump.menu_uid = m.uid
             WHERE ump.tenant_uid = $1 AND ump.user_uid = $2
@@ -42,6 +43,7 @@ export class UserPermissionRepository {
             canCreate: row.can_create,
             canEdit: row.can_edit,
             canDelete: row.can_delete,
+            canSetting: row.can_setting,
         }));
     }
 
@@ -71,23 +73,29 @@ export class UserPermissionRepository {
 
             // 2. Insert new permissions (if any)
             if (permissions.length > 0) {
-                const insertQuery = `
-                    INSERT INTO user_menu_permissions 
-                    (tenant_uid, user_uid, menu_uid, can_view, can_create, can_edit, can_delete)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                `;
+                const placeholders: string[] = [];
+                const values: any[] = [];
+                let index = 3;
 
                 for (const perm of permissions) {
-                    await client.query(insertQuery, [
-                        tenantUid,
-                        userUid,
+                    placeholders.push(`($1, $2, $${index++}, $${index++}, $${index++}, $${index++}, $${index++}, $${index++})`);
+                    values.push(
                         perm.menuUid,
                         perm.canView,
                         perm.canCreate,
                         perm.canEdit,
                         perm.canDelete,
-                    ]);
+                        perm.canSetting
+                    );
                 }
+
+                const insertQuery = `
+                    INSERT INTO user_menu_permissions 
+                        (tenant_uid, user_uid, menu_uid, can_view, can_create, can_edit, can_delete, can_setting)
+                    VALUES ${placeholders.join(", ")}
+                `;
+
+                await client.query(insertQuery, [tenantUid, userUid, ...values]);
             }
 
             await client.query("COMMIT");

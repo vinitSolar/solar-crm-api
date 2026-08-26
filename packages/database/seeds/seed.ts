@@ -11,43 +11,59 @@ const SALT_ROUNDS = 10;
 export async function seed(pool: Pool) {
     const client = await pool.connect();
 
+    const defaultMenus = [
+        { name: "Dashboard", code: "DASHBOARD", route: "/dashboard", icon: "LayoutDashboard", sortOrder: 1, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Leads", code: "LEADS", route: "/leads", icon: "Users", sortOrder: 10, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Site Surveys", code: "SURVEYS", route: "/surveys", icon: "ClipboardList", sortOrder: 20, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Quotations", code: "QUOTATIONS", route: "/quotations", icon: "FileText", sortOrder: 30, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Projects", code: "projects", route: "/projects", icon: "Briefcase", sortOrder: 40, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Payments", code: "PAYMENTS", route: "/payments", icon: "Banknote", sortOrder: 50, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Users", code: "USERS", route: "/settings/users", icon: "UsersRound", sortOrder: 60, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Roles", code: "ROLES", route: "/settings/roles", icon: "ShieldCheck", sortOrder: 70, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Franchises", code: "FRANCHISES", route: "/settings/franchises", icon: "Building2", sortOrder: 80, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Lead Sources", code: "LEAD_SOURCES", route: "/settings/lead-sources", icon: "Tag", sortOrder: 90, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Lead Statuses", code: "LEAD_STATUSES", route: "/settings/lead-statuses", icon: "CircleDot", sortOrder: 100, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Project Statuses", code: "PROJECT_STATUSES", route: "/settings/project-statuses", icon: "CircleDot", sortOrder: 110, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Product Masters", code: "PRODUCTS", route: "/settings/products", icon: "Boxes", sortOrder: 120, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Subsidy Masters", code: "SUBSIDIES", route: "/settings/subsidies", icon: "BadgeIndianRupee", sortOrder: 130, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Packages", code: "packages", route: "/settings/packages", icon: "PackageCheck", sortOrder: 140, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Quotation Masters", code: "QUOTATION_MASTERS", route: "/settings/quotation-masters", icon: "FileCheck2", sortOrder: 150, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Document Types", code: "DOCUMENT_TYPES", route: "/settings/document-types", icon: "FolderPlus", sortOrder: 160, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Installation Milestones", code: "installation_milestones", route: "/settings/installation-milestones", icon: "Milestone", sortOrder: 170, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Product Categories", code: "PRODUCT_CATEGORIES", route: "/settings/product-categories", icon: "ListTree", sortOrder: 180, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Product Specifications", code: "PRODUCT_SPECIFICATIONS", route: "/settings/product-specifications", icon: "Settings2", sortOrder: 190, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Product Brands", code: "PRODUCT_BRANDS", route: "/settings/product-brands", icon: "Tags", sortOrder: 200, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Product Units", code: "PRODUCT_UNITS", route: "/settings/product-units", icon: "Scale", sortOrder: 210, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "State Subsidy Rules", code: "STATE_SUBSIDY_RULES", route: "/settings/state-subsidy-rules", icon: "Landmark", sortOrder: 220, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Quotation Terms", code: "QUOTATION_TERMS", route: "/settings/quotation-terms", icon: "ScrollText", sortOrder: 230, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Quotation Scope", code: "QUOTATION_SCOPE", route: "/settings/quotation-scope", icon: "ListChecks", sortOrder: 240, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Subsidy Document Types", code: "SUBSIDY_DOCUMENT_TYPES", route: "/subsidy-document-types", icon: "Files", sortOrder: 250, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Subsidy Trackers", code: "subsidy_tracker", route: "/subsidy-trackers", icon: "FileSpreadsheet", sortOrder: 270, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+    ];
+
     try {
         // 1. Seed Default Menus
-        const menusCheck = await client.query("SELECT COUNT(*) FROM menus");
-        if (parseInt(menusCheck.rows[0].count) === 0) {
-            logger.info("🌱 Seeding default menus...");
-            await client.query("BEGIN");
-            const defaultMenus = [
-                { name: "Dashboard", code: "DASHBOARD", route: "/dashboard", icon: "LayoutDashboard", sortOrder: 1 },
-                { name: "Leads", code: "LEADS", route: "/leads", icon: "Users", sortOrder: 10 },
-                { name: "Site Surveys", code: "SURVEYS", route: "/surveys", icon: "ClipboardList", sortOrder: 20 },
-                { name: "Quotations", code: "QUOTATIONS", route: "/quotations", icon: "FileText", sortOrder: 30 },
-                { name: "Projects", code: "PROJECTS", route: "/projects", icon: "Briefcase", sortOrder: 40 },
-                { name: "Payments", code: "PAYMENTS", route: "/payments", icon: "Banknote", sortOrder: 50 },
-                { name: "Users", code: "USERS", route: "/settings/users", icon: "UsersRound", sortOrder: 60 },
-                { name: "Roles", code: "ROLES", route: "/settings/roles", icon: "ShieldCheck", sortOrder: 70 },
-                { name: "Franchises", code: "FRANCHISES", route: "/settings/franchises", icon: "Building2", sortOrder: 80 },
-                { name: "Lead Sources", code: "LEAD_SOURCES", route: "/settings/lead-sources", icon: "Tag", sortOrder: 90 },
-                { name: "Lead Statuses", code: "LEAD_STATUSES", route: "/settings/lead-statuses", icon: "CircleDot", sortOrder: 100 },
-                { name: "Project Statuses", code: "PROJECT_STATUSES", route: "/settings/project-statuses", icon: "CircleDot", sortOrder: 110 },
-                { name: "Product Masters", code: "PRODUCTS", route: "/settings/products", icon: "Boxes", sortOrder: 120 },
-                { name: "Subsidy Masters", code: "SUBSIDIES", route: "/settings/subsidies", icon: "BadgeIndianRupee", sortOrder: 130 },
-                { name: "Packages", code: "PACKAGES", route: "/settings/packages", icon: "PackageCheck", sortOrder: 140 },
-                { name: "Quotation Masters", code: "QUOTATION_MASTERS", route: "/settings/quotation-masters", icon: "FileCheck2", sortOrder: 150 },
-                { name: "Document Types", code: "DOCUMENT_TYPES", route: "/settings/document-types", icon: "FolderPlus", sortOrder: 160 },
-            ];
+        logger.info("🌱 Seeding default menus...");
+        await client.query("BEGIN");
 
-            for (const menu of defaultMenus) {
-                await client.query(
-                    `INSERT INTO menus (uid, name, code, route, icon, sort_order, is_active)
-                     VALUES ($1, $2, $3, $4, $5, $6, 1)
-                     ON CONFLICT (code) DO NOTHING`,
-                    [uuidv4(), menu.name, menu.code, menu.route, menu.icon, menu.sortOrder]
-                );
-            }
-            await client.query("COMMIT");
-            logger.info(`✅ Default menus seeded: ${defaultMenus.map(m => m.name).join(", ")}`);
+        // Clean up accidental duplicate uppercase menus
+        await client.query(`
+            DELETE FROM role_menu_permissions WHERE menu_uid IN (SELECT uid FROM menus WHERE code IN ('PROJECTS', 'SUBSIDIES_TRACKER', 'PACKAGES', 'INSTALLATION_MILESTONES'));
+            DELETE FROM user_menu_permissions WHERE menu_uid IN (SELECT uid FROM menus WHERE code IN ('PROJECTS', 'SUBSIDIES_TRACKER', 'PACKAGES', 'INSTALLATION_MILESTONES'));
+            DELETE FROM features WHERE menu_uid IN (SELECT uid FROM menus WHERE code IN ('PROJECTS', 'SUBSIDIES_TRACKER', 'PACKAGES', 'INSTALLATION_MILESTONES'));
+            DELETE FROM menus WHERE code IN ('PROJECTS', 'SUBSIDIES_TRACKER', 'PACKAGES', 'INSTALLATION_MILESTONES');
+        `);
+
+        for (const menu of defaultMenus) {
+            await client.query(
+                `INSERT INTO menus (uid, name, code, route, icon, sort_order, is_active)
+                 VALUES ($1, $2, $3, $4, $5, $6, 1)
+                 ON CONFLICT (code) DO NOTHING`,
+                [uuidv4(), menu.name, menu.code, menu.route, menu.icon, menu.sortOrder]
+            );
         }
+        await client.query("COMMIT");
+        logger.info(`✅ Default menus seeded.`);
 
         // Seed Product Categories
         const categoriesCheck = await client.query("SELECT COUNT(*) FROM product_categories");
@@ -108,7 +124,7 @@ export async function seed(pool: Pool) {
 
         // Check if admin user already exists to avoid unnecessary hashing
         const checkRes = await client.query("SELECT uid, tenant_uid, role_uid FROM users WHERE email = $1", ["admin@sunselect.com"]);
-        
+
         let tenantUid = "";
         let roleUid = "";
         let userUid = "";
@@ -187,48 +203,49 @@ export async function seed(pool: Pool) {
             logger.info(`✅ User: admin@sunselect.com (Admin@123) — ${userUid}`);
         }
 
-        // 5. Grant full access to Master role
-        const allMenusRes = await client.query("SELECT uid FROM menus");
+        // 5. Grant mapped access to Master role
+        const allMenusRes = await client.query("SELECT uid, code FROM menus");
+
         for (const menuRow of allMenusRes.rows) {
-            // Update if exists
+            const mappedMenu = defaultMenus.find(m => m.code === menuRow.code);
+            const perms = mappedMenu?.permissions;
+            if (!perms) continue;
+
             await client.query(
                 `UPDATE role_menu_permissions 
-                 SET can_view = 1, can_create = 1, can_edit = 1, can_delete = 1 
+                 SET can_view = $3, can_create = $4, can_edit = $5, can_delete = $6, can_setting = $7 
                  WHERE role_uid = $1 AND menu_uid = $2`,
-                [roleUid, menuRow.uid]
+                [roleUid, menuRow.uid, perms.view, perms.create, perms.edit, perms.delete, perms.setting]
             );
             // Insert if not exists
             await client.query(
-                `INSERT INTO role_menu_permissions (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete)
-                 SELECT $1::varchar, $2::varchar, $3::varchar, 1, 1, 1, 1
+                `INSERT INTO role_menu_permissions (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete, can_setting)
+                 SELECT $1::varchar, $2::varchar, $3::varchar, $4, $5, $6, $7, $8
                  WHERE NOT EXISTS (
                      SELECT 1 FROM role_menu_permissions WHERE role_uid = $2 AND menu_uid = $3
                  )`,
-                [tenantUid, roleUid, menuRow.uid]
+                [tenantUid, roleUid, menuRow.uid, perms.view, perms.create, perms.edit, perms.delete, perms.setting]
             );
-        }
-        logger.info(`✅ Synced full menu access to Master role.`);
 
-        // 6. Grant full user-specific access to Admin user
-        for (const menuRow of allMenusRes.rows) {
+            // --- Update User Permissions for Admin User ---
             // Update if exists
             await client.query(
                 `UPDATE user_menu_permissions 
-                 SET can_view = 1, can_create = 1, can_edit = 1, can_delete = 1 
+                 SET can_view = $3, can_create = $4, can_edit = $5, can_delete = $6, can_setting = $7 
                  WHERE user_uid = $1 AND menu_uid = $2`,
-                [userUid, menuRow.uid]
+                [userUid, menuRow.uid, perms.view, perms.create, perms.edit, perms.delete, perms.setting]
             );
             // Insert if not exists
             await client.query(
-                `INSERT INTO user_menu_permissions (tenant_uid, user_uid, menu_uid, can_view, can_create, can_edit, can_delete)
-                 SELECT $1::varchar, $2::varchar, $3::varchar, 1, 1, 1, 1
+                `INSERT INTO user_menu_permissions (tenant_uid, user_uid, menu_uid, can_view, can_create, can_edit, can_delete, can_setting)
+                 SELECT $1::varchar, $2::varchar, $3::varchar, $4, $5, $6, $7, $8
                  WHERE NOT EXISTS (
                      SELECT 1 FROM user_menu_permissions WHERE user_uid = $2 AND menu_uid = $3
                  )`,
-                [tenantUid, userUid, menuRow.uid]
+                [tenantUid, userUid, menuRow.uid, perms.view, perms.create, perms.edit, perms.delete, perms.setting]
             );
         }
-        logger.info(`✅ Synced full user-specific menu access to Admin user.`);
+        logger.info(`✅ Synced mapped menu access to Master role and Admin user.`);
 
         // Seed default settings/document types for Head Office tenant
         await seedTenantDefaults(client, tenantUid);

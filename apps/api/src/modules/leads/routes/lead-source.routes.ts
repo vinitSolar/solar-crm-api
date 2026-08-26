@@ -11,6 +11,7 @@ import {
 } from "../validators/lead.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createLeadSourceRouter(): Router {
     const router = Router();
@@ -45,6 +46,7 @@ function createLeadSourceRouter(): Router {
      */
     router.get(
         "/all",
+        requirePermission("LEAD_SOURCES", "can_view"),
         validateLeadRequest(getAllSchema),
         controller.getAllLeadSources,
     );
@@ -75,6 +77,7 @@ function createLeadSourceRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("LEAD_SOURCES", "can_view"),
         validateLeadRequest(getByUidSchema),
         controller.getLeadSourceByUid,
     );
@@ -115,6 +118,7 @@ function createLeadSourceRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("LEAD_SOURCES", "can_create"),
         validateLeadRequest(createLeadSourceSchema),
         controller.createLeadSource,
     );
@@ -162,6 +166,7 @@ function createLeadSourceRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("LEAD_SOURCES", "can_edit"),
         validateLeadRequest(updateLeadSourceSchema),
         controller.updateLeadSource,
     );
@@ -192,6 +197,7 @@ function createLeadSourceRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("LEAD_SOURCES", "can_delete"),
         validateLeadRequest(getByUidSchema),
         controller.deleteLeadSource,
     );
@@ -222,6 +228,7 @@ function createLeadSourceRouter(): Router {
      */
     router.put(
         "/:uid/restore",
+        requirePermission("LEAD_SOURCES", "can_edit"),
         validateLeadRequest(getByUidSchema),
         controller.restoreLeadSource,
     );

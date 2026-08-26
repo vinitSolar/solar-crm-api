@@ -33,7 +33,8 @@ export class RolePermissionRepository {
                 COALESCE(rmp.can_view, 0) AS can_view,
                 COALESCE(rmp.can_create, 0) AS can_create,
                 COALESCE(rmp.can_edit, 0) AS can_edit,
-                COALESCE(rmp.can_delete, 0) AS can_delete
+                COALESCE(rmp.can_delete, 0) AS can_delete,
+                COALESCE(rmp.can_setting, 0) AS can_setting
             FROM menus m
             LEFT JOIN role_menu_permissions rmp
                 ON m.uid = rmp.menu_uid
@@ -82,7 +83,7 @@ export class RolePermissionRepository {
 
                 for (const perm of permissions) {
                     placeholders.push(
-                        `($${index++}, $${index++}, $${index++}, $${index++}, $${index++}, $${index++}, $${index++})`,
+                        `($${index++}, $${index++}, $${index++}, $${index++}, $${index++}, $${index++}, $${index++}, $${index++})`,
                     );
                     values.push(
                         tenantUid,
@@ -92,12 +93,13 @@ export class RolePermissionRepository {
                         perm.canCreate,
                         perm.canEdit,
                         perm.canDelete,
+                        perm.canSetting,
                     );
                 }
 
                 const insertQuery = `
                     INSERT INTO role_menu_permissions 
-                        (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete)
+                        (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete, can_setting)
                     VALUES ${placeholders.join(", ")}
                 `;
 

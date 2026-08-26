@@ -23,6 +23,7 @@ export const upsertMenuPermissionsSchema = z.object({
                     canCreate: permissionFlag,
                     canEdit: permissionFlag,
                     canDelete: permissionFlag,
+                    canSetting: permissionFlag,
                 }),
             )
             .min(1, ROLE_PERMISSION_MESSAGES.PERMISSIONS_REQUIRED),

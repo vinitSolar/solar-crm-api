@@ -15,6 +15,7 @@ import {
 } from "../validators/master-documents.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createMasterDocumentTypeRouter(): Router {
   const router = Router();
@@ -42,6 +43,7 @@ function createMasterDocumentTypeRouter(): Router {
    */
   router.post(
     "/list",
+    requirePermission("DOCUMENT_TYPES", "can_view"),
     validateMasterDocumentRequest(paginationSchema),
     controller.getPaginatedDocumentTypes,
   );
@@ -55,7 +57,7 @@ function createMasterDocumentTypeRouter(): Router {
    *     security:
    *       - bearerAuth: []
    */
-  router.get("/all", controller.getAllDocumentTypes);
+  router.get("/all", requirePermission("DOCUMENT_TYPES", "can_view"), controller.getAllDocumentTypes);
 
   /**
    * @swagger
@@ -68,6 +70,7 @@ function createMasterDocumentTypeRouter(): Router {
    */
   router.get(
     "/module/:module",
+    requirePermission("DOCUMENT_TYPES", "can_view"),
     validateMasterDocumentRequest(moduleParamSchema),
     controller.getDocumentTypesByModule,
   );
@@ -83,6 +86,7 @@ function createMasterDocumentTypeRouter(): Router {
    */
   router.get(
     "/module/:module/context/:contextUid",
+    requirePermission("DOCUMENT_TYPES", "can_view"),
     validateMasterDocumentRequest(getByModuleAndContextSchema),
     controller.getDocumentTypesWithUploads,
   );
@@ -98,6 +102,7 @@ function createMasterDocumentTypeRouter(): Router {
    */
   router.get(
     "/:uid",
+    requirePermission("DOCUMENT_TYPES", "can_view"),
     validateMasterDocumentRequest(uidParamSchema),
     controller.getDocumentTypeByUid,
   );
@@ -113,6 +118,7 @@ function createMasterDocumentTypeRouter(): Router {
    */
   router.post(
     "/",
+    requirePermission("DOCUMENT_TYPES", "can_create"),
     validateMasterDocumentRequest(createDocumentTypeSchema),
     controller.createDocumentType,
   );
@@ -128,6 +134,7 @@ function createMasterDocumentTypeRouter(): Router {
    */
   router.put(
     "/:uid",
+    requirePermission("DOCUMENT_TYPES", "can_edit"),
     validateMasterDocumentRequest(updateDocumentTypeSchema),
     controller.updateDocumentType,
   );
@@ -143,6 +150,7 @@ function createMasterDocumentTypeRouter(): Router {
    */
   router.delete(
     "/:uid",
+    requirePermission("DOCUMENT_TYPES", "can_delete"),
     validateMasterDocumentRequest(uidParamSchema),
     controller.deleteDocumentType,
   );

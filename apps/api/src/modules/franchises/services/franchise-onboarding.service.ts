@@ -174,13 +174,51 @@ export class FranchiseOnboardingService {
             // 4.5 Assign all menu permissions to Admin Role
             const allMenus = await this.menuRepository.findAll("active");
             if (allMenus.length > 0) {
-                const adminPermissions = allMenus.map((menu: any) => ({
-                    menuUid: menu.uid,
-                    canView: 1,
-                    canCreate: 1,
-                    canEdit: 1,
-                    canDelete: 1,
-                }));
+                const masterSettingMenus = [
+                    "LEAD_SOURCES", "LEAD_STATUSES", "PROJECT_STATUSES",
+                    "PRODUCTS", "SUBSIDIES", "packages", "QUOTATION_MASTERS", "DOCUMENT_TYPES",
+                    "installation_milestones", "PRODUCT_CATEGORIES", "PRODUCT_SPECIFICATIONS", 
+                    "PRODUCT_BRANDS", "PRODUCT_UNITS", "STATE_SUBSIDY_RULES", 
+                    "QUOTATION_TERMS", "QUOTATION_SCOPE"
+                ];
+                const tenantSettingMenus = ["USERS", "ROLES"];
+
+                const adminPermissions = allMenus.map((menu: any) => {
+                    const isFranchiseMenu = menu.code === "FRANCHISES";
+                    const isMasterSetting = masterSettingMenus.includes(menu.code);
+                    const isTenantSetting = tenantSettingMenus.includes(menu.code);
+
+                    if (isFranchiseMenu) {
+                        return {
+                            menuUid: menu.uid,
+                            canView: 0,
+                            canCreate: 0,
+                            canEdit: 0,
+                            canDelete: 0,
+                            canSetting: 0,
+                        };
+                    }
+
+                    if (isMasterSetting) {
+                        return {
+                            menuUid: menu.uid,
+                            canView: 1,
+                            canCreate: 0,
+                            canEdit: 0,
+                            canDelete: 0,
+                            canSetting: 1,
+                        };
+                    }
+
+                    return {
+                        menuUid: menu.uid,
+                        canView: 1,
+                        canCreate: 1,
+                        canEdit: 1,
+                        canDelete: 1,
+                        canSetting: isTenantSetting ? 1 : 0,
+                    };
+                });
                 await this.rolePermissionRepository.upsertMenuPermissions(
                     adminRoleUid as string,
                     tenantUid,

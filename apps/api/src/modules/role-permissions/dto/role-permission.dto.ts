@@ -11,6 +11,7 @@ export const toRoleMenuPermissionSafe = (row: {
     can_create: number;
     can_edit: number;
     can_delete: number;
+    can_setting: number;
 }): IRoleMenuPermissionSafe => {
     return {
         menuUid: row.menu_uid,
@@ -20,5 +21,6 @@ export const toRoleMenuPermissionSafe = (row: {
         canCreate: row.can_create,
         canEdit: row.can_edit,
         canDelete: row.can_delete,
+        canSetting: row.can_setting,
     };
 };

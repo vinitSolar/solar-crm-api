@@ -62,7 +62,7 @@ async function seedLocationsFromJson() {
                 [
                     district.id,
                     district.uid || null,
-                    district.code || null,
+                    district.code || district.id || null,
                     district.state_uid || district.state_id || null,
                     district.name,
                     district.created_at || new Date(),
@@ -97,7 +97,7 @@ async function seedLocationsFromJson() {
                     [
                         city.id,
                         city.uid || null,
-                        city.code || null,
+                        city.code || city.id || null,
                         city.state_uid || city.state_id || null,
                         city.district_uid || city.district_id || null,
                         city.name,

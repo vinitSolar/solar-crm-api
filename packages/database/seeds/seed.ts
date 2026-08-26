@@ -39,6 +39,7 @@ export async function seed(pool: Pool) {
         { name: "Quotation Scope", code: "QUOTATION_SCOPE", route: "/settings/quotation-scope", icon: "ListChecks", sortOrder: 240, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Subsidy Document Types", code: "SUBSIDY_DOCUMENT_TYPES", route: "/subsidy-document-types", icon: "Files", sortOrder: 250, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Subsidy Trackers", code: "subsidy_tracker", route: "/subsidy-trackers", icon: "FileSpreadsheet", sortOrder: 270, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Bank Details", code: "BANK_DETAILS", route: "/settings/bank-details", icon: "Landmark", sortOrder: 280, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
     ];
 
     try {

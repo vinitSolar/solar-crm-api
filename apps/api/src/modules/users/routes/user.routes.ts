@@ -15,6 +15,8 @@ function createUserRouter(): Router {
     const userService = new UserService(userRepository);
     const userController = new UserController(userService);
 
+    router.use(authenticate);
+
     /**
      * @swagger
      * /users/list:

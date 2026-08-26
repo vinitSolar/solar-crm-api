@@ -22,6 +22,14 @@ export interface ISubsidyTracker {
     
     remarks: string | null;
     
+    bankDetails: {
+        accountName: string | null;
+        accountNumber: string | null;
+        ifscCode: string | null;
+        bankName: string | null;
+        branchName: string | null;
+    } | null;
+    
     isActive: number;
     isDeleted: number;
     createdAt: Date;
@@ -37,6 +45,13 @@ export interface ICreateSubsidyTracker {
     name: string | null;
     subsidyUid?: string | null;
     expectedSubsidyAmount?: number | null;
+    bankDetails?: {
+        accountName?: string | null;
+        accountNumber?: string | null;
+        ifscCode?: string | null;
+        bankName?: string | null;
+        branchName?: string | null;
+    } | null;
 }
 
 export interface IUpdateSubsidyTracker {
@@ -49,6 +64,13 @@ export interface IUpdateSubsidyTracker {
     approvedDate?: Date | string | null;
     disbursedDate?: Date | string | null;
     remarks?: string | null;
+    bankDetails?: {
+        accountName?: string | null;
+        accountNumber?: string | null;
+        ifscCode?: string | null;
+        bankName?: string | null;
+        branchName?: string | null;
+    } | null;
 }
 
 export interface ISubsidyTrackerSafe extends Omit<ISubsidyTracker, "id" | "isDeleted" | "deletedBy"> {}

@@ -70,14 +70,14 @@ export class MenuService {
         return toSafeMenu(menu);
     }
 
-    async getAllMenus(status?: "active" | "deleted" | "all"): Promise<SafeMenu[]> {
-        const menus = await this.menuRepository.findAll(status);
+    async getAllMenus(status?: "active" | "deleted" | "all", tenantUid?: string): Promise<SafeMenu[]> {
+        const menus = await this.menuRepository.findAll(status, tenantUid);
         return menus.map(toSafeMenu);
     }
 
-    async getMenusByPagination(query: IMenuPaginationQuery): Promise<{ data: SafeMenu[]; meta: { total: number; page: number; limit: number; totalPages: number } }> {
+    async getMenusByPagination(query: IMenuPaginationQuery, tenantUid?: string): Promise<{ data: SafeMenu[]; meta: { total: number; page: number; limit: number; totalPages: number } }> {
         const status = query.status || "active";
-        const result = await this.menuRepository.findPaginated(query.page, query.limit, query.search, status);
+        const result = await this.menuRepository.findPaginated(query.page, query.limit, query.search, status, tenantUid);
 
         return {
             data: result.menus.map(toSafeMenu),

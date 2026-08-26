@@ -8,6 +8,8 @@ const SUBSIDY_TRACKER_COLUMNS = `
     st.portal_reference_number AS "portalReferenceNumber", st.discom_reference_number AS "discomReferenceNumber",
     st.expected_subsidy_amount AS "expectedSubsidyAmount", st.approved_subsidy_amount AS "approvedSubsidyAmount", st.received_subsidy_amount AS "receivedSubsidyAmount",
     st.approved_date AS "approvedDate", st.disbursed_date AS "disbursedDate", n.note AS "remarks",
+    st.account_name AS "accountName", st.account_number AS "accountNumber", st.ifsc_code AS "ifscCode",
+    st.bank_name AS "bankName", st.branch_name AS "branchName",
     st.is_active AS "isActive", st.is_deleted AS "isDeleted",
     st.created_at AS "createdAt", st.updated_at AS "updatedAt",
     st.created_by AS "createdBy", st.updated_by AS "updatedBy", st.deleted_by AS "deletedBy"
@@ -21,7 +23,27 @@ export class SubsidyTrackerRepository {
     }
 
     private mapToCamelCase(row: any): ISubsidyTracker {
-        return row as ISubsidyTracker;
+        const {
+            accountName,
+            accountNumber,
+            ifscCode,
+            bankName,
+            branchName,
+            ...rest
+        } = row;
+
+        const hasBankDetails = accountName || accountNumber || ifscCode || bankName || branchName;
+
+        return {
+            ...rest,
+            bankDetails: hasBankDetails ? {
+                accountName,
+                accountNumber,
+                ifscCode,
+                bankName,
+                branchName
+            } : null
+        } as ISubsidyTracker;
     }
 
     async create(tenantUid: string, data: ICreateSubsidyTracker, createdBy: string, client?: PoolClient): Promise<ISubsidyTracker> {
@@ -31,9 +53,11 @@ export class SubsidyTrackerRepository {
         const query = `
             INSERT INTO subsidy_trackers (
                 uid, tenant_uid, project_uid, lead_uid, subsidy_uid, name,
-                portal_status, net_meter_status, expected_subsidy_amount, created_by, updated_by
+                portal_status, net_meter_status, expected_subsidy_amount, 
+                account_name, account_number, ifsc_code, bank_name, branch_name,
+                created_by, updated_by
             )
-            VALUES ($1, $2, $3, $4, $5, $6, 0, 0, $7, $8, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, 0, 0, $7, $8, $9, $10, $11, $12, $13, $13)
             RETURNING uid
         `;
         
@@ -45,6 +69,11 @@ export class SubsidyTrackerRepository {
             data.subsidyUid || null,
             data.name || null,
             data.expectedSubsidyAmount || null,
+            data.bankDetails?.accountName || null,
+            data.bankDetails?.accountNumber || null,
+            data.bankDetails?.ifscCode || null,
+            data.bankDetails?.bankName || null,
+            data.bankDetails?.branchName || null,
             createdBy
         ];
 
@@ -84,6 +113,11 @@ export class SubsidyTrackerRepository {
         if (data.discomReferenceNumber !== undefined) { updates.push(`discom_reference_number = $${index++}`); values.push(data.discomReferenceNumber); }
         if (data.approvedSubsidyAmount !== undefined) { updates.push(`approved_subsidy_amount = $${index++}`); values.push(data.approvedSubsidyAmount); }
         if (data.receivedSubsidyAmount !== undefined) { updates.push(`received_subsidy_amount = $${index++}`); values.push(data.receivedSubsidyAmount); }
+        if (data.bankDetails?.accountName !== undefined) { updates.push(`account_name = $${index++}`); values.push(data.bankDetails.accountName); }
+        if (data.bankDetails?.accountNumber !== undefined) { updates.push(`account_number = $${index++}`); values.push(data.bankDetails.accountNumber); }
+        if (data.bankDetails?.ifscCode !== undefined) { updates.push(`ifsc_code = $${index++}`); values.push(data.bankDetails.ifscCode); }
+        if (data.bankDetails?.bankName !== undefined) { updates.push(`bank_name = $${index++}`); values.push(data.bankDetails.bankName); }
+        if (data.bankDetails?.branchName !== undefined) { updates.push(`branch_name = $${index++}`); values.push(data.bankDetails.branchName); }
         
         if (data.approvedDate !== undefined) { 
             updates.push(`approved_date = ${data.approvedDate ? `$${index++}` : 'NULL'}`); 

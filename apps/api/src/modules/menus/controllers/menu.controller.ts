@@ -45,7 +45,7 @@ export class MenuController {
             if (search) query.search = search;
             if (status) query.status = status;
 
-            const paginatedResponse = await this.menuService.getMenusByPagination(query);
+            const paginatedResponse = await this.menuService.getMenusByPagination(query, authReq.tenantUid);
 
             res.status(200).json({
                 success: true,
@@ -63,7 +63,7 @@ export class MenuController {
             const status = req.query.status as "active" | "deleted" | "all" | undefined;
             logger.info("MenuController.getAllMenus", { userUid: authReq.user.uid, status });
 
-            const menus = await this.menuService.getAllMenus(status);
+            const menus = await this.menuService.getAllMenus(status, authReq.tenantUid);
 
             res.status(200).json({
                 success: true,

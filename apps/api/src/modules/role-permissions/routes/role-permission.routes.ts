@@ -33,6 +33,8 @@ function createRolePermissionRouter(): Router {
     );
     const rolePermissionController = new RolePermissionController(rolePermissionService);
 
+    router.use(authenticate);
+
     /**
      * @swagger
      * /roles/{roleUid}/menu-permissions:

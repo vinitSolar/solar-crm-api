@@ -30,6 +30,8 @@ function createUserPermissionRouter(): Router {
     );
     const userPermissionController = new UserPermissionController(userPermissionService);
 
+    router.use(authenticate);
+
     /**
      * @swagger
      * /users/{userUid}/menu-permissions:

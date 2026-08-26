@@ -138,4 +138,10 @@ export class BankDetailRepository {
             await this.pool.query(query, [tenantUid]);
         }
     }
+
+    async isHeadOffice(tenantUid: string): Promise<boolean> {
+        const result = await this.pool.query(`SELECT type FROM tenants WHERE uid = $1 AND is_deleted = 0`, [tenantUid]);
+        if (result.rows.length === 0) return false;
+        return result.rows[0].type === 0;
+    }
 }

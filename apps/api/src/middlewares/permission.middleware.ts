@@ -14,11 +14,6 @@ export function requirePermission(menuCode: string, action: 'can_view' | 'can_cr
         const authReq = req as IAuthenticatedRequest;
 
         if (!authReq.user || !authReq.roleUid || !authReq.tenantUid) {
-            logger.error("Missing user context in permission middleware", {
-                user: !!authReq.user,
-                roleUid: authReq.roleUid,
-                tenantUid: authReq.tenantUid
-            });
             res.status(401).json({
                 success: false,
                 message: "Unauthorized: Missing user context",

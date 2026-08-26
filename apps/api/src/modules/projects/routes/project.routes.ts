@@ -26,6 +26,7 @@ import {
 } from "../validators/project.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createProjectRouter(): Router {
     const router = Router();
@@ -105,6 +106,7 @@ function createProjectRouter(): Router {
      */
     router.post(
         "/list",
+        requirePermission("projects", "can_view"),
         validateProjectRequest(paginationSchema),
         controller.getProjectsPaginated,
     );
@@ -139,6 +141,7 @@ function createProjectRouter(): Router {
      */
     router.get(
         "/:uid/required-subsidy-documents",
+        requirePermission("projects", "can_view"),
         validateProjectRequest(getByUidSchema),
         controller.getRequiredSubsidyDocuments,
     );
@@ -170,6 +173,7 @@ function createProjectRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("projects", "can_view"),
         validateProjectRequest(getByUidSchema),
         controller.getProjectByUid,
     );
@@ -214,6 +218,7 @@ function createProjectRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("projects", "can_create"),
         validateProjectRequest(createProjectSchema),
         controller.createProject,
     );
@@ -264,6 +269,7 @@ function createProjectRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("projects", "can_edit"),
         validateProjectRequest(updateProjectSchema),
         controller.updateProject,
     );
@@ -307,6 +313,7 @@ function createProjectRouter(): Router {
      */
     router.put(
         "/:uid/status",
+        requirePermission("projects", "can_edit"),
         validateProjectRequest(changeProjectStatusSchema),
         controller.changeStatus,
     );
@@ -350,6 +357,7 @@ function createProjectRouter(): Router {
      */
     router.put(
         "/:uid/assign-manager",
+        requirePermission("projects", "can_edit"),
         validateProjectRequest(assignProjectManagerSchema),
         controller.assignProjectManager,
     );
@@ -380,6 +388,7 @@ function createProjectRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("projects", "can_delete"),
         validateProjectRequest(getByUidSchema),
         controller.deleteProject,
     );
@@ -410,6 +419,7 @@ function createProjectRouter(): Router {
      */
     router.put(
         "/:uid/restore",
+        requirePermission("projects", "can_edit"),
         validateProjectRequest(getByUidSchema),
         controller.restoreProject,
     );
@@ -451,6 +461,7 @@ function createProjectRouter(): Router {
      */
     router.post(
         "/:uid/milestones/:milestoneUid/upload",
+        requirePermission("projects", "can_create"),
         upload.single("file"),
         controller.uploadMilestoneDocument
     );
@@ -485,12 +496,14 @@ function createProjectRouter(): Router {
      */
     router.delete(
         "/:uid/milestones/:milestoneUid/documents/:documentUid",
+        requirePermission("projects", "can_delete"),
         controller.deleteMilestoneDocument
     );
 
     // --- SUBSIDY DOCUMENTS ---
     router.get(
         "/:projectUid/milestones",
+        requirePermission("projects", "can_view"),
         controller.getProjectMilestones,
     );    router.put(
         "/:projectUid/milestones/:milestoneUid/status",

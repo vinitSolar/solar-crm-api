@@ -3,6 +3,7 @@ import { Router } from "express";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import { validateRequest, createQuotationScopeOfWorkSchema, updateQuotationScopeOfWorkSchema, getQuotationScopeOfWorkParamsSchema, listQuotationScopeOfWorkSchema } from "../validators/quotation-scope-of-work.validator.js";
 import { createQuotationScopeOfWork, updateQuotationScopeOfWork, getQuotationScopeOfWork, listQuotationScopeOfWork, getAllQuotationScopeOfWorks, getQuotationScopeOfWorkDropdown, deleteQuotationScopeOfWork, restoreQuotationScopeOfWork } from "../controllers/quotation-scope-of-work.controller.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.use(authenticate);
  *       200:
  *         description: Successfully fetched dropdown
  */
-router.get("/dropdown", getQuotationScopeOfWorkDropdown);
+router.get("/dropdown", requirePermission("QUOTATION_SCOPE", "can_view"), getQuotationScopeOfWorkDropdown);
 
 /**
  * @swagger
@@ -37,7 +38,7 @@ router.get("/dropdown", getQuotationScopeOfWorkDropdown);
  *       200:
  *         description: Successfully fetched all records
  */
-router.get("/all", getAllQuotationScopeOfWorks);
+router.get("/all", requirePermission("QUOTATION_SCOPE", "can_view"), getAllQuotationScopeOfWorks);
 
 /**
  * @swagger
@@ -79,7 +80,7 @@ router.get("/all", getAllQuotationScopeOfWorks);
  *       200:
  *         description: Successfully fetched list
  */
-router.post("/list", validateRequest(listQuotationScopeOfWorkSchema), listQuotationScopeOfWork);
+router.post("/list", requirePermission("QUOTATION_SCOPE", "can_view"), validateRequest(listQuotationScopeOfWorkSchema), listQuotationScopeOfWork);
 
 /**
  * @swagger
@@ -115,7 +116,7 @@ router.post("/list", validateRequest(listQuotationScopeOfWorkSchema), listQuotat
  *       400:
  *         description: Validation error or duplicate title
  */
-router.post("/", validateRequest(createQuotationScopeOfWorkSchema), createQuotationScopeOfWork);
+router.post("/", requirePermission("QUOTATION_SCOPE", "can_create"), validateRequest(createQuotationScopeOfWorkSchema), createQuotationScopeOfWork);
 
 /**
  * @swagger
@@ -139,7 +140,7 @@ router.post("/", validateRequest(createQuotationScopeOfWorkSchema), createQuotat
  *       404:
  *         description: Record not found
  */
-router.get("/:uid", validateRequest(getQuotationScopeOfWorkParamsSchema), getQuotationScopeOfWork);
+router.get("/:uid", requirePermission("QUOTATION_SCOPE", "can_view"), validateRequest(getQuotationScopeOfWorkParamsSchema), getQuotationScopeOfWork);
 
 /**
  * @swagger
@@ -181,7 +182,7 @@ router.get("/:uid", validateRequest(getQuotationScopeOfWorkParamsSchema), getQuo
  *       404:
  *         description: Record not found
  */
-router.put("/:uid", validateRequest(updateQuotationScopeOfWorkSchema), updateQuotationScopeOfWork);
+router.put("/:uid", requirePermission("QUOTATION_SCOPE", "can_edit"), validateRequest(updateQuotationScopeOfWorkSchema), updateQuotationScopeOfWork);
 
 /**
  * @swagger
@@ -207,7 +208,7 @@ router.put("/:uid", validateRequest(updateQuotationScopeOfWorkSchema), updateQuo
  *       404:
  *         description: Record not found
  */
-router.delete("/:uid", validateRequest(getQuotationScopeOfWorkParamsSchema), deleteQuotationScopeOfWork);
+router.delete("/:uid", requirePermission("QUOTATION_SCOPE", "can_delete"), validateRequest(getQuotationScopeOfWorkParamsSchema), deleteQuotationScopeOfWork);
 
 /**
  * @swagger
@@ -231,6 +232,6 @@ router.delete("/:uid", validateRequest(getQuotationScopeOfWorkParamsSchema), del
  *       404:
  *         description: Record not found
  */
-router.put("/:uid/restore", validateRequest(getQuotationScopeOfWorkParamsSchema), restoreQuotationScopeOfWork);
+router.put("/:uid/restore", requirePermission("QUOTATION_SCOPE", "can_edit"), validateRequest(getQuotationScopeOfWorkParamsSchema), restoreQuotationScopeOfWork);
 
 export { router as quotationScopeOfWorkRoutes };

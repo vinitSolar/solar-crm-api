@@ -10,6 +10,7 @@ import {
     validateProjectRequest,
 } from "../validators/project.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 import pool from "@packages/connection.js";
 
 function createProjectStatusRouter(): Router {
@@ -45,6 +46,7 @@ function createProjectStatusRouter(): Router {
      */
     router.get(
         "/all",
+        requirePermission("PROJECT_STATUSES", "can_view"),
         validateProjectRequest(getAllSchema),
         controller.getAllProjectStatuses,
     );
@@ -75,6 +77,7 @@ function createProjectStatusRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("PROJECT_STATUSES", "can_view"),
         validateProjectRequest(getByUidSchema),
         controller.getProjectStatusByUid,
     );
@@ -119,6 +122,7 @@ function createProjectStatusRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("PROJECT_STATUSES", "can_create"),
         validateProjectRequest(createProjectStatusSchema),
         controller.createProjectStatus,
     );
@@ -170,6 +174,7 @@ function createProjectStatusRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("PROJECT_STATUSES", "can_edit"),
         validateProjectRequest(updateProjectStatusSchema),
         controller.updateProjectStatus,
     );
@@ -200,6 +205,7 @@ function createProjectStatusRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("PROJECT_STATUSES", "can_delete"),
         validateProjectRequest(getByUidSchema),
         controller.deleteProjectStatus,
     );
@@ -230,6 +236,7 @@ function createProjectStatusRouter(): Router {
      */
     router.put(
         "/:uid/restore",
+        requirePermission("PROJECT_STATUSES", "can_edit"), // Assuming restore requires edit permission
         validateProjectRequest(getByUidSchema),
         controller.restoreProjectStatus,
     );

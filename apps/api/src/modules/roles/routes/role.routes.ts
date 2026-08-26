@@ -5,6 +5,7 @@ import { RoleRepository } from "../repositories/role.repository.js";
 import { createRoleSchema, updateRoleSchema, getRoleSchema, deleteRoleSchema, validateRoleRequest, getPaginatedRolesSchema, restoreRoleSchema, getAllRolesSchema } from "../validators/role.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createRoleRouter(): Router {
     const router = Router();
@@ -74,6 +75,7 @@ function createRoleRouter(): Router {
      */
     router.post(
         "/list",
+        requirePermission("ROLES", "can_view"),
         authenticate,
         validateRoleRequest(getPaginatedRolesSchema),
         roleController.getRoles,
@@ -128,6 +130,7 @@ function createRoleRouter(): Router {
      */
     router.get(
         "/all",
+        requirePermission("ROLES", "can_view"),
         authenticate,
         validateRoleRequest(getAllRolesSchema),
         roleController.getAllRoles,
@@ -184,6 +187,7 @@ function createRoleRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("ROLES", "can_view"),
         authenticate,
         validateRoleRequest(getRoleSchema),
         roleController.getRoleByUid,
@@ -229,6 +233,7 @@ function createRoleRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("ROLES", "can_create"),
         authenticate,
         validateRoleRequest(createRoleSchema),
         roleController.createRole,
@@ -287,6 +292,7 @@ function createRoleRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("ROLES", "can_edit"),
         authenticate,
         validateRoleRequest(updateRoleSchema),
         roleController.updateRole,
@@ -318,6 +324,7 @@ function createRoleRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("ROLES", "can_delete"),
         authenticate,
         validateRoleRequest(deleteRoleSchema),
         roleController.deleteRole,
@@ -349,6 +356,7 @@ function createRoleRouter(): Router {
      */
     router.put(
         "/:uid/restore",
+        requirePermission("ROLES", "can_edit"),
         authenticate,
         validateRoleRequest(restoreRoleSchema),
         roleController.restoreRole,

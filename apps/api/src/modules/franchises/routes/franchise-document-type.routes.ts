@@ -10,6 +10,7 @@ import {
     getPaginatedFranchiseDocumentTypesSchema,
     validateFranchiseDocumentTypeRequest,
 } from "../validators/franchise-document-type.validator.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createFranchiseDocumentTypeRouter(): Router {
     const router = Router();
@@ -24,46 +25,54 @@ function createFranchiseDocumentTypeRouter(): Router {
 
     router.post(
         "/",
+        requirePermission("FRANCHISES", "can_create"),
         validateFranchiseDocumentTypeRequest(createFranchiseDocumentTypeSchema),
         controller.create
     );
 
     router.post(
         "/list",
+        requirePermission("FRANCHISES", "can_view"),
         validateFranchiseDocumentTypeRequest(getPaginatedFranchiseDocumentTypesSchema),
         controller.getPaginated
     );
 
     router.get(
         "/all",
+        requirePermission("FRANCHISES", "can_view"),
         controller.getAll
     );
 
     router.get(
         "/dropdown",
+        requirePermission("FRANCHISES", "can_view"),
         controller.getAll
     );
 
     router.get(
         "/:uid",
+        requirePermission("FRANCHISES", "can_view"),
         validateFranchiseDocumentTypeRequest(getFranchiseDocumentTypeSchema),
         controller.getByUid
     );
 
     router.put(
         "/:uid",
+        requirePermission("FRANCHISES", "can_edit"),
         validateFranchiseDocumentTypeRequest(updateFranchiseDocumentTypeSchema),
         controller.update
     );
 
     router.delete(
         "/:uid",
+        requirePermission("FRANCHISES", "can_delete"),
         validateFranchiseDocumentTypeRequest(getFranchiseDocumentTypeSchema),
         controller.delete
     );
 
     router.put(
         "/:uid/restore",
+        requirePermission("FRANCHISES", "can_edit"),
         validateFranchiseDocumentTypeRequest(getFranchiseDocumentTypeSchema),
         controller.restore
     );

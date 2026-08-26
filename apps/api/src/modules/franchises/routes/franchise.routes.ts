@@ -28,6 +28,7 @@ import { RolePermissionRepository } from "../../role-permissions/repositories/ro
 import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import { storageService } from "@packages/storage/index.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createFranchiseRouter(): Router {
     const router = Router();
@@ -147,6 +148,7 @@ function createFranchiseRouter(): Router {
      */
     router.post(
         "/list",
+        requirePermission("FRANCHISES", "can_view"),
         validateFranchiseRequest(getPaginatedFranchisesSchema),
         franchiseController.getFranchises,
     );
@@ -176,6 +178,7 @@ function createFranchiseRouter(): Router {
      */
     router.get(
         "/all",
+        requirePermission("FRANCHISES", "can_view"),
         validateFranchiseRequest(getAllFranchisesSchema),
         franchiseController.getAllFranchises,
     );
@@ -226,6 +229,7 @@ function createFranchiseRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("FRANCHISES", "can_view"),
         validateFranchiseRequest(getFranchiseSchema),
         franchiseController.getFranchiseByUid,
     );
@@ -302,6 +306,7 @@ function createFranchiseRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("FRANCHISES", "can_create"),
         validateFranchiseRequest(createFranchiseSchema),
         franchiseController.createFranchise,
     );
@@ -359,6 +364,7 @@ function createFranchiseRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("FRANCHISES", "can_edit"),
         validateFranchiseRequest(updateFranchiseSchema),
         franchiseController.updateFranchise,
     );
@@ -392,6 +398,7 @@ function createFranchiseRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("FRANCHISES", "can_delete"),
         validateFranchiseRequest(deleteFranchiseSchema),
         franchiseController.deleteFranchise,
     );
@@ -425,6 +432,7 @@ function createFranchiseRouter(): Router {
      */
     router.put(
         "/:uid/restore",
+        requirePermission("FRANCHISES", "can_edit"),
         validateFranchiseRequest(restoreFranchiseSchema),
         franchiseController.restoreFranchise,
     );
@@ -465,6 +473,7 @@ function createFranchiseRouter(): Router {
      */
     router.post(
         "/:uid/logo",
+        requirePermission("FRANCHISES", "can_create"),
         authenticate,
         upload.single("logo"),
         franchiseController.uploadLogo,
@@ -483,6 +492,7 @@ function createFranchiseRouter(): Router {
      */
     router.get(
         "/:uid/document-types",
+        requirePermission("FRANCHISES", "can_view"),
         authenticate,
         franchiseController.getDocumentTypes,
     );
@@ -498,6 +508,7 @@ function createFranchiseRouter(): Router {
      */
     router.get(
         "/:uid/documents",
+        requirePermission("FRANCHISES", "can_view"),
         authenticate,
         franchiseController.getDocuments,
     );
@@ -513,6 +524,7 @@ function createFranchiseRouter(): Router {
      */
     router.post(
         "/:uid/documents",
+        requirePermission("FRANCHISES", "can_create"),
         authenticate,
         upload.single("file"),
         franchiseController.uploadDocument,
@@ -529,6 +541,7 @@ function createFranchiseRouter(): Router {
      */
     router.delete(
         "/:uid/documents/:documentUid",
+        requirePermission("FRANCHISES", "can_delete"),
         authenticate,
         franchiseController.deleteDocument,
     );
@@ -561,6 +574,7 @@ function createFranchiseRouter(): Router {
      */
     router.get(
         "/:uid/service-areas",
+        requirePermission("FRANCHISES", "can_view"),
         validateFranchiseRequest(getFranchiseSchema),
         franchiseController.getServiceAreas,
     );

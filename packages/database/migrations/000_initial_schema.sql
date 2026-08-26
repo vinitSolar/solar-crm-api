@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS role_menu_permissions (
   can_create SMALLINT DEFAULT 0,
   can_edit SMALLINT DEFAULT 0,
   can_delete SMALLINT DEFAULT 0,
+  can_setting SMALLINT DEFAULT 0,
   can_import SMALLINT DEFAULT 0,
   can_export SMALLINT DEFAULT 0,
   can_approve SMALLINT DEFAULT 0,
@@ -167,6 +168,7 @@ CREATE TABLE IF NOT EXISTS user_menu_permissions (
   can_create SMALLINT,
   can_edit SMALLINT,
   can_delete SMALLINT,
+  can_setting SMALLINT,
   can_import SMALLINT,
   can_export SMALLINT,
   can_approve SMALLINT,
@@ -1628,8 +1630,8 @@ BEGIN
         JOIN roles r ON r.tenant_uid = t.uid AND r.name = 'Super Admin'
     LOOP
         -- Grant Menu Permission
-        INSERT INTO role_menu_permissions (uid, tenant_uid, role_uid, menu_uid, can_view)
-        VALUES (md5(random()::text), v_tenant_uid, v_admin_role_uid, v_menu_uid, 1)
+        INSERT INTO role_menu_permissions (uid, tenant_uid, role_uid, menu_uid, can_view, can_setting)
+        VALUES (md5(random()::text), v_tenant_uid, v_admin_role_uid, v_menu_uid, 1, 1)
         ON CONFLICT DO NOTHING;
         
         -- Grant Feature Permissions
@@ -2062,8 +2064,8 @@ BEGIN
         
         IF v_master_role_uid IS NOT NULL AND v_menu_uid IS NOT NULL THEN
             -- Grant permissions to Master role
-            INSERT INTO role_menu_permissions (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete)
-            VALUES (v_ho_tenant_uid, v_master_role_uid, v_menu_uid, 1, 1, 1, 1)
+            INSERT INTO role_menu_permissions (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete, can_setting)
+            VALUES (v_ho_tenant_uid, v_master_role_uid, v_menu_uid, 1, 1, 1, 1, 1)
             ON CONFLICT DO NOTHING;
         END IF;
 
@@ -2072,8 +2074,8 @@ BEGIN
         
         IF v_admin_user_uid IS NOT NULL AND v_menu_uid IS NOT NULL THEN
             -- Grant permissions to Admin user
-            INSERT INTO user_menu_permissions (tenant_uid, user_uid, menu_uid, can_view, can_create, can_edit, can_delete)
-            VALUES (v_ho_tenant_uid, v_admin_user_uid, v_menu_uid, 1, 1, 1, 1)
+            INSERT INTO user_menu_permissions (tenant_uid, user_uid, menu_uid, can_view, can_create, can_edit, can_delete, can_setting)
+            VALUES (v_ho_tenant_uid, v_admin_user_uid, v_menu_uid, 1, 1, 1, 1, 1)
             ON CONFLICT DO NOTHING;
         END IF;
     END IF;

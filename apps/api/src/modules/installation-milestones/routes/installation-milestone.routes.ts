@@ -11,6 +11,7 @@ import {
 } from "../validators/installation-milestone.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createInstallationMilestoneRouter(): Router {
     const router = Router();
@@ -23,36 +24,42 @@ function createInstallationMilestoneRouter(): Router {
 
     router.get(
         "/all",
+        requirePermission("installation_milestones", "can_view"),
         validateInstallationMilestoneRequest(getAllSchema),
         controller.getAllInstallationMilestones,
     );
 
     router.get(
         "/:uid",
+        requirePermission("installation_milestones", "can_view"),
         validateInstallationMilestoneRequest(getByUidSchema),
         controller.getInstallationMilestoneByUid,
     );
 
     router.post(
         "/",
+        requirePermission("installation_milestones", "can_create"),
         validateInstallationMilestoneRequest(createInstallationMilestoneSchema),
         controller.createInstallationMilestone,
     );
 
     router.put(
         "/:uid",
+        requirePermission("installation_milestones", "can_edit"),
         validateInstallationMilestoneRequest(updateInstallationMilestoneSchema),
         controller.updateInstallationMilestone,
     );
 
     router.delete(
         "/:uid",
+        requirePermission("installation_milestones", "can_delete"),
         validateInstallationMilestoneRequest(getByUidSchema),
         controller.deleteInstallationMilestone,
     );
 
     router.put(
         "/:uid/restore",
+        requirePermission("installation_milestones", "can_edit"),
         validateInstallationMilestoneRequest(getByUidSchema),
         controller.restoreInstallationMilestone,
     );

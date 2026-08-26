@@ -18,6 +18,7 @@ import {
     convertQuotationToProject,
     generateQuotationPdf 
 } from "../controllers/quotation.controller.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 const router = Router();
 
@@ -37,7 +38,7 @@ router.use(authenticate);
  *       200:
  *         description: Successfully fetched dropdown
  */
-router.get("/dropdown", getQuotationDropdown);
+router.get("/dropdown", requirePermission("QUOTATIONS", "can_view"), getQuotationDropdown);
 
 /**
  * @swagger
@@ -52,7 +53,7 @@ router.get("/dropdown", getQuotationDropdown);
  *       200:
  *         description: Successfully fetched all records
  */
-router.get("/all", getQuotationDropdown);
+router.get("/all", requirePermission("QUOTATIONS", "can_view"), getQuotationDropdown);
 
 /**
  * @swagger
@@ -86,7 +87,7 @@ router.get("/all", getQuotationDropdown);
  *       200:
  *         description: Successfully fetched list
  */
-router.post("/list", validateRequest(listQuotationSchema), listQuotations);
+router.post("/list", requirePermission("QUOTATIONS", "can_view"), validateRequest(listQuotationSchema), listQuotations);
 
 /**
  * @swagger
@@ -199,7 +200,7 @@ router.post("/list", validateRequest(listQuotationSchema), listQuotations);
  *       400:
  *         description: Validation error
  */
-router.post("/", validateRequest(createQuotationSchema), createQuotation);
+router.post("/", requirePermission("QUOTATIONS", "can_create"), validateRequest(createQuotationSchema), createQuotation);
 
 /**
  * @swagger
@@ -223,7 +224,7 @@ router.post("/", validateRequest(createQuotationSchema), createQuotation);
  *       404:
  *         description: Record not found
  */
-router.get("/:uid", validateRequest(getQuotationParamsSchema), getQuotation);
+router.get("/:uid", requirePermission("QUOTATIONS", "can_view"), validateRequest(getQuotationParamsSchema), getQuotation);
 
 /**
  * @swagger
@@ -337,7 +338,7 @@ router.get("/:uid", validateRequest(getQuotationParamsSchema), getQuotation);
  *       404:
  *         description: Record not found
  */
-router.put("/:uid", validateRequest(updateQuotationSchema), updateQuotation);
+router.put("/:uid", requirePermission("QUOTATIONS", "can_edit"), validateRequest(updateQuotationSchema), updateQuotation);
 
 /**
  * @swagger
@@ -361,7 +362,7 @@ router.put("/:uid", validateRequest(updateQuotationSchema), updateQuotation);
  *       404:
  *         description: Record not found
  */
-router.delete("/:uid", validateRequest(getQuotationParamsSchema), deleteQuotation);
+router.delete("/:uid", requirePermission("QUOTATIONS", "can_delete"), validateRequest(getQuotationParamsSchema), deleteQuotation);
 
 /**
  * @swagger
@@ -385,7 +386,7 @@ router.delete("/:uid", validateRequest(getQuotationParamsSchema), deleteQuotatio
  *       404:
  *         description: Record not found
  */
-router.put("/:uid/restore", validateRequest(getQuotationParamsSchema), restoreQuotation);
+router.put("/:uid/restore", requirePermission("QUOTATIONS", "can_edit"), validateRequest(getQuotationParamsSchema), restoreQuotation);
 
 /**
  * @swagger
@@ -409,7 +410,7 @@ router.put("/:uid/restore", validateRequest(getQuotationParamsSchema), restoreQu
  *       404:
  *         description: Record not found
  */
-router.put("/:uid/convert", validateRequest(getQuotationParamsSchema), convertQuotationToProject);
+router.put("/:uid/convert", requirePermission("QUOTATIONS", "can_edit"), validateRequest(getQuotationParamsSchema), convertQuotationToProject);
 
 /**
  * @swagger
@@ -454,6 +455,6 @@ router.put("/:uid/convert", validateRequest(getQuotationParamsSchema), convertQu
  *       404:
  *         description: Quotation not found
  */
-router.post("/:uid/generate-pdf", validateRequest(getQuotationParamsSchema), generateQuotationPdf);
+router.post("/:uid/generate-pdf", requirePermission("QUOTATIONS", "can_edit"), validateRequest(getQuotationParamsSchema), generateQuotationPdf);
 
 export { router as quotationRoutes };

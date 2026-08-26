@@ -207,7 +207,8 @@ export class AuthRepository {
                 COALESCE(ump.can_view, rmp.can_view, 0) AS can_view,
                 COALESCE(ump.can_create, rmp.can_create, 0) AS can_create,
                 COALESCE(ump.can_edit, rmp.can_edit, 0) AS can_edit,
-                COALESCE(ump.can_delete, rmp.can_delete, 0) AS can_delete
+                COALESCE(ump.can_delete, rmp.can_delete, 0) AS can_delete,
+                COALESCE(ump.can_setting, rmp.can_setting, 0) AS can_setting
             FROM menus m
             LEFT JOIN role_menu_permissions rmp 
                 ON m.uid = rmp.menu_uid AND rmp.role_uid = $1 AND rmp.tenant_uid = $3
@@ -253,6 +254,7 @@ export class AuthRepository {
             canCreate: row.can_create,
             canEdit: row.can_edit,
             canDelete: row.can_delete,
+            canSetting: row.can_setting,
         }));
 
         const allMenuAccess = menus.length > 0 && menus.every(

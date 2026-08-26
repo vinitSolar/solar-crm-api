@@ -5,6 +5,7 @@ import { UserRepository } from "../repositories/user.repository.js";
 import { createUserSchema, updateUserSchema, getUserSchema, deleteUserSchema, validateUserRequest, getPaginatedUsersSchema, restoreUserSchema, getAllUsersSchema } from "../validators/user.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createUserRouter(): Router {
     const router = Router();
@@ -56,6 +57,7 @@ function createUserRouter(): Router {
      */
     router.post(
         "/list",
+        requirePermission("USERS", "can_view"),
         authenticate,
         validateUserRequest(getPaginatedUsersSchema),
         userController.getUsers,
@@ -94,6 +96,7 @@ function createUserRouter(): Router {
      */
     router.post(
         "/all",
+        requirePermission("USERS", "can_create"),
         authenticate,
         validateUserRequest(getAllUsersSchema),
         userController.getAllUsers,
@@ -125,6 +128,7 @@ function createUserRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("USERS", "can_view"),
         authenticate,
         validateUserRequest(getUserSchema),
         userController.getUserByUid,
@@ -166,6 +170,7 @@ function createUserRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("USERS", "can_create"),
         authenticate,
         validateUserRequest(createUserSchema),
         userController.createUser,
@@ -219,6 +224,7 @@ function createUserRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("USERS", "can_edit"),
         authenticate,
         validateUserRequest(updateUserSchema),
         userController.updateUser,
@@ -250,6 +256,7 @@ function createUserRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("USERS", "can_delete"),
         authenticate,
         validateUserRequest(deleteUserSchema),
         userController.deleteUser,
@@ -281,6 +288,7 @@ function createUserRouter(): Router {
      */
     router.put(
         "/:uid/restore",
+        requirePermission("USERS", "can_edit"),
         authenticate,
         validateUserRequest(restoreUserSchema),
         userController.restoreUser,

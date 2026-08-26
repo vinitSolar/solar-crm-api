@@ -19,6 +19,7 @@ export const upsertMenuPermissionsSchema = z.object({
                 canCreate: z.union([z.literal(0), z.literal(1)]),
                 canEdit: z.union([z.literal(0), z.literal(1)]),
                 canDelete: z.union([z.literal(0), z.literal(1)]),
+                canSetting: z.union([z.literal(0), z.literal(1)]),
             })
         ).min(1, { message: "Permissions array cannot be empty" }),
     }),

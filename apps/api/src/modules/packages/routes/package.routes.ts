@@ -6,6 +6,7 @@ import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/re
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import { createPackageSchema, updatePackageSchema, paginationSchema, validatePackageRequest } from "../validators/package.validator.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 const router = Router();
 
@@ -56,7 +57,7 @@ router.use(authenticate);
  *       200:
  *         description: Packages fetched successfully
  */
-router.post("/list", validatePackageRequest(paginationSchema), controller.getPaginatedPackages);
+router.post("/list", requirePermission("packages", "can_view"), validatePackageRequest(paginationSchema), controller.getPaginatedPackages);
 
 /**
  * @swagger
@@ -76,7 +77,7 @@ router.post("/list", validatePackageRequest(paginationSchema), controller.getPag
  *       200:
  *         description: Packages fetched successfully
  */
-router.get("/all", controller.getDropdownPackages);
+router.get("/all", requirePermission("packages", "can_view"), controller.getDropdownPackages);
 
 /**
  * @swagger
@@ -96,7 +97,7 @@ router.get("/all", controller.getDropdownPackages);
  *       200:
  *         description: Package fetched successfully
  */
-router.get("/:uid", controller.getPackageByUid);
+router.get("/:uid", requirePermission("packages", "can_view"), controller.getPackageByUid);
 
 /**
  * @swagger
@@ -147,7 +148,7 @@ router.get("/:uid", controller.getPackageByUid);
  *       201:
  *         description: Package created successfully
  */
-router.post("/", validatePackageRequest(createPackageSchema), controller.createPackage);
+router.post("/", requirePermission("packages", "can_create"), validatePackageRequest(createPackageSchema), controller.createPackage);
 
 /**
  * @swagger
@@ -202,7 +203,7 @@ router.post("/", validatePackageRequest(createPackageSchema), controller.createP
  *       200:
  *         description: Package updated successfully
  */
-router.put("/:uid", validatePackageRequest(updatePackageSchema), controller.updatePackage);
+router.put("/:uid", requirePermission("packages", "can_edit"), validatePackageRequest(updatePackageSchema), controller.updatePackage);
 
 /**
  * @swagger
@@ -222,7 +223,7 @@ router.put("/:uid", validatePackageRequest(updatePackageSchema), controller.upda
  *       200:
  *         description: Package deleted successfully
  */
-router.delete("/:uid", controller.deletePackage);
+router.delete("/:uid", requirePermission("packages", "can_delete"), controller.deletePackage);
 
 /**
  * @swagger
@@ -242,6 +243,6 @@ router.delete("/:uid", controller.deletePackage);
  *       200:
  *         description: Package restored successfully
  */
-router.put("/:uid/restore", controller.restorePackage);
+router.put("/:uid/restore", requirePermission("packages", "can_edit"), controller.restorePackage);
 
 export default router;

@@ -21,6 +21,7 @@ import { NoteService } from "../../notes/services/note.service.js";
 import { NoteRepository } from "../../notes/repositories/note.repository.js";
 import pool from "@packages/connection.js";
 import { AuditLogRepository } from "../../audit-logs/repositories/audit-logs.repository.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createSiteSurveyRouter(): Router {
     const router = Router();
@@ -84,6 +85,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.post(
         "/list",
+        requirePermission("SURVEYS", "can_view"),
         validateSiteSurveyRequest(paginationSchema),
         controller.getSiteSurveysPaginated,
     );
@@ -109,6 +111,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.get(
         "/all",
+        requirePermission("SURVEYS", "can_view"),
         controller.getAllSiteSurveys,
     );
 
@@ -133,6 +136,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("SURVEYS", "can_view"),
         validateSiteSurveyRequest(getByUidSchema),
         controller.getSiteSurveyByUid,
     );
@@ -173,6 +177,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("SURVEYS", "can_create"),
         validateSiteSurveyRequest(createSiteSurveySchema),
         controller.createSiteSurvey,
     );
@@ -215,6 +220,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("SURVEYS", "can_edit"),
         validateSiteSurveyRequest(updateSiteSurveySchema),
         controller.updateSiteSurvey,
     );
@@ -255,6 +261,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.put(
         "/:uid/status",
+        requirePermission("SURVEYS", "can_edit"),
         validateSiteSurveyRequest(changeSiteSurveyStatusSchema),
         controller.changeStatus,
     );
@@ -280,6 +287,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("SURVEYS", "can_delete"),
         validateSiteSurveyRequest(getByUidSchema),
         controller.deleteSiteSurvey,
     );
@@ -305,6 +313,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.put(
         "/:uid/restore",
+        requirePermission("SURVEYS", "can_edit"),
         validateSiteSurveyRequest(getByUidSchema),
         controller.restoreSiteSurvey,
     );
@@ -364,6 +373,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.post(
         "/:uid/details",
+        requirePermission("SURVEYS", "can_create"),
         validateSiteSurveyRequest(saveDetailsSchema),
         controller.saveSurveyDetails,
     );
@@ -418,6 +428,7 @@ function createSiteSurveyRouter(): Router {
      */
     router.put(
         "/:uid/details",
+        requirePermission("SURVEYS", "can_edit"),
         validateSiteSurveyRequest(updateDetailsSchema),
         controller.updateSurveyDetails,
     );

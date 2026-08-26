@@ -11,6 +11,7 @@ import {
 } from "../validators/role-permission.validator.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 /**
  * Role Permission module route factory.
@@ -93,6 +94,7 @@ function createRolePermissionRouter(): Router {
      */
     router.get(
         "/:roleUid/menu-permissions",
+        requirePermission("ROLES", "can_view"),
         authenticate,
         validateRolePermissionRequest(getMenuPermissionsSchema),
         rolePermissionController.getMenuPermissions,
@@ -173,6 +175,7 @@ function createRolePermissionRouter(): Router {
      */
     router.put(
         "/:roleUid/menu-permissions",
+        requirePermission("ROLES", "can_edit"),
         authenticate,
         validateRolePermissionRequest(upsertMenuPermissionsSchema),
         rolePermissionController.upsertMenuPermissions,

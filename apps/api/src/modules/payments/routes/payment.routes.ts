@@ -16,6 +16,7 @@ import {
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
 import multer from "multer";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 function createPaymentRouter(): Router {
     const router = Router();
@@ -52,6 +53,7 @@ function createPaymentRouter(): Router {
      */
     router.post(
         "/list",
+        requirePermission("PAYMENTS", "can_view"),
         validatePaymentRequest(paginationSchema),
         paymentController.getPaymentsPaginated,
     );
@@ -71,6 +73,7 @@ function createPaymentRouter(): Router {
      */
     router.get(
         "/summary/:leadUid",
+        requirePermission("PAYMENTS", "can_view"),
         validatePaymentRequest(getByLeadUidSchema),
         paymentController.getLeadPaymentSummary,
     );
@@ -90,6 +93,7 @@ function createPaymentRouter(): Router {
      */
     router.get(
         "/:uid",
+        requirePermission("PAYMENTS", "can_view"),
         validatePaymentRequest(getByUidSchema),
         paymentController.getPaymentByUid,
     );
@@ -111,6 +115,7 @@ function createPaymentRouter(): Router {
      */
     router.post(
         "/",
+        requirePermission("PAYMENTS", "can_create"),
         upload.single("imageProof"),
         validatePaymentRequest(createPaymentSchema),
         paymentController.createPayment,
@@ -137,6 +142,7 @@ function createPaymentRouter(): Router {
      */
     router.put(
         "/:uid",
+        requirePermission("PAYMENTS", "can_edit"),
         upload.single("imageProof"),
         validatePaymentRequest(updatePaymentSchema),
         paymentController.updatePayment,
@@ -157,6 +163,7 @@ function createPaymentRouter(): Router {
      */
     router.delete(
         "/:uid",
+        requirePermission("PAYMENTS", "can_delete"),
         validatePaymentRequest(getByUidSchema),
         paymentController.deletePayment,
     );

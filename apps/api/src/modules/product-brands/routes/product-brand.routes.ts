@@ -6,6 +6,7 @@ import { ProductBrandRepository } from "../repositories/product-brand.repository
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import { createProductBrandSchema, updateProductBrandSchema, paginationSchema, validateProductBrandRequest } from "../validators/product-brand.validator.js";
 import pool from "@packages/connection.js";
+import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
 const router = Router();
 
@@ -55,7 +56,7 @@ router.use(authenticate);
  *       200:
  *         description: Product brands fetched successfully
  */
-router.post("/list", validateProductBrandRequest(paginationSchema), controller.getPaginatedBrands);
+router.post("/list", requirePermission("PRODUCT_BRANDS", "can_view"), validateProductBrandRequest(paginationSchema), controller.getPaginatedBrands);
 
 /**
  * @swagger
@@ -75,7 +76,7 @@ router.post("/list", validateProductBrandRequest(paginationSchema), controller.g
  *       200:
  *         description: Product brands fetched successfully
  */
-router.get("/all", controller.getDropdownBrands);
+router.get("/all", requirePermission("PRODUCT_BRANDS", "can_view"), controller.getDropdownBrands);
 
 /**
  * @swagger
@@ -95,7 +96,7 @@ router.get("/all", controller.getDropdownBrands);
  *       200:
  *         description: Product brand fetched successfully
  */
-router.get("/:uid", controller.getBrandByUid);
+router.get("/:uid", requirePermission("PRODUCT_BRANDS", "can_view"), controller.getBrandByUid);
 
 /**
  * @swagger
@@ -123,7 +124,7 @@ router.get("/:uid", controller.getBrandByUid);
  *       201:
  *         description: Product brand created successfully
  */
-router.post("/", upload.single("logo"), validateProductBrandRequest(createProductBrandSchema), controller.createBrand);
+router.post("/", requirePermission("PRODUCT_BRANDS", "can_create"), upload.single("logo"), validateProductBrandRequest(createProductBrandSchema), controller.createBrand);
 
 /**
  * @swagger
@@ -160,7 +161,7 @@ router.post("/", upload.single("logo"), validateProductBrandRequest(createProduc
  *       200:
  *         description: Product brand updated successfully
  */
-router.put("/:uid", upload.single("logo"), validateProductBrandRequest(updateProductBrandSchema), controller.updateBrand);
+router.put("/:uid", requirePermission("PRODUCT_BRANDS", "can_edit"), upload.single("logo"), validateProductBrandRequest(updateProductBrandSchema), controller.updateBrand);
 
 /**
  * @swagger
@@ -180,7 +181,7 @@ router.put("/:uid", upload.single("logo"), validateProductBrandRequest(updatePro
  *       200:
  *         description: Product brand deleted successfully
  */
-router.delete("/:uid", controller.deleteBrand);
+router.delete("/:uid", requirePermission("PRODUCT_BRANDS", "can_delete"), controller.deleteBrand);
 
 /**
  * @swagger
@@ -200,6 +201,6 @@ router.delete("/:uid", controller.deleteBrand);
  *       200:
  *         description: Product brand restored successfully
  */
-router.put("/:uid/restore", controller.restoreBrand);
+router.put("/:uid/restore", requirePermission("PRODUCT_BRANDS", "can_edit"), controller.restoreBrand);
 
 export default router;

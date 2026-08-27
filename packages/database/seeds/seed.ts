@@ -18,6 +18,7 @@ export async function seed(pool: Pool) {
         { name: "Quotations", code: "QUOTATIONS", route: "/quotations", icon: "FileText", sortOrder: 30, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Projects", code: "projects", route: "/projects", icon: "Briefcase", sortOrder: 40, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Payments", code: "PAYMENTS", route: "/payments", icon: "Banknote", sortOrder: 50, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Platform Settings", code: "PLATFORM_SETTINGS", route: "/platform-settings", icon: "Settings", sortOrder: 55, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Users", code: "USERS", route: "/settings/users", icon: "UsersRound", sortOrder: 60, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Roles", code: "ROLES", route: "/settings/roles", icon: "ShieldCheck", sortOrder: 70, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Franchises", code: "FRANCHISES", route: "/settings/franchises", icon: "Building2", sortOrder: 80, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },

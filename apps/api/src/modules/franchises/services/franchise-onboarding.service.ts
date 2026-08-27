@@ -184,7 +184,7 @@ export class FranchiseOnboardingService {
                 const tenantSettingMenus = ["USERS", "ROLES"];
 
                 const adminPermissions = allMenus.map((menu: any) => {
-                    const isFranchiseMenu = menu.code === "FRANCHISES";
+                    const isFranchiseMenu = menu.code === "FRANCHISES" || menu.code === "PLATFORM_SETTINGS";
                     const isMasterSetting = masterSettingMenus.includes(menu.code);
                     const isTenantSetting = tenantSettingMenus.includes(menu.code);
 

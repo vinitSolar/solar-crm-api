@@ -323,4 +323,87 @@ export class FranchiseController {
             next(error);
         }
     };
+    getSettingsMetadata = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const targetUid = req.params.uid || authReq.user.tenantUid;
+            const metadata = await this.franchiseService.getSettingsMetadata(targetUid);
+
+            res.status(200).json({
+                success: true,
+                message: "Metadata fetched successfully",
+                data: metadata,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    createSettingsMetadata = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const targetUid = req.params.uid || authReq.user.tenantUid;
+            const { type, ...data } = req.body;
+            
+            if (!type) {
+                throw new CustomError("Type is required", 400);
+            }
+
+            const result = await this.franchiseService.createSettingsMetadata(targetUid, type, data, authReq.user.uid);
+
+            res.status(201).json({
+                success: true,
+                message: "Metadata created successfully",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    updateSettingsMetadata = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const targetUid = req.params.uid || authReq.user.tenantUid;
+            const itemUid = req.params.itemUid;
+            const { type, ...data } = req.body;
+
+            if (!type) {
+                throw new CustomError("Type is required", 400);
+            }
+
+            const result = await this.franchiseService.updateSettingsMetadata(targetUid, itemUid, type, data, authReq.user.uid);
+
+            res.status(200).json({
+                success: true,
+                message: "Metadata updated successfully",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    deleteSettingsMetadata = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const targetUid = req.params.uid || authReq.user.tenantUid;
+            const itemUid = req.params.itemUid;
+            const type = req.query.type as string;
+
+            if (!type) {
+                throw new CustomError("Type query parameter is required", 400);
+            }
+
+            await this.franchiseService.deleteSettingsMetadata(targetUid, itemUid, type, authReq.user.uid);
+
+            res.status(200).json({
+                success: true,
+                message: "Metadata deleted successfully",
+                data: null,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

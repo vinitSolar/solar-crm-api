@@ -21,6 +21,9 @@ import { env } from "@packages/config/env.js";
 import { storageService as storageServiceInstance } from "@packages/storage/index.js";
 
 import { FranchiseDocumentTypeRepository } from "../repositories/franchise-document-type.repository.js";
+import { LeadStatusRepository } from "../../leads/repositories/lead-status.repository.js";
+import { LeadSourceRepository } from "../../leads/repositories/lead-source.repository.js";
+import { ProjectStatusRepository } from "../../projects/repositories/project-status.repository.js";
 
 /**
  * Franchise Service.
@@ -500,5 +503,80 @@ export class FranchiseService {
         } finally {
             client.release();
         }
+    }
+    async getSettingsMetadata(tenantUid: string) {
+        const leadStatusRepo = new LeadStatusRepository(this.pool);
+        const leadSourceRepo = new LeadSourceRepository(this.pool);
+        const projectStatusRepo = new ProjectStatusRepository(this.pool);
+
+        const leadStatuses = await leadStatusRepo.getAll(tenantUid, "active");
+        const leadSources = await leadSourceRepo.getAll(tenantUid, "active");
+        const projectStatuses = await projectStatusRepo.getAll(tenantUid, "active");
+
+        return {
+            leadStatuses,
+            leadSources,
+            projectStatuses,
+        };
+    }
+
+    async createSettingsMetadata(tenantUid: string, type: string, data: any, createdBy: string) {
+        if (type === 'lead_status') {
+            const repo = new LeadStatusRepository(this.pool);
+            return await repo.create(tenantUid, data, createdBy);
+        }
+        if (type === 'lead_source') {
+            const repo = new LeadSourceRepository(this.pool);
+            return await repo.create(tenantUid, data, createdBy);
+        }
+        if (type === 'project_status') {
+            const repo = new ProjectStatusRepository(this.pool);
+            return await repo.create(tenantUid, data, createdBy);
+        }
+        throw new CustomError(`Unsupported metadata type: ${type}`, 400);
+    }
+
+    async updateSettingsMetadata(tenantUid: string, itemUid: string, type: string, data: any, updatedBy: string) {
+        if (type === 'lead_status') {
+            const repo = new LeadStatusRepository(this.pool);
+            const result = await repo.update(tenantUid, itemUid, data, updatedBy);
+            if (!result) throw new CustomError("Lead status not found", 404);
+            return result;
+        }
+        if (type === 'lead_source') {
+            const repo = new LeadSourceRepository(this.pool);
+            const result = await repo.update(tenantUid, itemUid, data, updatedBy);
+            if (!result) throw new CustomError("Lead source not found", 404);
+            return result;
+        }
+        if (type === 'project_status') {
+            const repo = new ProjectStatusRepository(this.pool);
+            const result = await repo.update(tenantUid, itemUid, data, updatedBy);
+            if (!result) throw new CustomError("Project status not found", 404);
+            return result;
+        }
+        throw new CustomError(`Unsupported metadata type: ${type}`, 400);
+    }
+
+    async deleteSettingsMetadata(tenantUid: string, itemUid: string, type: string, deletedBy: string) {
+        if (type === 'lead_status') {
+            const repo = new LeadStatusRepository(this.pool);
+            const success = await repo.softDelete(tenantUid, itemUid, deletedBy);
+            if (!success) throw new CustomError("Lead status not found", 404);
+            return success;
+        }
+        if (type === 'lead_source') {
+            const repo = new LeadSourceRepository(this.pool);
+            const success = await repo.softDelete(tenantUid, itemUid, deletedBy);
+            if (!success) throw new CustomError("Lead source not found", 404);
+            return success;
+        }
+        if (type === 'project_status') {
+            const repo = new ProjectStatusRepository(this.pool);
+            const success = await repo.softDelete(tenantUid, itemUid, deletedBy);
+            if (!success) throw new CustomError("Project status not found", 404);
+            return success;
+        }
+        throw new CustomError(`Unsupported metadata type: ${type}`, 400);
     }
 }

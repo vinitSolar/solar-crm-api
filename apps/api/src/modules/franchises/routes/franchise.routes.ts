@@ -83,6 +83,19 @@ function createFranchiseRouter(): Router {
         }
     };
 
+    // Route for franchise to get settings metadata (accessible to all authenticated users)
+    router.get("/settings-metadata", authenticate, franchiseController.getSettingsMetadata);
+    router.get("/:uid/settings-metadata", authenticate, franchiseController.getSettingsMetadata);
+
+    router.post("/settings-metadata", authenticate, franchiseController.createSettingsMetadata);
+    router.post("/:uid/settings-metadata", authenticate, franchiseController.createSettingsMetadata);
+
+    router.put("/settings-metadata/:itemUid", authenticate, franchiseController.updateSettingsMetadata);
+    router.put("/:uid/settings-metadata/:itemUid", authenticate, franchiseController.updateSettingsMetadata);
+
+    router.delete("/settings-metadata/:itemUid", authenticate, franchiseController.deleteSettingsMetadata);
+    router.delete("/:uid/settings-metadata/:itemUid", authenticate, franchiseController.deleteSettingsMetadata);
+
     // Apply authentication and Head Office authorization to all franchise routes
     router.use(authenticate, requireHeadOffice);
 

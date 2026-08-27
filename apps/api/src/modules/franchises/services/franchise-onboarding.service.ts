@@ -229,7 +229,13 @@ export class FranchiseOnboardingService {
 
             // 5. Create default Lead Sources
             const defaultLeadSources = [
-                { name: "Other", sortOrder: 1, isDefault: 1 },
+                { name: "Website", color: "#14B8A6", sortOrder: 1, isDefault: 0 },
+                { name: "Social Media", color: "#C026D3", sortOrder: 2, isDefault: 0 },
+                { name: "Referral", color: "#84CC16", sortOrder: 3, isDefault: 0 },
+                { name: "Walk-in", color: "#EAB308", sortOrder: 4, isDefault: 0 },
+                { name: "Cold Call", color: "#7C3AED", sortOrder: 5, isDefault: 0 },
+                { name: "Event/Exhibition", color: "#0EA5E9", sortOrder: 6, isDefault: 0 },
+                { name: "Other", color: "#64748B", sortOrder: 7, isDefault: 1 },
             ];
 
             for (const source of defaultLeadSources) {
@@ -238,13 +244,13 @@ export class FranchiseOnboardingService {
 
             // 6. Create default Lead Statuses
             const defaultLeadStatuses = [
-                { name: "New", sortOrder: 1, isDefault: 1, isClosed: 0 },
-                { name: "Contacted", sortOrder: 2, isDefault: 0, isClosed: 0 },
-                { name: "Follow Up", sortOrder: 3, isDefault: 0, isClosed: 0 },
-                { name: "Quotation Sent", sortOrder: 4, isDefault: 0, isClosed: 0 },
-                { name: "Negotiation", sortOrder: 5, isDefault: 0, isClosed: 0 },
-                { name: "Won", sortOrder: 6, isDefault: 0, isClosed: 1 },
-                { name: "Lost", sortOrder: 7, isDefault: 0, isClosed: 1 },
+                { name: "New", color: "#3B82F6", sortOrder: 1, isDefault: 1, isClosed: 0 },
+                { name: "Contacted", color: "#F59E0B", sortOrder: 2, isDefault: 0, isClosed: 0 },
+                { name: "Follow Up", color: "#8B5CF6", sortOrder: 3, isDefault: 0, isClosed: 0 },
+                { name: "Quotation Sent", color: "#06B6D4", sortOrder: 4, isDefault: 0, isClosed: 0 },
+                { name: "Negotiation", color: "#F97316", sortOrder: 5, isDefault: 0, isClosed: 0 },
+                { name: "Won", color: "#10B981", sortOrder: 6, isDefault: 0, isClosed: 1 },
+                { name: "Lost", color: "#EF4444", sortOrder: 7, isDefault: 0, isClosed: 1 },
             ];
 
             for (const status of defaultLeadStatuses) {
@@ -255,11 +261,11 @@ export class FranchiseOnboardingService {
 
             // 6.5 Create default Project Statuses
             const defaultProjectStatuses = [
-                { name: "Not Started", sortOrder: 1, isDefault: 1, isClosed: 0 },
-                { name: "In Progress", sortOrder: 2, isDefault: 0, isClosed: 0 },
-                { name: "Commissioned", sortOrder: 3, isDefault: 0, isClosed: 1 },
-                { name: "On Hold", sortOrder: 4, isDefault: 0, isClosed: 0 },
-                { name: "Cancelled", sortOrder: 5, isDefault: 0, isClosed: 1 },
+                { name: "Not Started", color: "#9CA3AF", sortOrder: 1, isDefault: 1, isClosed: 0 },
+                { name: "In Progress", color: "#3B82F6", sortOrder: 2, isDefault: 0, isClosed: 0 },
+                { name: "Commissioned", color: "#10B981", sortOrder: 3, isDefault: 0, isClosed: 1 },
+                { name: "On Hold", color: "#F59E0B", sortOrder: 4, isDefault: 0, isClosed: 0 },
+                { name: "Cancelled", color: "#EF4444", sortOrder: 5, isDefault: 0, isClosed: 1 },
             ];
 
             for (const status of defaultProjectStatuses) {

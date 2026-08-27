@@ -32,6 +32,8 @@ export function toFranchiseSafe(tenant: ITenant): IFranchiseSafe {
         isActive: tenant.isActive,
         isDeleted: tenant.isDeleted,
         createdAt: tenant.createdAt,
+        isHeadOffice: tenant.type === 0 ? 1 : 0,
+        isDefault: tenant.type === 0 ? 1 : 0,
     };
 }
 

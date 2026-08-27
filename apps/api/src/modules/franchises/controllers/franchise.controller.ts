@@ -86,6 +86,24 @@ export class FranchiseController {
         }
     };
 
+    getAllTenants = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const status = req.query.status as "active" | "deleted" | "all" | undefined;
+            logger.info("FranchiseController.getAllTenants", { userUid: authReq.user.uid, status });
+
+            const tenants = await this.franchiseService.getAllTenants(status);
+
+            res.status(200).json({
+                success: true,
+                message: FRANCHISE_MESSAGES.FETCHED_ALL_SUCCESS,
+                data: tenants,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     getFranchiseByUid = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;

@@ -284,6 +284,28 @@ export class FranchiseRepository {
         return result.rows as ITenant[];
     }
 
+    /**
+     * Gets all tenants (Head Office and Franchises) without pagination.
+     */
+    async getAllTenants(status: "active" | "deleted" | "all" = "active"): Promise<ITenant[]> {
+        logger.debug("FranchiseRepository.getAllTenants", { status });
+
+        let whereClause = "type IN ($1, $2)";
+
+        if (status === "active") {
+            whereClause += " AND is_deleted = 0";
+        } else if (status === "deleted") {
+            whereClause += " AND is_deleted = 1";
+        }
+
+        const result = await this.pool.query(
+            `SELECT ${TENANT_COLUMNS} FROM tenants WHERE ${whereClause} ORDER BY created_at DESC`,
+            [TENANT_TYPE.HEAD_OFFICE, TENANT_TYPE.FRANCHISE],
+        );
+
+        return result.rows as ITenant[];
+    }
+
     // ─── Update Operations ──────────────────────────────────────────
 
     /**

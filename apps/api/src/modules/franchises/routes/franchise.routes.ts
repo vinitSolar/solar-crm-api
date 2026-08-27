@@ -196,6 +196,13 @@ function createFranchiseRouter(): Router {
         franchiseController.getAllFranchises,
     );
 
+    router.get(
+        "/all-tenants",
+        requirePermission("FRANCHISES", "can_view"),
+        validateFranchiseRequest(getAllFranchisesSchema),
+        franchiseController.getAllTenants,
+    );
+
     /**
      * @swagger
      * /franchises/{uid}:

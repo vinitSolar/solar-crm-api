@@ -229,6 +229,8 @@ export interface IFranchiseSafe {
     isDeleted: number;
     createdAt: Date;
     totalAssignedCities?: number;
+    isHeadOffice?: number;
+    isDefault?: number;
 }
 
 /**

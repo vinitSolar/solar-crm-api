@@ -161,6 +161,12 @@ export class FranchiseService {
         return franchises.map(toFranchiseSafe);
     }
 
+    async getAllTenants(status: "active" | "deleted" | "all" = "active"): Promise<IFranchiseSafe[]> {
+        logger.info("FranchiseService.getAllTenants", { status });
+        const tenants = await this.franchiseRepository.getAllTenants(status);
+        return tenants.map(toFranchiseSafe);
+    }
+
     async getFranchiseByUid(uid: string): Promise<IFranchiseDetail> {
         logger.info("FranchiseService.getFranchiseByUid", { uid });
 

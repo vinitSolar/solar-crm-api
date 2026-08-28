@@ -4,6 +4,7 @@ import type { IAuthenticatedRequest } from "../../auth/interfaces/auth.interface
 import type { ICreateFranchiseRequest, IUpdateFranchiseRequest, IFranchisePaginationQuery } from "../interfaces/franchise.interface.js";
 import { FRANCHISE_MESSAGES } from "../constants/franchise.constants.js";
 import { logger } from "@packages/logger/index.js";
+import { CustomError } from "../../../middlewares/error.middleware.js";
 
 /**
  * Franchise Controller.
@@ -344,7 +345,7 @@ export class FranchiseController {
     getSettingsMetadata = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const targetUid = req.params.uid || authReq.user.tenantUid;
+            const targetUid = (req.params.uid as string) || authReq.user.tenantUid;
             const metadata = await this.franchiseService.getSettingsMetadata(targetUid);
 
             res.status(200).json({
@@ -360,7 +361,7 @@ export class FranchiseController {
     createSettingsMetadata = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const targetUid = req.params.uid || authReq.user.tenantUid;
+            const targetUid = (req.params.uid as string) || authReq.user.tenantUid;
             const { type, ...data } = req.body;
             
             if (!type) {
@@ -382,8 +383,8 @@ export class FranchiseController {
     updateSettingsMetadata = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const targetUid = req.params.uid || authReq.user.tenantUid;
-            const itemUid = req.params.itemUid;
+            const targetUid = (req.params.uid as string) || authReq.user.tenantUid;
+            const itemUid = req.params.itemUid as string;
             const { type, ...data } = req.body;
 
             if (!type) {
@@ -405,8 +406,8 @@ export class FranchiseController {
     deleteSettingsMetadata = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const targetUid = req.params.uid || authReq.user.tenantUid;
-            const itemUid = req.params.itemUid;
+            const targetUid = (req.params.uid as string) || authReq.user.tenantUid;
+            const itemUid = req.params.itemUid as string;
             const type = req.query.type as string;
 
             if (!type) {

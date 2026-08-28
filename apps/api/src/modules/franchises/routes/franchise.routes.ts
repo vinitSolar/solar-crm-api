@@ -199,7 +199,6 @@ function createFranchiseRouter(): Router {
     router.get(
         "/all-tenants",
         requirePermission("FRANCHISES", "can_view"),
-        validateFranchiseRequest(getAllFranchisesSchema),
         franchiseController.getAllTenants,
     );
 

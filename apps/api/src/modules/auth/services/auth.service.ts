@@ -286,7 +286,8 @@ export class AuthService {
                 firstName: user.first_name || "",
                 lastName: user.last_name || "",
                 otp: otp,
-                expiryMinutes: Math.floor(OTP_EXPIRY_SECONDS / 60).toString()
+                expiryMinutes: Math.floor(OTP_EXPIRY_SECONDS / 60).toString(),
+                logoUrl: `${env.APP.URL || 'http://localhost:5000'}/public/assets/email/sunselect-logo.svg`
             },
             createdBy: "SYSTEM"
         });

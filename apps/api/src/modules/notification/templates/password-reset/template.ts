@@ -11,7 +11,8 @@ export const passwordResetTemplate = {
         "firstName",
         "lastName",
         "otp",
-        "expiryMinutes"
+        "expiryMinutes",
+        "logoUrl"
     ],
     getHtmlPath(): string {
         return path.join(__dirname, "password-reset.html");

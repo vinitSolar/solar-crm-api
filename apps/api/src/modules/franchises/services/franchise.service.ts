@@ -82,6 +82,19 @@ export class FranchiseService {
             throw new CustomError(FRANCHISE_MESSAGES.CODE_ALREADY_EXISTS, 409);
         }
 
+        const emailToCheck = data.franchise.email || data.owner.email;
+        if (emailToCheck) {
+            const existingEmailTenant = await this.franchiseRepository.findTenantByEmail(emailToCheck);
+            if (existingEmailTenant) {
+                throw new CustomError(FRANCHISE_MESSAGES.EMAIL_ALREADY_EXISTS, 409);
+            }
+
+            const existingUserEmail = await this.franchiseRepository.checkIfUserEmailExists(emailToCheck);
+            if (existingUserEmail) {
+                throw new CustomError("Email is already registered to a user in the system.", 409);
+            }
+        }
+
         const client = await this.pool.connect();
 
         try {
@@ -248,7 +261,7 @@ export class FranchiseService {
                             WHERE tenant_uid = $${params.length} 
                             AND role_uid = (SELECT uid FROM roles WHERE tenant_uid = $${params.length} AND name = 'Franchise Owner(Admin)' LIMIT 1)
                         `, params);
-                        
+
                         // Dispatch Credentials Email if password was updated
                         if (data.franchise.password) {
                             const recipientEmail = data.franchise.email || existingTenant.email;
@@ -265,7 +278,9 @@ export class FranchiseService {
                                         franchiseName: franchiseName,
                                         email: recipientEmail as string,
                                         password: data.franchise.password,
-                                        loginUrl: `${env.APP.URL || 'http://localhost:3000'}/login`
+                                        loginUrl: `${env.APP.URL || 'http://localhost:5000'}/login`,
+                                        heroImageUrl: `${env.APP.URL || 'http://localhost:5000'}/public/assets/email/crm-mobile-hero.png`,
+                                        logoUrl: `${env.APP.URL || 'http://localhost:5000'}/public/assets/email/sunselect-logo.svg`
                                     }
                                 });
                             } catch (emailError) {
@@ -495,7 +510,7 @@ export class FranchiseService {
         const client = await this.pool.connect();
         try {
             await client.query("BEGIN");
-            
+
             // Note: In a real scenario, you might also delete the file from storage
             // await this.storageService.deleteFile(doc.filePath);
 

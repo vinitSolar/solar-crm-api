@@ -170,6 +170,28 @@ export class FranchiseRepository {
     }
 
     /**
+     * Finds a tenant by its email.
+     */
+    async findTenantByEmail(email: string): Promise<ITenant | null> {
+        const result = await this.pool.query(
+            `SELECT ${TENANT_COLUMNS} FROM tenants WHERE email = $1 AND type = $2`,
+            [email, TENANT_TYPE.FRANCHISE],
+        );
+        return result.rows.length > 0 ? (result.rows[0] as ITenant) : null;
+    }
+
+    /**
+     * Checks if a user email exists globally across the system.
+     */
+    async checkIfUserEmailExists(email: string): Promise<boolean> {
+        const result = await this.pool.query(
+            `SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND is_deleted = 0 LIMIT 1`,
+            [email]
+        );
+        return result.rows.length > 0;
+    }
+
+    /**
      * Gets a franchise (tenant with type=1) by UID.
      */
     async getFranchiseByUid(uid: string): Promise<ITenant | null> {

@@ -16,6 +16,7 @@ export const FRANCHISE_MESSAGES = {
     CREATION_FAILED: "Failed to create franchise",
     NOT_FOUND: "Franchise not found",
     CODE_ALREADY_EXISTS: "A tenant with this code already exists",
+    EMAIL_ALREADY_EXISTS: "A tenant with this email already exists",
     UPDATE_FAILED: "Failed to update franchise",
     DELETE_FAILED: "Failed to delete franchise",
     RESTORE_FAILED: "Failed to restore franchise or franchise not found in deleted state",

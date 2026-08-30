@@ -163,7 +163,9 @@ export class FranchiseOnboardingService {
                             franchiseName: `${firstName} ${lastName}`.trim(),
                             email: email,
                             password: plainPassword,
-                            loginUrl: `${env.APP.URL || 'http://localhost:3000'}/login`
+                            loginUrl: `${env.APP.URL || 'http://localhost:5000'}/login`,
+                            heroImageUrl: `${env.APP.URL || 'http://localhost:5000'}/public/assets/email/crm-mobile-hero.png`,
+                            logoUrl: `${env.APP.URL || 'http://localhost:5000'}/public/assets/email/sunselect-logo.svg`
                         }
                     });
                 } catch (emailError) {

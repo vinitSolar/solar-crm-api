@@ -11,7 +11,9 @@ export const franchiseCredentialsTemplate = {
         "franchiseName",
         "email",
         "password",
-        "loginUrl"
+        "loginUrl",
+        "heroImageUrl",
+        "logoUrl"
     ],
     getHtmlPath(): string {
         return path.join(__dirname, "franchise-credentials.html");

@@ -106,6 +106,7 @@ export class LeadStatusRepository {
         if (data.sortOrder !== undefined) { updates.push(`sort_order = $${index++}`); values.push(data.sortOrder); }
         if (data.isDefault !== undefined) { updates.push(`is_default = $${index++}`); values.push(data.isDefault); }
         if (data.isClosed !== undefined) { updates.push(`is_closed = $${index++}`); values.push(data.isClosed); }
+        if (data.isActive !== undefined) { updates.push(`is_active = $${index++}`); values.push(data.isActive); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 

@@ -33,7 +33,7 @@ export function requirePermission(menuCode: string, action: 'can_view' | 'can_cr
                     ON m.uid = rmp.menu_uid AND rmp.role_uid = $1 AND rmp.tenant_uid = $3
                 LEFT JOIN user_menu_permissions ump 
                     ON m.uid = ump.menu_uid AND ump.user_uid = $2 AND ump.tenant_uid = $3
-                WHERE m.code = $4 AND m.is_active = 1 AND m.deleted_at IS NULL
+                WHERE m.code = $4 AND m.is_active = 1
             `;
 
             const result = await pool.query(query, [authReq.roleUid, authReq.user.uid, authReq.tenantUid, menuCode]);

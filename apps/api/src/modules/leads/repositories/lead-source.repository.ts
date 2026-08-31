@@ -95,6 +95,7 @@ export class LeadSourceRepository {
         if (data.color !== undefined) { updates.push(`color = $${index++}`); values.push(data.color); }
         if (data.sortOrder !== undefined) { updates.push(`sort_order = $${index++}::int`); values.push(data.sortOrder); }
         if (data.isDefault !== undefined) { updates.push(`is_default = $${index++}::smallint`); values.push(data.isDefault); }
+        if (data.isActive !== undefined) { updates.push(`is_active = $${index++}::smallint`); values.push(data.isActive); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 

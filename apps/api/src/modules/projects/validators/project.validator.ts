@@ -9,6 +9,7 @@ export const createProjectStatusSchema = z.object({
         isDefault: z.number().int().optional(),
         isClosed: z.number().int().optional(),
         description: z.string().optional(),
+        isActive: z.number().int().min(0).max(1).optional(),
     }),
 });
 
@@ -23,6 +24,7 @@ export const updateProjectStatusSchema = z.object({
         isDefault: z.number().int().optional(),
         isClosed: z.number().int().optional(),
         description: z.string().optional(),
+        isActive: z.number().int().min(0).max(1).optional(),
     }).strict(),
 });
 

@@ -389,6 +389,24 @@ export class FranchiseService {
     async restoreFranchise(uid: string, updatedBy: string): Promise<void> {
         logger.info("FranchiseService.restoreFranchise", { uid });
 
+        // Check if the franchise's email is already taken by another active franchise/user
+        const deletedTenant = await this.franchiseRepository.getFranchiseByUidIncludingDeleted(uid);
+        if (!deletedTenant) {
+            throw new CustomError(FRANCHISE_MESSAGES.NOT_FOUND, 404);
+        }
+
+        if (deletedTenant.email) {
+            const existingEmailTenant = await this.franchiseRepository.findTenantByEmail(deletedTenant.email);
+            if (existingEmailTenant) {
+                throw new CustomError(FRANCHISE_MESSAGES.EMAIL_ALREADY_EXISTS, 409);
+            }
+
+            const existingUserEmail = await this.franchiseRepository.checkIfUserEmailExists(deletedTenant.email);
+            if (existingUserEmail) {
+                throw new CustomError("Email is already registered to a user in the system.", 409);
+            }
+        }
+
         const client = await this.pool.connect();
 
         try {

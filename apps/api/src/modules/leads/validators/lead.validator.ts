@@ -7,6 +7,7 @@ export const createLeadSourceSchema = z.object({
         color: z.string().optional(),
         sortOrder: z.number().int().optional(),
         isDefault: z.number().int().optional(),
+        isActive: z.number().int().min(0).max(1).optional(),
     }),
 });
 
@@ -19,6 +20,7 @@ export const updateLeadSourceSchema = z.object({
         color: z.string().optional(),
         sortOrder: z.number().int().optional(),
         isDefault: z.number().int().optional(),
+        isActive: z.number().int().min(0).max(1).optional(),
     }).strict(),
 });
 
@@ -29,6 +31,7 @@ export const createLeadStatusSchema = z.object({
         sortOrder: z.number().int().optional(),
         isDefault: z.number().int().optional(),
         isClosed: z.number().int().optional(),
+        isActive: z.number().int().min(0).max(1).optional(),
     }),
 });
 
@@ -42,6 +45,7 @@ export const updateLeadStatusSchema = z.object({
         sortOrder: z.number().int().optional(),
         isDefault: z.number().int().optional(),
         isClosed: z.number().int().optional(),
+        isActive: z.number().int().min(0).max(1).optional(),
     }).strict(),
 });
 

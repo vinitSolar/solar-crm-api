@@ -85,7 +85,9 @@ export interface ICreateLeadSource {
     isDefault?: number;
 }
 
-export interface IUpdateLeadSource extends Partial<ICreateLeadSource> {}
+export interface IUpdateLeadSource extends Partial<ICreateLeadSource> {
+    isActive?: number;
+}
 
 export interface ICreateLeadStatus {
     name: string;
@@ -95,7 +97,9 @@ export interface ICreateLeadStatus {
     isClosed?: number;
 }
 
-export interface IUpdateLeadStatus extends Partial<ICreateLeadStatus> {}
+export interface IUpdateLeadStatus extends Partial<ICreateLeadStatus> {
+    isActive?: number;
+}
 
 export interface ICreateLead {
     leadNumber?: string;

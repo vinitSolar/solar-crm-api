@@ -58,7 +58,9 @@ export interface ICreateProjectStatus {
     description?: string;
 }
 
-export interface IUpdateProjectStatus extends Partial<ICreateProjectStatus> {}
+export interface IUpdateProjectStatus extends Partial<ICreateProjectStatus> {
+    isActive?: number;
+}
 
 export interface ICreateProject {
     quotationUid: string;

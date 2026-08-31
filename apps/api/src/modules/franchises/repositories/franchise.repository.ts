@@ -170,22 +170,27 @@ export class FranchiseRepository {
     }
 
     /**
-     * Finds a tenant by its email.
+     * Finds an active tenant by its email.
+     * Only matches non-deleted, active franchises so that inactive ones don't block re-creation.
      */
     async findTenantByEmail(email: string): Promise<ITenant | null> {
         const result = await this.pool.query(
-            `SELECT ${TENANT_COLUMNS} FROM tenants WHERE email = $1 AND type = $2`,
+            `SELECT ${TENANT_COLUMNS} FROM tenants WHERE email = $1 AND type = $2 AND is_deleted = 0 AND is_active = 1`,
             [email, TENANT_TYPE.FRANCHISE],
         );
         return result.rows.length > 0 ? (result.rows[0] as ITenant) : null;
     }
 
     /**
-     * Checks if a user email exists globally across the system.
+     * Checks if a user email exists in an active tenant.
+     * Users belonging to inactive/deleted tenants are excluded.
      */
     async checkIfUserEmailExists(email: string): Promise<boolean> {
         const result = await this.pool.query(
-            `SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND is_deleted = 0 LIMIT 1`,
+            `SELECT u.id FROM users u
+             INNER JOIN tenants t ON t.uid = u.tenant_uid
+             WHERE LOWER(u.email) = LOWER($1) AND u.is_deleted = 0 AND t.is_deleted = 0 AND t.is_active = 1
+             LIMIT 1`,
             [email]
         );
         return result.rows.length > 0;
@@ -196,6 +201,17 @@ export class FranchiseRepository {
      */
     async getFranchiseByUid(uid: string): Promise<ITenant | null> {
         logger.debug("FranchiseRepository.getFranchiseByUid", { uid });
+        const result = await this.pool.query(
+            `SELECT ${TENANT_COLUMNS} FROM tenants WHERE uid = $1 AND type = $2`,
+            [uid, TENANT_TYPE.FRANCHISE],
+        );
+        return result.rows.length > 0 ? (result.rows[0] as ITenant) : null;
+    }
+
+    /**
+     * Gets a franchise by UID including soft-deleted ones (for restore email checks).
+     */
+    async getFranchiseByUidIncludingDeleted(uid: string): Promise<ITenant | null> {
         const result = await this.pool.query(
             `SELECT ${TENANT_COLUMNS} FROM tenants WHERE uid = $1 AND type = $2`,
             [uid, TENANT_TYPE.FRANCHISE],
@@ -474,6 +490,13 @@ export class FranchiseRepository {
             [deletedBy, uid],
         );
 
+        // Also inactivate all users of this franchise
+        await client.query(
+            `UPDATE users SET is_deleted = 1, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE tenant_uid = $2 AND is_deleted = 0`,
+            [deletedBy, uid],
+        );
+
         return (tenantResult.rowCount ?? 0) > 0;
     }
 
@@ -498,6 +521,14 @@ export class FranchiseRepository {
         await client.query(
             `UPDATE franchise_business_details SET is_deleted = 0, deleted_by = NULL, updated_by = $1, updated_at = CURRENT_TIMESTAMP
              WHERE tenant_uid = $2 AND is_deleted = 1`,
+            [updatedBy, uid],
+        );
+
+        // Only restore the owner/admin user (Franchise Owner(Admin) role)
+        await client.query(
+            `UPDATE users SET is_deleted = 0, deleted_by = NULL, updated_by = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE tenant_uid = $2 AND is_deleted = 1
+             AND role_uid IN (SELECT uid FROM roles WHERE tenant_uid = $2 AND name = 'Franchise Owner(Admin)')`,
             [updatedBy, uid],
         );
 

@@ -51,6 +51,9 @@ function createUserRouter(): Router {
      *               canInstallation:
      *                 type: integer
      *                 enum: [0, 1]
+     *               canSale:
+     *                 type: integer
+     *                 enum: [0, 1]
      *     responses:
      *       200:
      *         description: Users fetched successfully
@@ -90,6 +93,9 @@ function createUserRouter(): Router {
      *               canInstallation:
      *                 type: integer
      *                 enum: [0, 1]
+     *               canSale:
+     *                 type: integer
+     *                 enum: [0, 1]
      *     responses:
      *       200:
      *         description: Users fetched successfully
@@ -127,6 +133,9 @@ function createUserRouter(): Router {
      *                 type: integer
      *                 enum: [0, 1]
      *               canInstallation:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               canSale:
      *                 type: integer
      *                 enum: [0, 1]
      *     responses:

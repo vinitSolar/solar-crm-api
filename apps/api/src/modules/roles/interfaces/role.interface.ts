@@ -6,6 +6,7 @@ export interface IRole {
     description: string | null;
     can_site_survey: number;
     can_installation: number;
+    can_sale: number;
     is_system: number;
     is_active: number;
     is_deleted: number;
@@ -22,6 +23,7 @@ export interface IRoleSafe {
     description: string | null;
     canSiteSurvey: number;
     canInstallation: number;
+    canSale: number;
     isSystem: number;
     isActive: number;
     isDeleted: number;
@@ -33,6 +35,7 @@ export interface ICreateRoleRequest {
     description?: string;
     canSiteSurvey?: number;
     canInstallation?: number;
+    canSale?: number;
 }
 
 export interface IUpdateRoleRequest {
@@ -40,6 +43,7 @@ export interface IUpdateRoleRequest {
     description?: string;
     canSiteSurvey?: number;
     canInstallation?: number;
+    canSale?: number;
     isActive?: number;
 }
 

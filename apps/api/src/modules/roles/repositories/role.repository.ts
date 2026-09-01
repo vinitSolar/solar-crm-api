@@ -150,9 +150,9 @@ export class RoleRepository {
         logger.debug("RoleRepository.createRole", { uid, tenantUid, data });
 
         const query = `
-            INSERT INTO roles (uid, tenant_uid, name, description, can_site_survey, can_installation, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id, uid, tenant_uid, name, description, can_site_survey, can_installation, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
+            INSERT INTO roles (uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
         `;
 
         const result = await this.pool.query(query, [
@@ -162,6 +162,7 @@ export class RoleRepository {
             data.description || null,
             data.canSiteSurvey ?? 0,
             data.canInstallation ?? 0,
+            data.canSale ?? 0,
             createdBy
         ]);
 
@@ -196,6 +197,11 @@ export class RoleRepository {
         if (data.canInstallation !== undefined) {
             updates.push(`can_installation = $${index++}`);
             values.push(data.canInstallation);
+        }
+
+        if (data.canSale !== undefined) {
+            updates.push(`can_sale = $${index++}`);
+            values.push(data.canSale);
         }
 
         if (data.isActive !== undefined) {

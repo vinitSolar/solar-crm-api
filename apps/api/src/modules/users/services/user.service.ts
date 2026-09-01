@@ -28,13 +28,13 @@ export class UserService {
         };
     }
 
-    async getAllUsersByTenant(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number): Promise<UserDTO[]> {
-        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation);
+    async getAllUsersByTenant(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<UserDTO[]> {
+        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale);
         return users.map(toUserDTO);
     }
 
-    async getUsersForDropdown(tenantUid: string, currentUserUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number): Promise<UserDTO[]> {
-        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation);
+    async getUsersForDropdown(tenantUid: string, currentUserUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<UserDTO[]> {
+        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale);
         const dtos = users.map(toUserDTO);
         
         const currentUserIndex = dtos.findIndex(u => u.uid === currentUserUid);

@@ -9,6 +9,7 @@ export interface IUser {
     password?: string;
     lastLogin: Date | null;
     isActive: number;
+    isOwner: number;
     isDeleted: number;
     createdAt: Date;
     updatedAt: Date;
@@ -25,6 +26,7 @@ export interface ICreateUserRequest {
     lastName: string;
     email: string;
     password: string | null;
+    isOwner?: number;
 }
 
 export interface IUpdateUserRequest {

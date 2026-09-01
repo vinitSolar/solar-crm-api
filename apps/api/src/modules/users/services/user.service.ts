@@ -33,6 +33,23 @@ export class UserService {
         return users.map(toUserDTO);
     }
 
+    async getUsersForDropdown(tenantUid: string, currentUserUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number): Promise<UserDTO[]> {
+        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation);
+        const dtos = users.map(toUserDTO);
+        
+        const currentUserIndex = dtos.findIndex(u => u.uid === currentUserUid);
+        if (currentUserIndex !== -1) {
+            // We know the index exists, so splice will return at least one element.
+            // Using non-null assertion (!) tells TypeScript that this element is definitely defined.
+            const currentUser = dtos.splice(currentUserIndex, 1)[0]!;
+            currentUser.firstName = "My Self";
+            currentUser.lastName = "";
+            dtos.unshift(currentUser);
+        }
+        
+        return dtos;
+    }
+
     async getUserByUid(uid: string, tenantUid: string): Promise<UserDTO> {
         const user = await this.userRepository.getUserByUid(uid, tenantUid);
         if (!user) {

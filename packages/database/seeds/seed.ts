@@ -12,12 +12,12 @@ export async function seed(pool: Pool) {
     const client = await pool.connect();
 
     const defaultMenus = [
-        { name: "Dashboard", code: "DASHBOARD", route: "/dashboard", icon: "LayoutDashboard", sortOrder: 1, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
-        { name: "Leads", code: "LEADS", route: "/leads", icon: "Users", sortOrder: 10, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
-        { name: "Site Surveys", code: "SURVEYS", route: "/surveys", icon: "ClipboardList", sortOrder: 20, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
-        { name: "Quotations", code: "QUOTATIONS", route: "/quotations", icon: "FileText", sortOrder: 30, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
-        { name: "Projects", code: "projects", route: "/projects", icon: "Briefcase", sortOrder: 40, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
-        { name: "Payments", code: "PAYMENTS", route: "/payments", icon: "Banknote", sortOrder: 50, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Dashboard", code: "DASHBOARD", route: "/dashboard", icon: "LayoutDashboard", sortOrder: 1, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
+        { name: "Leads", code: "LEADS", route: "/leads", icon: "Users", sortOrder: 10, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
+        { name: "Site Surveys", code: "SURVEYS", route: "/surveys", icon: "ClipboardList", sortOrder: 20, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
+        { name: "Quotations", code: "QUOTATIONS", route: "/quotations", icon: "FileText", sortOrder: 30, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
+        { name: "Projects", code: "projects", route: "/projects", icon: "Briefcase", sortOrder: 40, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
+        { name: "Payments", code: "PAYMENTS", route: "/payments", icon: "Banknote", sortOrder: 50, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
         { name: "Platform Settings", code: "PLATFORM_SETTINGS", route: "/platform-settings", icon: "Settings", sortOrder: 55, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Users", code: "USERS", route: "/settings/users", icon: "UsersRound", sortOrder: 60, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Roles", code: "ROLES", route: "/settings/roles", icon: "ShieldCheck", sortOrder: 70, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
@@ -39,7 +39,7 @@ export async function seed(pool: Pool) {
         { name: "Quotation Terms", code: "QUOTATION_TERMS", route: "/settings/quotation-terms", icon: "ScrollText", sortOrder: 230, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Quotation Scope", code: "QUOTATION_SCOPE", route: "/settings/quotation-scope", icon: "ListChecks", sortOrder: 240, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
         { name: "Subsidy Document Types", code: "SUBSIDY_DOCUMENT_TYPES", route: "/subsidy-document-types", icon: "Files", sortOrder: 250, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
-        { name: "Subsidy Trackers", code: "subsidy_tracker", route: "/subsidy-trackers", icon: "FileSpreadsheet", sortOrder: 270, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
+        { name: "Subsidy Trackers", code: "subsidy_tracker", route: "/subsidy-trackers", icon: "FileSpreadsheet", sortOrder: 270, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
         { name: "Bank Details", code: "BANK_DETAILS", route: "/settings/bank-details", icon: "Landmark", sortOrder: 280, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 1 } },
     ];
 

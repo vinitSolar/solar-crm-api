@@ -13,7 +13,8 @@ export class UserRepository {
         const offset = (query.page - 1) * query.limit;
         const params: any[] = [tenantUid];
         
-        let whereClause = "u.tenant_uid = $1";
+        let whereClause = `u.tenant_uid = $1
+            AND u.is_owner = 0`;
 
         if (query.status === "active") {
             whereClause += " AND u.is_deleted = 0";
@@ -49,7 +50,8 @@ export class UserRepository {
         const result = await this.pool.query(
             `SELECT u.id, u.uid, u.tenant_uid as "tenantUid", u.role_uid as "roleUid", 
                     u.first_name as "firstName", u.last_name as "lastName", u.email, u.password, 
-                    u.last_login as "lastLogin", u.is_active as "isActive", u.is_deleted as "isDeleted", 
+                    u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
+                    u.is_deleted as "isDeleted", 
                     u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
                     u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"
              FROM users u
@@ -65,7 +67,8 @@ export class UserRepository {
 
     async getAllUsers(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number): Promise<IUser[]> {
         const params: any[] = [tenantUid];
-        let whereClause = "u.tenant_uid = $1";
+        let whereClause = `u.tenant_uid = $1
+            AND u.is_owner = 0`;
 
         if (status === "active" || !status) {
             whereClause += " AND u.is_deleted = 0";
@@ -86,7 +89,8 @@ export class UserRepository {
         const result = await this.pool.query(
             `SELECT u.id, u.uid, u.tenant_uid as "tenantUid", u.role_uid as "roleUid", 
                     u.first_name as "firstName", u.last_name as "lastName", u.email, u.password, 
-                    u.last_login as "lastLogin", u.is_active as "isActive", u.is_deleted as "isDeleted", 
+                    u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
+                    u.is_deleted as "isDeleted", 
                     u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
                     u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"
              FROM users u
@@ -103,7 +107,8 @@ export class UserRepository {
         const result = await this.pool.query(
             `SELECT u.id, u.uid, u.tenant_uid as "tenantUid", u.role_uid as "roleUid", 
                     u.first_name as "firstName", u.last_name as "lastName", u.email, u.password, 
-                    u.last_login as "lastLogin", u.is_active as "isActive", u.is_deleted as "isDeleted", 
+                    u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
+                    u.is_deleted as "isDeleted", 
                     u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
                     u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"
              FROM users u
@@ -119,7 +124,7 @@ export class UserRepository {
         const result = await this.pool.query(
             `SELECT id, uid, tenant_uid as "tenantUid", role_uid as "roleUid", 
                     first_name as "firstName", last_name as "lastName", email, password, 
-                    last_login as "lastLogin", is_active as "isActive", is_deleted as "isDeleted", 
+                    last_login as "lastLogin", is_active as "isActive", is_owner as "isOwner", is_deleted as "isDeleted", 
                     created_at as "createdAt", updated_at as "updatedAt", created_by as "createdBy", 
                     updated_by as "updatedBy", deleted_by as "deletedBy"
              FROM users
@@ -133,14 +138,15 @@ export class UserRepository {
     async createUser(tenantUid: string, data: ICreateUserRequest, createdBy: string): Promise<IUser> {
         const uid = uuidv4();
         const result = await this.pool.query(
-            `INSERT INTO users (uid, tenant_uid, role_uid, first_name, last_name, email, password, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO users (uid, tenant_uid, role_uid, first_name, last_name, email, password, is_owner, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING id, uid, tenant_uid as "tenantUid", role_uid as "roleUid", 
                        first_name as "firstName", last_name as "lastName", email, password, 
-                       last_login as "lastLogin", is_active as "isActive", is_deleted as "isDeleted", 
+                       last_login as "lastLogin", is_active as "isActive", is_owner as "isOwner", 
+                       is_deleted as "isDeleted", 
                        created_at as "createdAt", updated_at as "updatedAt", created_by as "createdBy", 
                        updated_by as "updatedBy", deleted_by as "deletedBy"`,
-            [uid, tenantUid, data.roleUid, data.firstName, data.lastName, data.email, data.password, createdBy]
+            [uid, tenantUid, data.roleUid, data.firstName, data.lastName, data.email, data.password, data.isOwner ?? 0, createdBy]
         );
         return result.rows[0];
     }

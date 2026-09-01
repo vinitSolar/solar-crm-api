@@ -97,6 +97,10 @@ export class UserService {
             throw new CustomError(USER_MESSAGES.SYSTEM_USER_DELETE_ERROR, 400);
         }
 
+        if (existingUser.isOwner === 1) {
+            throw new CustomError(USER_MESSAGES.OWNER_USER_DELETE_ERROR, 400);
+        }
+
         const success = await this.userRepository.softDeleteUser(uid, tenantUid, deletedBy);
         if (!success) {
             throw new CustomError(USER_MESSAGES.DELETE_FAILED, 500);

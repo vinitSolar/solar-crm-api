@@ -45,6 +45,14 @@ export class UserService {
             currentUser.firstName = "My Self";
             currentUser.lastName = "";
             dtos.unshift(currentUser);
+        } else {
+            const currentUser = await this.userRepository.getUserByUid(currentUserUid, tenantUid);
+            if (currentUser) {
+                const currentUserDto = toUserDTO(currentUser);
+                currentUserDto.firstName = "My Self";
+                currentUserDto.lastName = "";
+                dtos.unshift(currentUserDto);
+            }
         }
         
         return dtos;

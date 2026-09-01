@@ -12,30 +12,33 @@ export class UserRepository {
     async getPaginatedUsers(tenantUid: string, query: IPaginationQuery): Promise<{ users: IUser[]; total: number }> {
         const offset = (query.page - 1) * query.limit;
         const params: any[] = [tenantUid];
-        
-        let whereClause = `u.tenant_uid = $1
-            AND u.is_owner = 0`;
+        const conditions: string[] = [`u.tenant_uid = $1`, `u.is_owner = 0`];
 
         if (query.status === "active") {
-            whereClause += " AND u.is_deleted = 0";
+            conditions.push("u.is_deleted = 0");
         } else if (query.status === "deleted") {
-            whereClause += " AND u.is_deleted = 1";
+            conditions.push("u.is_deleted = 1");
         }
 
         if (query.search) {
             params.push(`%${query.search}%`);
-            whereClause += ` AND (u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`;
+            conditions.push(`(u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`);
         }
 
         if (query.canSiteSurvey !== undefined) {
             params.push(query.canSiteSurvey);
-            whereClause += ` AND r.can_site_survey = $${params.length}`;
+            conditions.push(`r.can_site_survey = $${params.length}`);
         }
-
         if (query.canInstallation !== undefined) {
             params.push(query.canInstallation);
-            whereClause += ` AND r.can_installation = $${params.length}`;
+            conditions.push(`r.can_installation = $${params.length}`);
         }
+        if (query.canSale !== undefined) {
+            params.push(query.canSale);
+            conditions.push(`r.can_sale = $${params.length}`);
+        }
+
+        const whereClause = conditions.join(" AND ");
 
         const countResult = await this.pool.query(`
             SELECT COUNT(*) 
@@ -65,26 +68,30 @@ export class UserRepository {
         return { users: result.rows, total };
     }
 
-    async getAllUsers(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number): Promise<IUser[]> {
+    async getAllUsers(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<IUser[]> {
         const params: any[] = [tenantUid];
-        let whereClause = `u.tenant_uid = $1
-            AND u.is_owner = 0`;
+        const conditions: string[] = [`u.tenant_uid = $1`, `u.is_owner = 0`];
 
         if (status === "active" || !status) {
-            whereClause += " AND u.is_deleted = 0";
+            conditions.push("u.is_deleted = 0");
         } else if (status === "deleted") {
-            whereClause += " AND u.is_deleted = 1";
+            conditions.push("u.is_deleted = 1");
         }
 
         if (canSiteSurvey !== undefined) {
             params.push(canSiteSurvey);
-            whereClause += ` AND r.can_site_survey = $${params.length}`;
+            conditions.push(`r.can_site_survey = $${params.length}`);
         }
-
         if (canInstallation !== undefined) {
             params.push(canInstallation);
-            whereClause += ` AND r.can_installation = $${params.length}`;
+            conditions.push(`r.can_installation = $${params.length}`);
         }
+        if (canSale !== undefined) {
+            params.push(canSale);
+            conditions.push(`r.can_sale = $${params.length}`);
+        }
+
+        const whereClause = conditions.join(" AND ");
 
         const result = await this.pool.query(
             `SELECT u.id, u.uid, u.tenant_uid as "tenantUid", u.role_uid as "roleUid", 

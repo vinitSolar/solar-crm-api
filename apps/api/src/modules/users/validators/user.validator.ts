@@ -10,6 +10,7 @@ export const getPaginatedUsersSchema = z.object({
         status: z.enum(["active", "deleted", "all"]).optional(),
         canSiteSurvey: z.number().int().min(0).max(1).optional(),
         canInstallation: z.number().int().min(0).max(1).optional(),
+        canSale: z.number().int().min(0).max(1).optional(),
     })
 });
 
@@ -62,6 +63,7 @@ export const getAllUsersSchema = z.object({
         status: z.enum(["active", "deleted", "all"]).optional(),
         canSiteSurvey: z.number().int().min(0).max(1).optional(),
         canInstallation: z.number().int().min(0).max(1).optional(),
+        canSale: z.number().int().min(0).max(1).optional(),
     })
 });
 

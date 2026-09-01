@@ -285,6 +285,7 @@ export class AuthRepository {
                     isActive: roleResult.rows[0].is_active,
                     canSiteSurvey: roleResult.rows[0].can_site_survey, 
                     canInstallation: roleResult.rows[0].can_installation,
+                    canSale: roleResult.rows[0].can_sale,
                     createdAt: roleResult.rows[0].created_at,
                     updatedAt: roleResult.rows[0].updated_at
                   }

@@ -69,6 +69,26 @@ export class UserController {
         }
     };
 
+    getUsersForDropdown = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const status = req.body.status as "active" | "deleted" | "all" | undefined;
+            const canSiteSurvey = req.body.canSiteSurvey !== undefined ? Number(req.body.canSiteSurvey) : undefined;
+            const canInstallation = req.body.canInstallation !== undefined ? Number(req.body.canInstallation) : undefined;
+            logger.info("UserController.getUsersForDropdown", { tenantUid: authReq.tenantUid, status });
+
+            const users = await this.userService.getUsersForDropdown(authReq.tenantUid, authReq.user.uid, status, canSiteSurvey, canInstallation);
+
+            res.status(200).json({
+                success: true,
+                message: USER_MESSAGES.FETCHED_ALL_SUCCESS,
+                data: users,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     getUserByUid = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;

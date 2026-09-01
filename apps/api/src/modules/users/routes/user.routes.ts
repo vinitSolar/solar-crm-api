@@ -106,6 +106,45 @@ function createUserRouter(): Router {
 
     /**
      * @swagger
+     * /users/dropdown:
+     *   post:
+     *     tags: [Users]
+     *     summary: Get all users for dropdown
+     *     description: Retrieves a list of all users for the authenticated tenant, formatted for a dropdown. Places the current user at the top as "My Self".
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: false
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/getAllUsersSchemaBody'
+     *             properties:
+     *               status:
+     *                 type: string
+     *                 enum: [active, deleted, all]
+     *               canSiteSurvey:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *               canInstallation:
+     *                 type: integer
+     *                 enum: [0, 1]
+     *     responses:
+     *       200:
+     *         description: Users fetched successfully
+     *       401:
+     *         description: Unauthorized
+     */
+    router.post(
+        "/dropdown",
+        requirePermission("USERS", "can_create"),
+        authenticate,
+        validateUserRequest(getAllUsersSchema),
+        userController.getUsersForDropdown,
+    );
+
+    /**
+     * @swagger
      * /users/{uid}:
      *   get:
      *     tags: [Users]

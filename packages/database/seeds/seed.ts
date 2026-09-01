@@ -186,8 +186,8 @@ export async function seed(pool: Pool) {
 
             // 4. User: Admin
             await client.query(
-                `INSERT INTO users (uid, tenant_uid, role_uid, first_name, last_name, email, password, is_active, is_deleted, created_by)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                `INSERT INTO users (uid, tenant_uid, role_uid, first_name, last_name, email, password, is_active, is_owner, is_deleted, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                  ON CONFLICT (email) DO NOTHING`,
                 [
                     userUid,
@@ -197,6 +197,7 @@ export async function seed(pool: Pool) {
                     "User",
                     "admin@sunselect.com",
                     hashedPassword,
+                    1,
                     1,
                     0,
                     "SYSTEM",

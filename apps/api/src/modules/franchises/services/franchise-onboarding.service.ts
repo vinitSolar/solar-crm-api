@@ -132,6 +132,7 @@ export class FranchiseOnboardingService {
                         lastName,
                         email,
                         password: hashedPassword,
+                        isOwner: 1,
                     },
                     createdBy
                 );
@@ -208,7 +209,7 @@ export class FranchiseOnboardingService {
                             canCreate: 0,
                             canEdit: 0,
                             canDelete: 0,
-                            canSetting: 1,
+                            canSetting: 0,
                         };
                     }
 

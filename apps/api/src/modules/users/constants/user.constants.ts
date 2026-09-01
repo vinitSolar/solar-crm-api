@@ -10,6 +10,7 @@ export const USER_MESSAGES = {
     ALREADY_EXISTS: "User with this email already exists",
     SYSTEM_USER_UPDATE_ERROR: "System users cannot be modified",
     SYSTEM_USER_DELETE_ERROR: "System users cannot be deleted",
+    OWNER_USER_DELETE_ERROR: "Franchise owner cannot be deleted",
     UPDATE_FAILED: "Failed to update user",
     DELETE_FAILED: "Failed to delete user",
     RESTORE_FAILED: "Failed to restore user or user not found in deleted state",

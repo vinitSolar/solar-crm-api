@@ -26,6 +26,8 @@ export interface IQuotationPdfData {
         subtotal: number;
         gstAmount: number;
         grandTotal: number;
+        discount?: number;
+        packageGst?: number | null;
         notes: string | null;
         createdAt: string;
     };
@@ -565,8 +567,14 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
                     <td class="text-right">Subtotal:</td>
                     <td class="text-right" style="width: 120px;">${formatINR(quotation.subtotal)}</td>
                 </tr>
+                ${quotation.discount ? `
                 <tr>
-                    <td class="text-right">GST Amount:</td>
+                    <td class="text-right">Discount:</td>
+                    <td class="text-right" style="color: #047857;">- ${formatINR(quotation.discount)}</td>
+                </tr>
+                ` : ""}
+                <tr>
+                    <td class="text-right">GST Amount ${quotation.packageGst ? `(${quotation.packageGst}%)` : ""}:</td>
                     <td class="text-right">${formatINR(quotation.gstAmount)}</td>
                 </tr>
                 <tr class="bold-row">

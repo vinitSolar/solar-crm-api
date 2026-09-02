@@ -15,6 +15,7 @@ export interface CreatePackageDTO {
     description?: string;
     capacityKw?: number;
     recomendedPrice: number;
+    gst?: number;
     products: PackageProductDTO[];
     scopeOfWork?: PackageScopeOfWorkDTO[];
 }
@@ -25,6 +26,7 @@ export interface UpdatePackageDTO {
     description?: string;
     capacityKw?: number;
     recomendedPrice?: number;
+    gst?: number;
     isActive?: number; // 0 or 1
     products?: PackageProductDTO[];
     scopeOfWork?: PackageScopeOfWorkDTO[];
@@ -37,6 +39,7 @@ export interface PackageResponseDTO {
     description: string | null;
     capacityKw: number | null;
     recomendedPrice: number;
+    gst: number | null;
     isActive: boolean;
     isDeleted: boolean;
     createdAt: Date;

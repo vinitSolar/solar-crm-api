@@ -54,6 +54,7 @@ export interface SafeQuotationResponse {
     subtotal: number;
     gstAmount: number;
     grandTotal: number;
+    discount: number;
     subsidyData: any[];
     netCustomerCost: number;
     quotationNumber: string;
@@ -141,6 +142,7 @@ export const toSafeQuotation = (
         subtotal: quotation.subtotal,
         gstAmount: quotation.gstAmount,
         grandTotal: quotation.grandTotal,
+        discount: quotation.discount,
         subsidyData: quotation.subsidyData,
         netCustomerCost: quotation.netCustomerCost,
         quotationNumber: quotation.quotationNumber,

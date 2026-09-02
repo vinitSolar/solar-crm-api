@@ -18,6 +18,7 @@ export class PackageRepository {
             description: row.description,
             capacityKw: row.capacity_kw ? Number(row.capacity_kw) : null,
             recomendedPrice: Number(row.recomended_price),
+            gst: row.gst ? Number(row.gst) : null,
             isActive: row.is_active,
             isDeleted: row.is_deleted,
             createdAt: row.created_at,
@@ -86,9 +87,9 @@ export class PackageRepository {
             const packageUid = uuidv4();
             const packageQuery = `
                 INSERT INTO packages (
-                    uid, tenant_uid, name, package_code, description, capacity_kw, recomended_price, created_by, updated_by
+                    uid, tenant_uid, name, package_code, description, capacity_kw, recomended_price, gst, created_by, updated_by
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 RETURNING *
             `;
             const packageValues = [
@@ -99,6 +100,7 @@ export class PackageRepository {
                 data.description || null,
                 data.capacityKw || null,
                 data.recomendedPrice,
+                data.gst !== undefined ? data.gst : null,
                 userUid,
                 userUid
             ];
@@ -194,6 +196,7 @@ export class PackageRepository {
             if (data.description !== undefined) { updates.push(`description = $${i++}`); values.push(data.description); }
             if (data.capacityKw !== undefined) { updates.push(`capacity_kw = $${i++}`); values.push(data.capacityKw); }
             if (data.recomendedPrice !== undefined) { updates.push(`recomended_price = $${i++}`); values.push(data.recomendedPrice); }
+            if (data.gst !== undefined) { updates.push(`gst = $${i++}`); values.push(data.gst); }
             if (data.isActive !== undefined) { updates.push(`is_active = $${i++}`); values.push(data.isActive === 1); }
 
             updates.push(`updated_by = $${i++}`); values.push(userUid);
@@ -382,7 +385,7 @@ export class PackageRepository {
         if (status === "active" || !status) conditions.push(`is_deleted = false AND is_active = true`);
         else if (status === "deleted") conditions.push(`is_deleted = true`);
 
-        const query = `SELECT uid, name, package_code, capacity_kw, recomended_price FROM packages WHERE ${conditions.join(" AND ")} ORDER BY name ASC`;
+        const query = `SELECT uid, name, package_code, capacity_kw, recomended_price, gst FROM packages WHERE ${conditions.join(" AND ")} ORDER BY name ASC`;
         const result = await this.pool.query(query, values);
         
         return result.rows.map(row => ({
@@ -390,7 +393,8 @@ export class PackageRepository {
             name: row.name,
             packageCode: row.package_code,
             capacityKw: row.capacity_kw ? Number(row.capacity_kw) : null,
-            recomendedPrice: Number(row.recomended_price)
+            recomendedPrice: Number(row.recomended_price),
+            gst: row.gst ? Number(row.gst) : null
         }));
     }
 

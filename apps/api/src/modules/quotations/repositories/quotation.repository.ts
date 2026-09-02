@@ -38,6 +38,7 @@ export class QuotationRepository {
         subtotal: number;
         gstAmount: number;
         grandTotal: number;
+        discount: number;
         subsidyData?: any[];
         netCustomerCost: number;
         quotationNumber: string;
@@ -49,8 +50,8 @@ export class QuotationRepository {
         const uid = uuidv4();
         const query = `
             INSERT INTO quotations 
-            (uid, tenant_uid, lead_uid, package_uid, subtotal, gst_amount, grand_total, subsidy_data, net_customer_cost, quotation_number, system_size, valid_till, status, notes, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            (uid, tenant_uid, lead_uid, package_uid, subtotal, gst_amount, grand_total, discount, subsidy_data, net_customer_cost, quotation_number, system_size, valid_till, status, notes, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             RETURNING *
         `;
         const values = [
@@ -61,6 +62,7 @@ export class QuotationRepository {
             data.subtotal,
             data.gstAmount,
             data.grandTotal,
+            data.discount,
             JSON.stringify(data.subsidyData ?? []),
             data.netCustomerCost,
             data.quotationNumber,
@@ -227,6 +229,7 @@ export class QuotationRepository {
         subtotal?: number;
         gstAmount?: number;
         grandTotal?: number;
+        discount?: number;
         subsidyData?: any[];
         netCustomerCost?: number;
         systemSize?: number;
@@ -251,6 +254,7 @@ export class QuotationRepository {
         addField("subtotal", data.subtotal);
         addField("gst_amount", data.gstAmount);
         addField("grand_total", data.grandTotal);
+        addField("discount", data.discount);
         if (data.subsidyData !== undefined) addField("subsidy_data", JSON.stringify(data.subsidyData));
         addField("net_customer_cost", data.netCustomerCost);
         addField("system_size", data.systemSize);
@@ -627,6 +631,7 @@ export class QuotationRepository {
             subtotal: Number(row.subtotal || 0),
             gstAmount: Number(row.gst_amount || 0),
             grandTotal: Number(row.grand_total || 0),
+            discount: Number(row.discount || 0),
             subsidyData: typeof row.subsidy_data === "string" ? JSON.parse(row.subsidy_data) : (row.subsidy_data || []),
             netCustomerCost: Number(row.net_customer_cost || 0),
             validTill: row.valid_till,

@@ -9,6 +9,7 @@ export interface IQuotation {
     subtotal: number;
     gstAmount: number;
     grandTotal: number;
+    discount: number;
     subsidyData: ISubsidyData[];
     netCustomerCost: number;
     validTill: Date;
@@ -126,6 +127,7 @@ export interface ICreateQuotationRequest {
     subtotal: number;
     gstAmount: number;
     grandTotal: number;
+    discount?: number;
     subsidyData?: ISubsidyData[];
     netCustomerCost: number;
     packageProducts: ICreateQuotationItemRequest[];
@@ -145,6 +147,7 @@ export interface IUpdateQuotationRequest {
     subtotal?: number;
     gstAmount?: number;
     grandTotal?: number;
+    discount?: number;
     subsidyData?: ISubsidyData[];
     netCustomerCost?: number;
     packageProducts?: ICreateQuotationItemRequest[];

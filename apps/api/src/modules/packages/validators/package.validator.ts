@@ -13,6 +13,7 @@ export const createPackageSchema = z.object({
     description: z.string().optional().nullable(),
     capacityKw: z.coerce.number().min(0, "Capacity must be a positive number").optional().nullable(),
     recomendedPrice: z.coerce.number().min(0, "Price must be a positive number"),
+    gst: z.coerce.number().min(0, "GST must be a positive number").optional().nullable(),
     products: z.array(packageProductSchema).min(1, "A package must contain at least one product"),
     scopeOfWork: z.array(z.object({
         scopeOfWorkUid: z.string().uuid("Invalid Scope of Work UID"),
@@ -26,6 +27,7 @@ export const updatePackageSchema = z.object({
     description: z.string().optional().nullable(),
     capacityKw: z.coerce.number().min(0, "Capacity must be a positive number").optional().nullable(),
     recomendedPrice: z.coerce.number().min(0, "Price must be a positive number").optional(),
+    gst: z.coerce.number().min(0, "GST must be a positive number").optional().nullable(),
     isActive: z.coerce.number().min(0).max(1).optional(),
     products: z.array(packageProductSchema).min(1, "A package must contain at least one product").optional(),
     scopeOfWork: z.array(z.object({

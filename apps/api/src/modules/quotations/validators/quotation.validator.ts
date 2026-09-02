@@ -12,6 +12,7 @@ export const createQuotationSchema = z.object({
         subtotal: z.number().nonnegative(),
         gstAmount: z.number().nonnegative(),
         grandTotal: z.number().nonnegative(),
+        discount: z.number().nonnegative().optional().default(0),
         subsidyData: z.array(z.object({
             uid: z.string().uuid(),
             name: z.string().min(1),
@@ -68,6 +69,7 @@ export const updateQuotationSchema = z.object({
         subtotal: z.number().nonnegative().optional(),
         gstAmount: z.number().nonnegative().optional(),
         grandTotal: z.number().nonnegative().optional(),
+        discount: z.number().nonnegative().optional(),
         subsidyData: z.array(z.object({
             uid: z.string().uuid(),
             name: z.string().min(1),

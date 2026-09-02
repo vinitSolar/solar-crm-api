@@ -106,6 +106,7 @@ export class QuotationService {
                 subtotal: number;
                 gstAmount: number;
                 grandTotal: number;
+                discount: number;
                 subsidyData?: any[];
                 netCustomerCost: number;
                 quotationNumber: string;
@@ -118,6 +119,7 @@ export class QuotationService {
                 subtotal: data.subtotal,
                 gstAmount: data.gstAmount,
                 grandTotal: data.grandTotal,
+                discount: data.discount ?? 0,
                 netCustomerCost: data.netCustomerCost,
                 quotationNumber: nextQuoteNumber,
                 systemSize: systemSize,
@@ -337,6 +339,7 @@ export class QuotationService {
                 subtotal?: number;
                 gstAmount?: number;
                 grandTotal?: number;
+                discount?: number;
                 subsidyData?: any[];
                 netCustomerCost?: number;
                 systemSize?: number;
@@ -350,6 +353,7 @@ export class QuotationService {
             if (data.subtotal !== undefined) updatePayload.subtotal = data.subtotal;
             if (data.gstAmount !== undefined) updatePayload.gstAmount = data.gstAmount;
             if (data.grandTotal !== undefined) updatePayload.grandTotal = data.grandTotal;
+            if (data.discount !== undefined) updatePayload.discount = data.discount;
             if (data.subsidyData !== undefined) updatePayload.subsidyData = data.subsidyData;
             if (data.netCustomerCost !== undefined) updatePayload.netCustomerCost = data.netCustomerCost;
             if (data.systemSize !== undefined) updatePayload.systemSize = data.systemSize;
@@ -712,6 +716,14 @@ export class QuotationService {
         }
 
         // 4. Calculate Subtotal, GST and Grand Total
+        let packageGst = null;
+        if (quotation.packageUid) {
+            const packageRes = await pool.query(`SELECT gst FROM packages WHERE uid = $1`, [quotation.packageUid]);
+            if (packageRes.rows.length > 0) {
+                packageGst = packageRes.rows[0].gst ? Number(packageRes.rows[0].gst) : null;
+            }
+        }
+
         const mappedItems = items.map(item => {
             const lineTotal = Number(item.lineTotal);
             return {
@@ -767,6 +779,8 @@ export class QuotationService {
                 subtotal: quotation.subtotal,
                 gstAmount: quotation.gstAmount,
                 grandTotal: quotation.grandTotal,
+                discount: quotation.discount,
+                packageGst,
                 notes: quotation.notes,
                 createdAt: formatDate(quotation.createdAt)
             },

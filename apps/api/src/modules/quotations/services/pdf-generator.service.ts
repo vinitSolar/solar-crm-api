@@ -27,29 +27,17 @@ export class QuotationPdfGenerator {
             await page.setContent(html, { waitUntil: "load" });
             await page.waitForNetworkIdle();
             
-            // Render A4 PDF with custom repeating headers/footers in margins
+            // Render A4 PDF with full bleed (margins: 0) to allow cover page and custom designed headers/footers
             const pdfBuffer = await page.pdf({
                 format: "A4",
                 printBackground: true,
                 margin: {
-                    top: "22mm",
-                    right: "15mm",
-                    bottom: "22mm",
-                    left: "15mm"
+                    top: "0px",
+                    right: "0px",
+                    bottom: "0px",
+                    left: "0px"
                 },
-                displayHeaderFooter: true,
-                headerTemplate: `
-                    <div style="font-size: 8px; font-family: 'Helvetica Neue', Arial, sans-serif; width: 100%; display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-left: 15mm; margin-right: 15mm; color: #64748b;">
-                        <div><strong>${data.franchise.name}</strong> - Quotation</div>
-                        <div>Quote #: ${data.quotation.quotationNumber}</div>
-                    </div>
-                `,
-                footerTemplate: `
-                    <div style="font-size: 8px; font-family: 'Helvetica Neue', Arial, sans-serif; width: 100%; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 5px; margin-left: 15mm; margin-right: 15mm; color: #64748b;">
-                        <div>Powered by SunSelect CRM</div>
-                        <div>Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>
-                    </div>
-                `
+                displayHeaderFooter: false
             });
             
             return Buffer.from(pdfBuffer);

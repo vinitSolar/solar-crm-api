@@ -10,7 +10,7 @@ export const createQuotationSchema = z.object({
         notes: z.string().max(1000, QUOTATION_VALIDATION_MESSAGES.NOTES_MAX).optional().nullable(),
         packageUid: z.string().uuid(QUOTATION_VALIDATION_MESSAGES.INVALID_UID).optional(),
         subtotal: z.number().nonnegative(),
-        gstAmount: z.number().nonnegative(),
+        gstAmount: z.number().nonnegative().optional().default(0),
         grandTotal: z.number().nonnegative(),
         discount: z.number().nonnegative().optional().default(0),
         subsidyData: z.array(z.object({

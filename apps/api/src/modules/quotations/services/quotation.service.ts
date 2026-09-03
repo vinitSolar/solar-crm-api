@@ -118,7 +118,7 @@ export class QuotationService {
             } = {
                 leadUid: data.leadUid,
                 subtotal: data.subtotal,
-                gstAmount: data.gstAmount,
+                gstAmount: data.gstAmount ?? 0,
                 grandTotal: data.grandTotal,
                 discount: data.discount ?? 0,
                 netCustomerCost: data.netCustomerCost,

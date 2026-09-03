@@ -125,7 +125,7 @@ export interface ICreateQuotationRequest {
     notes?: string;
     packageUid?: string;
     subtotal: number;
-    gstAmount: number;
+    gstAmount?: number;
     grandTotal: number;
     discount?: number;
     subsidyData?: ISubsidyData[];

@@ -28,6 +28,8 @@ export interface IQuotationPdfData {
         grandTotal: number;
         discount?: number;
         packageGst?: number | null;
+        packageName?: string | null;
+        packageDescription?: string | null;
         notes: string | null;
         createdAt: string;
     };
@@ -40,6 +42,7 @@ export interface IQuotationPdfData {
         gstPercentage: number;
         lineTotal: number;
         description: string | null;
+        isExtra?: number;
     }>;
     scopeOfWork: Array<{
         title: string;

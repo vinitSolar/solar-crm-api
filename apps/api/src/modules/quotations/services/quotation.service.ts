@@ -1,4 +1,5 @@
 import pool from "@packages/connection.js";
+import crypto from "crypto";
 import { QuotationRepository } from "../repositories/quotation.repository.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
@@ -128,12 +129,49 @@ export class QuotationService {
                 notes: data.notes ?? null
             };
             if (data.packageUid !== undefined) payload.packageUid = data.packageUid;
-            if (data.subsidyData !== undefined) payload.subsidyData = data.subsidyData;
+            let subsidyData = data.subsidyData;
+            if ((!subsidyData || subsidyData.length === 0) && lead.state && systemSize > 0) {
+                const subsidyRule = await this.repository.getStateSubsidyRule(lead.state);
+                if (subsidyRule) {
+                    const calculatedSubsidy = Math.min(
+                        subsidyRule.subsidyPerKw * systemSize,
+                        subsidyRule.maximumSubsidyAmount
+                    );
+                    subsidyData = [{
+                        uid: crypto.randomUUID(), 
+                        name: `${lead.state} State Solar Subsidy`,
+                        amount: calculatedSubsidy
+                    }];
+                }
+            }
+            if (subsidyData !== undefined) payload.subsidyData = subsidyData;
 
             const quotation = await this.repository.create(client, tenantUid, payload, createdBy);
 
             // 4. Resolve and save products snapshot
-            const allProducts = [...(data.packageProducts || []), ...(data.extraProducts || [])];
+            let packageProducts = data.packageProducts || [];
+            if (data.packageUid && packageProducts.length === 0) {
+                const pkgQuery = `
+                    SELECT pp.product_uid, pp.quantity, pp.remarks, p.name, p.price, p.gst_percentage
+                    FROM package_products pp
+                    JOIN products p ON p.uid = pp.product_uid
+                    WHERE pp.package_uid = $1 AND pp.is_deleted = 0
+                `;
+                const pkgResult = await client.query(pkgQuery, [data.packageUid]);
+                packageProducts = pkgResult.rows.map(r => ({
+                    productUid: r.product_uid,
+                    quantity: Number(r.quantity),
+                    productName: r.name,
+                    pricePerUnit: Number(r.price),
+                    gstPercentage: Number(r.gst_percentage),
+                    description: r.remarks
+                }));
+            }
+
+            const allProducts = [
+                ...packageProducts.map(p => ({ ...p, isExtra: 0 })),
+                ...(data.extraProducts || []).map(p => ({ ...p, isExtra: 1 }))
+            ];
             
             if (allProducts.length === 0) {
                 throw new CustomError("Quotation must have at least one product.", 400);
@@ -717,10 +755,14 @@ export class QuotationService {
 
         // 4. Calculate Subtotal, GST and Grand Total
         let packageGst = null;
+        let packageName = null;
+        let packageDescription = null;
         if (quotation.packageUid) {
-            const packageRes = await pool.query(`SELECT gst FROM packages WHERE uid = $1`, [quotation.packageUid]);
+            const packageRes = await pool.query(`SELECT name, gst, description FROM packages WHERE uid = $1`, [quotation.packageUid]);
             if (packageRes.rows.length > 0) {
                 packageGst = packageRes.rows[0].gst ? Number(packageRes.rows[0].gst) : null;
+                packageName = packageRes.rows[0].name;
+                packageDescription = packageRes.rows[0].description;
             }
         }
 
@@ -734,7 +776,8 @@ export class QuotationService {
                 pricePerUnit: Number(item.pricePerUnit),
                 gstPercentage: Number(item.gstPercentage),
                 lineTotal: lineTotal,
-                description: item.description
+                description: item.description,
+                isExtra: (item as any).isExtra
             };
         });
 
@@ -781,6 +824,8 @@ export class QuotationService {
                 grandTotal: quotation.grandTotal,
                 discount: quotation.discount,
                 packageGst,
+                packageName,
+                packageDescription,
                 notes: quotation.notes,
                 createdAt: formatDate(quotation.createdAt)
             },

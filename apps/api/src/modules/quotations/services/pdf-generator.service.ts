@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer";
-import { generateQuotationHtml } from "../templates/quotation-pdf.template.js";
+import { generateQuotationHtmlV2 } from "../templates/quotation-pdf-v2.template.js";
 import type { IQuotationPdfData } from "../templates/quotation-pdf.template.js";
 import { logger } from "@packages/logger/index.js";
 
@@ -13,7 +13,7 @@ export class QuotationPdfGenerator {
      */
     static async generatePdfBuffer(data: IQuotationPdfData): Promise<Buffer> {
         logger.info(`Rendering quotation HTML to PDF buffer for Quote #: ${data.quotation.quotationNumber}`);
-        const html = generateQuotationHtml(data);
+        const html = generateQuotationHtmlV2(data);
         
         let browser;
         try {

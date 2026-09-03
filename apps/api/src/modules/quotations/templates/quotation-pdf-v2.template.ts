@@ -1,6 +1,10 @@
 import type { IQuotationPdfData } from './quotation-pdf.template.js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let cachedCoverBgBase64: string | null = null;
 let cachedCoverLogoBase64: string | null = null;
@@ -18,9 +22,10 @@ let cachedManImageBase64: string | null = null;
 
 function loadAssetBase64(fileName: string): string {
   const candidates = [
+    path.resolve(__dirname, '../assets/Images', fileName),
+    path.resolve(__dirname, '../../../../apps/api/src/modules/quotations/assets/Images', fileName),
     path.join(process.cwd(), 'apps/api/src/modules/quotations/assets/Images', fileName),
-    path.join(process.cwd(), 'src/modules/quotations/assets/Images', fileName),
-    path.resolve('c:/Vinit/sunselect-crm/apps/api/src/modules/quotations/assets/Images', fileName)
+    path.join(process.cwd(), 'src/modules/quotations/assets/Images', fileName)
   ];
 
   for (const filePath of candidates) {
@@ -46,9 +51,10 @@ let cachedFontFacesCss: string | null = null;
 
 function loadFontBase64(fileName: string): string {
   const candidates = [
+    path.resolve(__dirname, '../assets/Fonts', fileName),
+    path.resolve(__dirname, '../../../../apps/api/src/modules/quotations/assets/Fonts', fileName),
     path.join(process.cwd(), 'apps/api/src/modules/quotations/assets/Fonts', fileName),
-    path.join(process.cwd(), 'src/modules/quotations/assets/Fonts', fileName),
-    path.resolve('c:/Vinit/sunselect-crm/apps/api/src/modules/quotations/assets/Fonts', fileName)
+    path.join(process.cwd(), 'src/modules/quotations/assets/Fonts', fileName)
   ];
 
   for (const filePath of candidates) {
@@ -1947,7 +1953,7 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
         </tfoot>
       </table>
 
-      <div class="cols" style="align-items: flex-start; margin-top: 14px;">
+      <div class="cols" style="align-items: flex-start; margin-top: 32px;">
          <div class="col" style="flex: 1.4; padding-right: 15px;">
              ${termsConditions.length > 0 ? termsConditions.map((tc) => `
                  <h3 style="color: var(--red); margin: 6px 0 4px 0;">${tc.title}</h3>

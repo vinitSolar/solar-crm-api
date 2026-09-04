@@ -12,6 +12,7 @@ export interface IQuotation {
     discount: number;
     subsidyData: ISubsidyData[];
     netCustomerCost: number;
+    extra?: IQuotationExtra | null;
     validTill: Date;
     status: number;
     notes: string | null;
@@ -33,6 +34,11 @@ export interface ISubsidyData {
     uid: string;
     name: string;
     amount: number;
+}
+
+export interface IQuotationExtra {
+    value?: number | string | null;
+    description?: string | null;
 }
 
 export interface IQuotationItem {
@@ -130,6 +136,7 @@ export interface ICreateQuotationRequest {
     discount?: number;
     subsidyData?: ISubsidyData[];
     netCustomerCost: number;
+    extra?: IQuotationExtra | null;
     packageProducts: ICreateQuotationItemRequest[];
     extraProducts?: ICreateQuotationItemRequest[];
     scopeOfWork?: ICreateQuotationScopeOfWorkRequest[];
@@ -150,6 +157,7 @@ export interface IUpdateQuotationRequest {
     discount?: number;
     subsidyData?: ISubsidyData[];
     netCustomerCost?: number;
+    extra?: IQuotationExtra | null;
     packageProducts?: ICreateQuotationItemRequest[];
     extraProducts?: ICreateQuotationItemRequest[];
     scopeOfWork?: ICreateQuotationScopeOfWorkRequest[];

@@ -1937,6 +1937,13 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
             <td class="calc-value discount-text">- ${formatINR(quotation.discount)}</td>
           </tr>
           ` : ''}
+          ${quotation.extra && quotation.extra.value !== undefined && quotation.extra.value !== null && quotation.extra.value !== "" ? `
+          <tr class="calc-row">
+            <td colspan="4" class="calc-blank"></td>
+            <td colspan="3" class="calc-label">${quotation.extra.description ? `Extra (${quotation.extra.description})` : 'Extra Charges'}</td>
+            <td class="calc-value">${!isNaN(Number(quotation.extra.value)) ? formatINR(Number(quotation.extra.value)) : quotation.extra.value}</td>
+          </tr>
+          ` : ''}
           ${quotation.gstAmount && quotation.gstAmount > 0 ? `
           <tr class="calc-row">
             <td colspan="4" class="calc-blank"></td>

@@ -27,6 +27,10 @@ export interface IQuotationPdfData {
         gstAmount?: number;
         grandTotal: number;
         discount?: number;
+        extra?: {
+            value?: number | string | null;
+            description?: string | null;
+        } | null;
         packageGst?: number | null;
         packageName?: string | null;
         packageDescription?: string | null;
@@ -574,6 +578,12 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
                 <tr>
                     <td class="text-right">Discount:</td>
                     <td class="text-right" style="color: #047857;">- ${formatINR(quotation.discount)}</td>
+                </tr>
+                ` : ""}
+                ${quotation.extra && quotation.extra.value !== undefined && quotation.extra.value !== null && quotation.extra.value !== "" ? `
+                <tr>
+                    <td class="text-right">${quotation.extra.description ? `Extra (${quotation.extra.description}):` : "Extra Charges:"}</td>
+                    <td class="text-right">${!isNaN(Number(quotation.extra.value)) ? formatINR(Number(quotation.extra.value)) : quotation.extra.value}</td>
                 </tr>
                 ` : ""}
                 ${quotation.gstAmount && quotation.gstAmount > 0 ? `

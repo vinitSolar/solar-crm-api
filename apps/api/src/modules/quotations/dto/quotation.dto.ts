@@ -2,7 +2,8 @@ import type {
     IQuotation, 
     IQuotationItem, 
     IQuotationScopeOfWorkItem, 
-    IQuotationTermsConditionsItem 
+    IQuotationTermsConditionsItem,
+    IQuotationExtra
 } from "../interfaces/quotation.interface.js";
 
 export interface SafeQuotationItemResponse {
@@ -57,6 +58,7 @@ export interface SafeQuotationResponse {
     discount: number;
     subsidyData: any[];
     netCustomerCost: number;
+    extra: IQuotationExtra | null;
     quotationNumber: string;
     systemSize: number;
     validTill: Date;
@@ -145,6 +147,7 @@ export const toSafeQuotation = (
         discount: quotation.discount,
         subsidyData: quotation.subsidyData,
         netCustomerCost: quotation.netCustomerCost,
+        extra: quotation.extra ?? null,
         quotationNumber: quotation.quotationNumber,
         systemSize: Number(quotation.systemSize),
         validTill: quotation.validTill,

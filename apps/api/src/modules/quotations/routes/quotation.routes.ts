@@ -124,6 +124,15 @@ router.post("/list", requirePermission("QUOTATIONS", "can_view"), validateReques
  *                 format: uuid
  *               price:
  *                 type: number
+ *               extra:
+ *                 type: object
+ *                 properties:
+ *                   value:
+ *                     type: number
+ *                     example: 5000
+ *                   description:
+ *                     type: string
+ *                     example: "Additional meter wiring"
  *               packageProducts:
  *                 type: array
  *                 items:
@@ -266,6 +275,15 @@ router.get("/:uid", requirePermission("QUOTATIONS", "can_view"), validateRequest
  *                 format: uuid
  *               price:
  *                 type: number
+ *               extra:
+ *                 type: object
+ *                 properties:
+ *                   value:
+ *                     type: number
+ *                     example: 5000
+ *                   description:
+ *                     type: string
+ *                     example: "Additional meter wiring"
  *               packageProducts:
  *                 type: array
  *                 items:

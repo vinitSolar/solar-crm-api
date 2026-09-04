@@ -115,6 +115,7 @@ export class QuotationService {
                 validTill: string;
                 status?: number;
                 notes?: string | null;
+                extra?: any | null;
             } = {
                 leadUid: data.leadUid,
                 subtotal: data.subtotal,
@@ -126,7 +127,8 @@ export class QuotationService {
                 systemSize: systemSize,
                 validTill: data.validTill,
                 status: 0,
-                notes: data.notes ?? null
+                notes: data.notes ?? null,
+                extra: data.extra ?? null
             };
             if (data.packageUid !== undefined) payload.packageUid = data.packageUid;
             let subsidyData = data.subsidyData;
@@ -384,6 +386,7 @@ export class QuotationService {
                 validTill?: string;
                 status?: number;
                 notes?: string | null;
+                extra?: any | null;
             } = {};
 
             if (data.leadUid !== undefined) updatePayload.leadUid = data.leadUid;
@@ -394,6 +397,7 @@ export class QuotationService {
             if (data.discount !== undefined) updatePayload.discount = data.discount;
             if (data.subsidyData !== undefined) updatePayload.subsidyData = data.subsidyData;
             if (data.netCustomerCost !== undefined) updatePayload.netCustomerCost = data.netCustomerCost;
+            if (data.extra !== undefined) updatePayload.extra = data.extra;
             if (data.systemSize !== undefined) updatePayload.systemSize = data.systemSize;
             if (data.validTill !== undefined) updatePayload.validTill = data.validTill;
             if (data.status !== undefined) updatePayload.status = data.status;
@@ -823,6 +827,7 @@ export class QuotationService {
                 gstAmount: quotation.gstAmount,
                 grandTotal: quotation.grandTotal,
                 discount: quotation.discount,
+                extra: quotation.extra ?? null,
                 packageGst,
                 packageName,
                 packageDescription,

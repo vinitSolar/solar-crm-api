@@ -2,6 +2,11 @@ import { z } from "zod";
 import { QUOTATION_VALIDATION_MESSAGES } from "../constants/quotation.constants.js";
 import type { Request, Response, NextFunction } from "express";
 
+export const quotationExtraSchema = z.object({
+    value: z.union([z.number(), z.string()]).optional().nullable(),
+    description: z.string().optional().nullable(),
+}).optional().nullable();
+
 export const createQuotationSchema = z.object({
     body: z.object({
         leadUid: z.string().uuid(QUOTATION_VALIDATION_MESSAGES.INVALID_LEAD_UID),
@@ -19,6 +24,7 @@ export const createQuotationSchema = z.object({
             amount: z.number().nonnegative()
         })).optional(),
         netCustomerCost: z.number().nonnegative(),
+        extra: quotationExtraSchema,
         packageProducts: z.array(z.object({
             productUid: z.string().uuid(),
             quantity: z.number().positive(),
@@ -76,6 +82,7 @@ export const updateQuotationSchema = z.object({
             amount: z.number().nonnegative()
         })).optional(),
         netCustomerCost: z.number().nonnegative().optional(),
+        extra: quotationExtraSchema,
         packageProducts: z.array(z.object({
             productUid: z.string().uuid(),
             quantity: z.number().positive(),

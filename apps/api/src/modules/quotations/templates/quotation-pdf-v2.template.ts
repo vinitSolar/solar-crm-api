@@ -1670,19 +1670,6 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
     min-width:32px;
   }
 
-  .watermark {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-45deg);
-    font-size: 80px;
-    font-weight: 700;
-    color: rgba(226, 232, 240, 0.35);
-    pointer-events: none;
-    z-index: 0;
-    white-space: nowrap;
-  }
-
   @media print{
     body{ background:#fff; }
     .sheet-wrap{ padding:0; margin:0; }
@@ -1899,7 +1886,6 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
     <div class="bg-watermark">
       ${watermarkLogoBase64 ? `<img src="${watermarkLogoBase64}" alt="" class="page-watermark-img" />` : ''}
     </div>
-    ${quotation.statusText === "Draft" ? '<div class="watermark">DRAFT</div>' : ""}
 
     <div class="content">
       <div class="header">

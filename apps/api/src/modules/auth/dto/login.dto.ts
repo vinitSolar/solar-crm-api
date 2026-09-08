@@ -7,6 +7,9 @@ import type { IUserSafe } from "../interfaces/auth.interface.js";
 export interface LoginRequestDto {
     email: string;
     password: string;
+    deviceToken?: string;
+    deviceType?: "android" | "ios";
+    deviceName?: string;
 }
 
 /**

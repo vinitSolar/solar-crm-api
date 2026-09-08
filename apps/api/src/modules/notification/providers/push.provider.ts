@@ -30,6 +30,13 @@ class PushProvider {
     }
 
     /**
+     * Checks if Firebase Admin SDK is configured and available.
+     */
+    isConfigured(): boolean {
+        return this.initialize();
+    }
+
+    /**
      * Initializes the Firebase Admin SDK once.
      * If credentials are not configured, logs a warning and marks as unavailable.
      */
@@ -93,6 +100,17 @@ class PushProvider {
                         referenceUid: payload.referenceUid,
                         leadNumber,
                         customerName,
+                        click_action: "FLUTTER_NOTIFICATION_CLICK"
+                    }
+                };
+            }
+            case NOTIFICATION_TEMPLATE.TEST_PUSH: {
+                return {
+                    title: v.title || "SunSelect Test Notification",
+                    body: v.body || v.message || "This is a test notification from SunSelect Solar CRM!",
+                    data: {
+                        module: payload.module,
+                        referenceUid: payload.referenceUid,
                         click_action: "FLUTTER_NOTIFICATION_CLICK"
                     }
                 };

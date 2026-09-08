@@ -1,13 +1,13 @@
 import type { Request, Response, NextFunction } from "express";
 import type { IAuthenticatedRequest } from "../../auth/interfaces/auth.interface.js";
-import type { DeviceTokenRepository } from "../repositories/device-token.repository.js";
-import { logger } from "@packages/logger/index.js";
+import type { DeviceTokenService } from "../services/device-token.service.js";
+import { DEVICE_TOKEN_MESSAGES } from "../constants/device-token.constants.js";
 
 export class DeviceTokenController {
-    private readonly repository: DeviceTokenRepository;
+    private readonly service: DeviceTokenService;
 
-    constructor(repository: DeviceTokenRepository) {
-        this.repository = repository;
+    constructor(service: DeviceTokenService) {
+        this.service = service;
     }
 
     registerToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -17,23 +17,16 @@ export class DeviceTokenController {
             const userUid = authReq.user!.uid;
             const { deviceToken, deviceType, deviceName } = req.body;
 
-            const token = await this.repository.upsertToken(
+            const token = await this.service.registerToken(
                 tenantUid,
                 userUid,
                 { deviceToken, deviceType, deviceName },
                 userUid
             );
 
-            logger.info("Mobile device token registered", {
-                tenantUid,
-                userUid,
-                deviceType,
-                tokenUid: token.uid
-            });
-
             res.status(200).json({
                 success: true,
-                message: "Device token registered successfully",
+                message: DEVICE_TOKEN_MESSAGES.REGISTERED_SUCCESS,
                 data: {
                     uid: token.uid,
                     deviceType: token.deviceType,
@@ -52,16 +45,47 @@ export class DeviceTokenController {
             const userUid = authReq.user!.uid;
             const { deviceToken } = req.body;
 
-            await this.repository.deactivateToken(tenantUid, userUid, deviceToken);
-
-            logger.info("Mobile device token deactivated", {
-                tenantUid,
-                userUid
-            });
+            await this.service.removeToken(tenantUid, userUid, deviceToken);
 
             res.status(200).json({
                 success: true,
-                message: "Device token deactivated successfully"
+                message: DEVICE_TOKEN_MESSAGES.DEACTIVATED_SUCCESS
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    sendPushNotification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid!;
+            const callingUserUid = authReq.user!.uid;
+
+            // Target user can be passed in body, params (:uid), or defaults to self
+            const targetUserUid = req.body?.userUid || req.params?.uid || callingUserUid;
+
+            const options = {
+                title: req.body?.title,
+                body: req.body?.body,
+                template: req.body?.template,
+                leadNumber: req.body?.leadNumber,
+                customerName: req.body?.customerName,
+                systemSize: req.body?.systemSize,
+                city: req.body?.city
+            };
+
+            const result = await this.service.sendPushNotification(
+                tenantUid,
+                targetUserUid,
+                options,
+                callingUserUid
+            );
+
+            res.status(200).json({
+                success: result.delivered,
+                message: result.message,
+                data: result
             });
         } catch (error) {
             next(error);

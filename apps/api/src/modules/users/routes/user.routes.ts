@@ -3,8 +3,9 @@ import { UserController } from "../controllers/user.controller.js";
 import { UserService } from "../services/user.service.js";
 import { UserRepository } from "../repositories/user.repository.js";
 import { createUserSchema, updateUserSchema, getUserSchema, deleteUserSchema, validateUserRequest, getPaginatedUsersSchema, restoreUserSchema, getAllUsersSchema } from "../validators/user.validator.js";
-import { registerDeviceTokenSchema, deleteDeviceTokenSchema } from "../validators/device-token.validator.js";
+import { registerDeviceTokenSchema, deleteDeviceTokenSchema, sendPushNotificationSchema } from "../validators/device-token.validator.js";
 import { DeviceTokenRepository } from "../repositories/device-token.repository.js";
+import { DeviceTokenService } from "../services/device-token.service.js";
 import { DeviceTokenController } from "../controllers/device-token.controller.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
@@ -19,7 +20,8 @@ function createUserRouter(): Router {
     const userController = new UserController(userService);
 
     const deviceTokenRepository = new DeviceTokenRepository(pool);
-    const deviceTokenController = new DeviceTokenController(deviceTokenRepository);
+    const deviceTokenService = new DeviceTokenService(deviceTokenRepository, userRepository);
+    const deviceTokenController = new DeviceTokenController(deviceTokenService);
 
     router.use(authenticate);
 
@@ -226,6 +228,73 @@ function createUserRouter(): Router {
         "/device-token",
         validateUserRequest(deleteDeviceTokenSchema),
         deviceTokenController.removeToken
+    );
+
+    /**
+     * @swagger
+     * /users/push-notification:
+     *   post:
+     *     tags: [Users]
+     *     summary: Send a push notification to a user
+     *     description: Dispatches an FCM real-time push notification to active mobile device(s) of a specific user or the calling user.
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: false
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               userUid:
+     *                 type: string
+     *                 description: Target user UID. If omitted, defaults to the authenticated user.
+     *               title:
+     *                 type: string
+     *                 example: "New Lead Assigned"
+     *               body:
+     *                 type: string
+     *                 example: "You have been assigned lead SS00001 - Ramesh Patel (5 kW)."
+     *               template:
+     *                 type: string
+     *                 enum: [TEST_PUSH, LEAD_ASSIGNED]
+     *                 default: TEST_PUSH
+     *               leadNumber:
+     *                 type: string
+     *                 example: "SS00001"
+     *               customerName:
+     *                 type: string
+     *                 example: "Ramesh Patel"
+     *               systemSize:
+     *                 type: string
+     *                 example: "5 kW"
+     *               city:
+     *                 type: string
+     *                 example: "Navi Mumbai"
+     *     responses:
+     *       200:
+     *         description: Notification dispatch result
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Target user not found
+     */
+    router.post(
+        "/push-notification",
+        validateUserRequest(sendPushNotificationSchema),
+        deviceTokenController.sendPushNotification
+    );
+
+    router.post(
+        "/test-push",
+        validateUserRequest(sendPushNotificationSchema),
+        deviceTokenController.sendPushNotification
+    );
+
+    router.post(
+        "/:uid/push-notification",
+        validateUserRequest(sendPushNotificationSchema),
+        deviceTokenController.sendPushNotification
     );
 
     /**

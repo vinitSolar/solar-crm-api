@@ -16,5 +16,22 @@ export const deleteDeviceTokenSchema = z.object({
     }),
 });
 
+export const sendPushNotificationSchema = z.object({
+    body: z.object({
+        userUid: z.string().uuid("Invalid user UID format").optional(),
+        title: z.string().trim().max(100, "Title cannot exceed 100 characters").optional(),
+        body: z.string().trim().max(500, "Body cannot exceed 500 characters").optional(),
+        template: z.enum(["TEST_PUSH", "LEAD_ASSIGNED"]).optional(),
+        leadNumber: z.string().optional(),
+        customerName: z.string().optional(),
+        systemSize: z.string().optional(),
+        city: z.string().optional()
+    }).optional(),
+    params: z.object({
+        uid: z.string().uuid("Invalid user UID format").optional()
+    }).optional()
+});
+
 export type RegisterDeviceTokenInput = z.infer<typeof registerDeviceTokenSchema>["body"];
 export type DeleteDeviceTokenInput = z.infer<typeof deleteDeviceTokenSchema>["body"];
+export type SendPushNotificationInput = z.infer<typeof sendPushNotificationSchema>["body"];

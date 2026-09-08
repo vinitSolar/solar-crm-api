@@ -15,6 +15,9 @@ export const loginSchema = z.object({
     password: z
         .string({ error: "Password is required" })
         .min(6, "Password must be at least 6 characters"),
+    deviceToken: z.string().trim().min(10, "deviceToken must be at least 10 characters").optional(),
+    deviceType: z.enum(["android", "ios"], { message: "deviceType must be 'android' or 'ios'" }).optional(),
+    deviceName: z.string().trim().max(100).optional(),
 });
 
 /**
@@ -28,9 +31,13 @@ export const refreshTokenSchema = z.object({
 
 /**
  * Logout request validation schema.
- * Reuses the refresh token schema as it expects the same body.
  */
-export const logoutSchema = refreshTokenSchema;
+export const logoutSchema = z.object({
+    refreshToken: z
+        .string({ error: "Refresh token is required" })
+        .min(1, "Refresh token is required"),
+    deviceToken: z.string().trim().min(10).optional(),
+});
 
 /**
  * Change password request validation schema.

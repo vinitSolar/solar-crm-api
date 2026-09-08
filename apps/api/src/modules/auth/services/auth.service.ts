@@ -14,6 +14,7 @@ import { notificationService } from "../../notification/services/notification.se
 import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
 import { isRedisAvailable } from "../../notification/helpers/redis-health.helper.js";
 import type { OtpRepository } from "../repositories/otp.repository.js";
+import type { DeviceTokenRepository } from "../../users/repositories/device-token.repository.js";
 
 /**
  * Authentication Service.
@@ -24,10 +25,16 @@ import type { OtpRepository } from "../repositories/otp.repository.js";
 export class AuthService {
     private readonly authRepository: AuthRepository;
     private readonly otpRepository: OtpRepository;
+    private readonly deviceTokenRepository: DeviceTokenRepository;
 
-    constructor(authRepository: AuthRepository, otpRepository: OtpRepository) {
+    constructor(
+        authRepository: AuthRepository,
+        otpRepository: OtpRepository,
+        deviceTokenRepository: DeviceTokenRepository
+    ) {
         this.authRepository = authRepository;
         this.otpRepository = otpRepository;
+        this.deviceTokenRepository = deviceTokenRepository;
     }
 
     /**
@@ -91,6 +98,28 @@ export class AuthService {
 
         // Step 5: Update last login timestamp
         await this.authRepository.updateLastLogin(user.uid);
+
+        // Step 5.5: Register mobile device token if provided
+        if (dto.deviceToken && dto.deviceType) {
+            try {
+                await this.deviceTokenRepository.upsertToken(
+                    user.tenant_uid,
+                    user.uid,
+                    {
+                        deviceToken: dto.deviceToken,
+                        deviceType: dto.deviceType,
+                        deviceName: dto.deviceName || null
+                    },
+                    user.uid
+                );
+                logger.info("Mobile device token registered during login", {
+                    userUid: user.uid,
+                    deviceType: dto.deviceType
+                });
+            } catch (deviceTokenErr) {
+                logger.error("Failed to register device token during login:", deviceTokenErr);
+            }
+        }
 
         // Step 6: Build and return response
         logger.info("Login successful", { userUid: user.uid, tenantUid: user.tenant_uid });
@@ -160,7 +189,10 @@ export class AuthService {
     }
 
     /**
-     * Logs out the user by deleting their session from Redis.
+     * Logs out the user by deleting their session from the database.
+     * Note: FCM device tokens are intentionally preserved so push notifications
+     * continue to be delivered when the app is closed or in the background.
+     * Tokens are only pruned when Firebase reports them as permanently invalid.
      *
      * @param refreshToken - The refresh token of the session to invalidate.
      */

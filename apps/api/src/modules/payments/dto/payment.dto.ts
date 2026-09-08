@@ -1,4 +1,5 @@
 import type { IPayment, IPaymentSafe } from "../interfaces/payment.interface.js";
+import { storageService } from "@packages/storage/index.js";
 
 export function toPaymentSafe(payment: IPayment): IPaymentSafe {
     return {
@@ -8,7 +9,7 @@ export function toPaymentSafe(payment: IPayment): IPaymentSafe {
         paymentMethod: payment.paymentMethod,
         transactionReference: payment.transactionReference,
         paymentDate: payment.paymentDate,
-        imageProof: payment.imageProof,
+        imageProof: storageService.getPublicUrl(payment.imageProof),
         notes: payment.notes,
         isActive: payment.isActive,
         isDeleted: payment.isDeleted,

@@ -403,7 +403,10 @@ export class ProjectService {
             const documents = await this.milestoneDocumentRepository.getDocumentsByMilestoneUid(tenantUid, m.uid);
             return {
                 ...m,
-                documents: documents || []
+                documents: (documents || []).map(doc => ({
+                    ...doc,
+                    imageUrl: storageService.getPublicUrl(doc.imagePath) || doc.imagePath,
+                }))
             };
         }));
         
@@ -468,8 +471,7 @@ export class ProjectService {
             folder
         );
 
-        const fileUrl = fileUrlResult.url;
-        const fileName = fileUrlResult.path || path.basename(fileUrl);
+        const fileName = fileUrlResult.path || path.basename(fileUrlResult.url);
 
         // Save metadata
         const document = await this.milestoneDocumentRepository.addDocument(
@@ -478,14 +480,16 @@ export class ProjectService {
             {
                 imageName: file.originalname,
                 imagePath: fileName,
-                imageUrl: fileUrl,
                 mimeType: file.mimetype,
                 fileSize: file.size,
             },
             createdBy
         );
 
-        return document;
+        return {
+            ...document,
+            imageUrl: storageService.getPublicUrl(document.imagePath) || document.imagePath,
+        };
     }
 
     async deleteMilestoneDocument(tenantUid: string, projectUid: string, milestoneUid: string, documentUid: string, deletedBy: string) {

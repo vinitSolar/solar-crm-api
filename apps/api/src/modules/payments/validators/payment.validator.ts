@@ -8,7 +8,7 @@ export const createPaymentSchema = z.object({
         paymentMethod: z.coerce.number({ message: "Payment method is required" }).int().min(0).max(6),
         transactionReference: z.string().optional(),
         paymentDate: z.string({ message: "Payment date is required" }), // Accept ISO string
-        imageProof: z.string().url("Invalid image proof URL").optional().or(z.literal("")),
+        imageProof: z.string().optional().or(z.literal("")),
         notes: z.string().optional(),
     }),
 });
@@ -22,7 +22,7 @@ export const updatePaymentSchema = z.object({
         paymentMethod: z.coerce.number().int().min(0).max(6).optional(),
         transactionReference: z.string().optional(),
         paymentDate: z.string().optional(),
-        imageProof: z.string().url("Invalid image proof URL").optional().or(z.literal("")),
+        imageProof: z.string().optional().or(z.literal("")),
         notes: z.string().optional(),
     }).strict(),
 });

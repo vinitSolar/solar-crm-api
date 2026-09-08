@@ -72,7 +72,7 @@ export class DocumentAssociationRepository {
                 md.uid, md.document_type_uid AS "documentTypeUid",
                 mdt.name AS "documentTypeName", mdt.category AS "documentTypeCategory",
                 md.entity_type AS "entityType", md.entity_uid AS "entityUid",
-                md.original_name AS "originalName", md.file_url AS "fileUrl",
+                md.original_name AS "originalName", md.file_name AS "fileUrl",
                 md.mime_type AS "mimeType", md.file_size AS "fileSize",
                 md.document_number AS "documentNumber", md.remarks,
                 md.version, md.is_latest AS "isLatest",

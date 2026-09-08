@@ -211,15 +211,15 @@ export class FranchiseController {
             const code = franchiseData.franchise.code;
 
             // Upload the file
-            const logoUrl = await storageService.uploadFile(file.buffer, file.originalname, file.mimetype, `franchises/${code}_${uid}/logos`);
+            const logoPath = await storageService.uploadFile(file.buffer, file.originalname, file.mimetype, `franchises/${code}_${uid}/logos`);
 
             // Update the franchise
-            await this.franchiseService.updateLogo(uid, logoUrl, updatedBy);
+            await this.franchiseService.updateLogo(uid, logoPath, updatedBy);
 
             res.status(200).json({
                 success: true,
                 message: "Logo uploaded successfully",
-                data: { logo: logoUrl },
+                data: { logo: storageService.getPublicUrl(logoPath) },
             });
         } catch (error) {
             next(error);

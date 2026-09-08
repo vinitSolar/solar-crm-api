@@ -10,7 +10,7 @@ const DOC_COLUMNS = `
     md.document_type_uid AS "documentTypeUid",
     md.entity_type AS "entityType", md.entity_uid AS "entityUid",
     md.original_name AS "originalName", md.file_name AS "fileName",
-    md.file_url AS "fileUrl", md.mime_type AS "mimeType",
+    md.file_name AS "fileUrl", md.mime_type AS "mimeType",
     md.file_size AS "fileSize", md.document_number AS "documentNumber",
     md.remarks, md.version, md.is_latest AS "isLatest",
     md.parent_document_uid AS "parentDocumentUid",
@@ -40,7 +40,6 @@ export class MasterDocumentRepository {
     entityUid: string,
     originalName: string,
     fileName: string,
-    fileUrl: string,
     mimeType: string,
     fileSize: number,
     documentNumber: string | undefined,
@@ -54,10 +53,10 @@ export class MasterDocumentRepository {
     const query = `
             INSERT INTO master_documents (
                 uid, tenant_uid, document_type_uid, entity_type, entity_uid,
-                original_name, file_name, file_url, mime_type, file_size,
+                original_name, file_name, mime_type, file_size,
                 document_number, remarks, created_by
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING ${DOC_COLUMNS.replace(/md\./g, "")}
         `;
     const values = [
@@ -68,7 +67,6 @@ export class MasterDocumentRepository {
       entityUid,
       originalName,
       fileName,
-      fileUrl,
       mimeType,
       fileSize,
       documentNumber ?? null,

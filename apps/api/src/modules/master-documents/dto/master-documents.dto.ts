@@ -8,6 +8,7 @@ import type {
   IContextDocument,
   IGroupedContextDocuments,
 } from "../interfaces/master-documents.interface.js";
+import { storageService } from "@packages/storage/index.js";
 
 // ============================================================
 // Master Document Type DTOs
@@ -48,7 +49,7 @@ export function toMasterDocumentSafe(
     entityType: doc.entityType,
     entityUid: doc.entityUid,
     originalName: doc.originalName,
-    fileUrl: doc.fileUrl,
+    fileUrl: storageService.getPublicUrl(doc.fileUrl || doc.fileName) || doc.fileUrl,
     mimeType: doc.mimeType,
     fileSize: doc.fileSize,
     documentNumber: doc.documentNumber,
@@ -82,6 +83,15 @@ export function toDocumentAssociationSafe(
   };
 }
 
+export function toContextDocumentSafe(
+  doc: IContextDocument,
+): IContextDocument {
+  return {
+    ...doc,
+    fileUrl: storageService.getPublicUrl(doc.fileUrl) || doc.fileUrl,
+  };
+}
+
 // ============================================================
 // Grouping Utility
 // ============================================================
@@ -91,7 +101,8 @@ export function groupContextDocuments(
 ): IGroupedContextDocuments[] {
   const grouped = new Map<string, IGroupedContextDocuments>();
 
-  for (const doc of docs) {
+  for (const rawDoc of docs) {
+    const doc = toContextDocumentSafe(rawDoc);
     if (!grouped.has(doc.documentTypeUid)) {
       const group: IGroupedContextDocuments = {
         documentTypeUid: doc.documentTypeUid,

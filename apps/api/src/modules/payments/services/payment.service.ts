@@ -57,7 +57,7 @@ export class PaymentService {
                 file.mimetype,
                 folder,
             );
-            data.imageProof = fileUrlResult.url;
+            data.imageProof = fileUrlResult.path;
         }
 
         // 2. Create payment
@@ -128,7 +128,7 @@ export class PaymentService {
                 file.mimetype,
                 folder,
             );
-            data.imageProof = fileUrlResult.url;
+            data.imageProof = fileUrlResult.path;
         }
 
         const payment = await this.paymentRepository.update(uid, tenantUid, data, userUid);

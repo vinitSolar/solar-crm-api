@@ -1,4 +1,5 @@
 import type { IProductBrand } from "../interfaces/product-brand.interface.js";
+import { storageService } from "@packages/storage/index.js";
 
 export interface IProductBrandSafe {
     uid: string;
@@ -17,7 +18,7 @@ export const toProductBrandSafe = (brand: IProductBrand): IProductBrandSafe => {
         uid: brand.uid,
         name: brand.name,
         description: brand.description,
-        logo: brand.logo,
+        logo: storageService.getPublicUrl(brand.logo),
         sortOrder: brand.sortOrder,
         isActive: brand.isActive === 1,
         isDeleted: brand.isDeleted === 1,

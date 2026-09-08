@@ -7,6 +7,8 @@ import { validateRequest, loginSchema, refreshTokenSchema, logoutSchema, changeP
 import { authenticate } from "../middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
 
+import { DeviceTokenRepository } from "../../users/repositories/device-token.repository.js";
+
 /**
  * Auth module route factory.
  *
@@ -22,7 +24,8 @@ function createAuthRouter(): Router {
     // Dependency injection chain
     const authRepository = new AuthRepository(pool);
     const otpRepository = new OtpRepository(pool);
-    const authService = new AuthService(authRepository, otpRepository);
+    const deviceTokenRepository = new DeviceTokenRepository(pool);
+    const authService = new AuthService(authRepository, otpRepository, deviceTokenRepository);
     const authController = new AuthController(authService);
 
     /**
@@ -48,6 +51,19 @@ function createAuthRouter(): Router {
      *                 type: string
      *                 minLength: 6
      *                 example: Admin@123
+     *               deviceToken:
+     *                 type: string
+     *                 description: Optional FCM device registration token from mobile app
+     *                 example: fM2z9_x...APA91b...
+     *               deviceType:
+     *                 type: string
+     *                 enum: [android, ios]
+     *                 description: Mobile operating system
+     *                 example: android
+     *               deviceName:
+     *                 type: string
+     *                 description: Optional device model/name
+     *                 example: Samsung Galaxy S23
      *     responses:
      *       200:
      *         description: Login successful
@@ -160,7 +176,7 @@ function createAuthRouter(): Router {
      *   post:
      *     tags: [Authentication]
      *     summary: Logout user
-     *     description: Logs out a user by invalidating their refresh token session in Redis.
+     *     description: Logs out a user by invalidating their refresh token session. Note that mobile FCM device tokens remain active so background and closed-app notifications continue to be delivered.
      *     requestBody:
      *       required: true
      *       content:

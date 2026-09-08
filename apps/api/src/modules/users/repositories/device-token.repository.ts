@@ -90,6 +90,19 @@ export class DeviceTokenRepository {
     }
 
     /**
+     * Deactivates a device token by token string only (used during logout).
+     */
+    async deactivateByToken(deviceToken: string): Promise<boolean> {
+        const query = `
+            UPDATE user_device_tokens
+            SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+            WHERE device_token = $1
+        `;
+        const result = await this.pool.query(query, [deviceToken.trim()]);
+        return (result.rowCount ?? 0) > 0;
+    }
+
+    /**
      * Retrieves all active mobile device tokens (Android / iOS) for a specific user.
      */
     async getActiveTokensByUser(tenantUid: string, userUid: string): Promise<IUserDeviceToken[]> {

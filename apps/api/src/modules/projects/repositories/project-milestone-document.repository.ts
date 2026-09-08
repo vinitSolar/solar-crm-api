@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const DOC_COLUMNS = `
     id, uid, tenant_uid AS "tenantUid", project_milestone_uid AS "projectMilestoneUid", 
-    image_name AS "imageName", image_path AS "imagePath", image_url AS "imageUrl", 
+    image_name AS "imageName", image_path AS "imagePath", 
     mime_type AS "mimeType", file_size AS "fileSize", remarks,
     is_active AS "isActive", is_deleted AS "isDeleted", 
     created_at AS "createdAt", updated_at AS "updatedAt",
@@ -24,7 +24,6 @@ export class ProjectInstallationMilestoneDocumentRepository {
         data: {
             imageName: string;
             imagePath: string;
-            imageUrl: string;
             mimeType: string;
             fileSize: number;
         },
@@ -33,13 +32,13 @@ export class ProjectInstallationMilestoneDocumentRepository {
         const uid = uuidv4();
         const result = await this.pool.query(
             `INSERT INTO project_installation_milestone_documents (
-                uid, tenant_uid, project_milestone_uid, image_name, image_path, image_url, mime_type, file_size, created_by
+                uid, tenant_uid, project_milestone_uid, image_name, image_path, mime_type, file_size, created_by
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING ${DOC_COLUMNS}`,
             [
                 uid, tenantUid, projectMilestoneUid, data.imageName, data.imagePath, 
-                data.imageUrl, data.mimeType, data.fileSize, createdBy
+                data.mimeType, data.fileSize, createdBy
             ]
         );
         return result.rows[0] as IProjectInstallationMilestoneDocument;

@@ -119,8 +119,7 @@ export class MasterDocumentService {
         folder,
       );
 
-      const fileUrl = fileUrlResult.url;
-      const fileName = fileUrlResult.path || path.basename(fileUrl);
+      const fileName = fileUrlResult.path || path.basename(fileUrlResult.url);
 
       // Create Master Document
       const document = await this.documentRepository.create(
@@ -130,7 +129,6 @@ export class MasterDocumentService {
         data.entityUid,
         file.originalname,
         fileName,
-        fileUrl,
         file.mimetype,
         file.size,
         data.documentNumber,

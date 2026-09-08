@@ -855,13 +855,14 @@ export class QuotationService {
         const fileName = `${quotation.quotationNumber}.pdf`;
         const mimeType = "application/pdf";
         const uploadFolder = `franchises/${franchise.code || "HO"}_${tenantUid}/quotations`;
-        const { url: pdfUrl, path: pdfPath } = await storageService.uploadFileWithPath(pdfBuffer, fileName, mimeType, uploadFolder);
+        const { path: pdfPath } = await storageService.uploadFileWithPath(pdfBuffer, fileName, mimeType, uploadFolder);
         const uploadTime = performance.now() - uploadStartTime;
         logger.info(`PDF Upload for Quote ${quotation.uid} completed in ${uploadTime.toFixed(2)} ms`);
 
-        // 8. Save PDF URL & Path in Database
-        await this.repository.updatePdfInfo(quotation.uid, pdfUrl, pdfPath, createdBy);
+        // 8. Save PDF Path in Database
+        await this.repository.updatePdfInfo(quotation.uid, pdfPath, createdBy);
 
+        const pdfUrl = storageService.getPublicUrl(pdfPath)!;
         return { pdfUrl, pdfPath };
     }
 

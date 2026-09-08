@@ -1,4 +1,5 @@
 import type { IProduct } from "../interfaces/product.interface.js";
+import { storageService } from "@packages/storage/index.js";
 export interface IProductSpecificationValueSafe {
     specificationUid: string;
     value: string;
@@ -45,7 +46,7 @@ export const toProductSafe = (product: IProduct): IProductSafe => {
         warranty: product.warranty,
         description: product.description,
         modelNumber: product.modelNumber,
-        images: product.images || [],
+        images: (product.images || []).map(img => storageService.getPublicUrl(img) || img),
         isActive: product.isActive === 1,
         isDeleted: product.isDeleted === 1,
         createdAt: product.createdAt,

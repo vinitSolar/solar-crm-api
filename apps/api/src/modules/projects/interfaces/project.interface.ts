@@ -168,7 +168,7 @@ export interface IProjectInstallationMilestoneDocument {
     projectMilestoneUid: string;
     imageName: string | null;
     imagePath: string;
-    imageUrl: string;
+    imageUrl?: string | null;
     mimeType: string | null;
     fileSize: number | null;
     remarks: string | null;

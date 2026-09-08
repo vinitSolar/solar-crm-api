@@ -1,5 +1,6 @@
 import type { ITenant, IFranchiseSafe, IFranchiseOwnerDetails, IFranchiseBusinessDetails, IFranchiseDocument, IFranchiseDocumentSafe } from "../interfaces/franchise.interface.js";
 import type { ICreateFranchiseResponse } from "../interfaces/franchise.interface.js";
+import { storageService } from "@packages/storage/index.js";
 /**
  * Maps a tenant record to the franchise creation response DTO.
  * Only exposes fields relevant to the API response.
@@ -27,7 +28,7 @@ export function toFranchiseSafe(tenant: ITenant): IFranchiseSafe {
         name: tenant.name,
         email: tenant.email,
         mobile: tenant.mobile,
-        logo: tenant.logo,
+        logo: storageService.getPublicUrl(tenant.logo),
         onboardingStatus: tenant.onboardingStatus,
         isActive: tenant.isActive,
         isDeleted: tenant.isDeleted,
@@ -62,7 +63,7 @@ export function toFranchiseDocumentSafe(doc: IFranchiseDocument): IFranchiseDocu
         documentTypeUid: doc.documentTypeUid,
         documentNumber: doc.documentNumber,
         originalFileName: doc.originalFileName,
-        filePath: doc.filePath,
+        filePath: storageService.getPublicUrl(doc.filePath) || doc.filePath,
         mimeType: doc.mimeType,
         fileSize: doc.fileSize,
         uploadedAt: doc.createdAt,

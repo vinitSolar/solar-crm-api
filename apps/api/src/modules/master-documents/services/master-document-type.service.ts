@@ -11,7 +11,11 @@ import type {
   IMasterDocumentSafe,
   EntityType,
 } from "../interfaces/master-documents.interface.js";
-import { toMasterDocumentTypeSafe } from "../dto/master-documents.dto.js";
+import {
+  toMasterDocumentTypeSafe,
+  toContextDocumentSafe,
+  toMasterDocumentSafe,
+} from "../dto/master-documents.dto.js";
 import { MASTER_DOCUMENT_TYPE_MESSAGES } from "../constants/master-documents.constants.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 
@@ -93,7 +97,7 @@ export class MasterDocumentTypeService {
         if (!docsByType.has(doc.documentTypeUid)) {
           docsByType.set(doc.documentTypeUid, []);
         }
-        docsByType.get(doc.documentTypeUid)!.push(doc);
+        docsByType.get(doc.documentTypeUid)!.push(toContextDocumentSafe(doc));
       }
 
       for (const type of data) {
@@ -148,7 +152,7 @@ export class MasterDocumentTypeService {
         if (!docsByType.has(doc.documentTypeUid)) {
           docsByType.set(doc.documentTypeUid, []);
         }
-        docsByType.get(doc.documentTypeUid)!.push(doc);
+        docsByType.get(doc.documentTypeUid)!.push(toContextDocumentSafe(doc));
       }
 
       for (const type of data) {
@@ -178,7 +182,7 @@ export class MasterDocumentTypeService {
         if (!entityDocsByType.has(doc.documentTypeUid)) {
           entityDocsByType.set(doc.documentTypeUid, []);
         }
-        entityDocsByType.get(doc.documentTypeUid)!.push(doc);
+        entityDocsByType.get(doc.documentTypeUid)!.push(toMasterDocumentSafe(doc));
       }
 
       for (const type of data) {

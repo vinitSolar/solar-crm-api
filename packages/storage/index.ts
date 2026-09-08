@@ -41,9 +41,11 @@ class StorageService {
 
         if (this.provider === "s3") {
             this.bucketName = env.STORAGE.BUCKET;
+            const isR2 = Boolean(env.STORAGE.ACCOUNT_ID && env.STORAGE.ACCOUNT_ID !== "dummy");
+
             this.s3Client = new S3Client({
-                region: "auto",
-                endpoint: `https://${env.STORAGE.ACCOUNT_ID}.r2.cloudflarestorage.com`,
+                region: isR2 ? "auto" : (env.STORAGE.REGION || "ap-south-1"),
+                ...(isR2 ? { endpoint: `https://${env.STORAGE.ACCOUNT_ID}.r2.cloudflarestorage.com` } : {}),
                 ...(env.STORAGE.ACCESS_KEY_ID && env.STORAGE.SECRET_ACCESS_KEY
                     ? {
                         credentials: {
@@ -53,7 +55,7 @@ class StorageService {
                     }
                     : {}),
             });
-            logger.info("StorageService initialized with S3/Cloudflare R2 provider");
+            logger.info(`StorageService initialized with ${isR2 ? "Cloudflare R2" : "AWS S3"} provider`);
         } else {
             logger.info("StorageService initialized with Local provider");
             this.ensureLocalDirectory();
@@ -95,12 +97,14 @@ class StorageService {
 
             await this.s3Client.send(command);
 
-            // Generate public URL (assumes Cloudflare R2 / public S3 bucket structure or custom domain)
+            // Generate public URL (assumes Cloudflare R2 / AWS S3 public bucket structure or custom domain / CDN)
             let url = "";
             if (env.STORAGE.PUBLIC_URL) {
                 url = `${env.STORAGE.PUBLIC_URL.replace(/\/$/, "")}/${key}`;
-            } else {
+            } else if (env.STORAGE.ACCOUNT_ID && env.STORAGE.ACCOUNT_ID !== "dummy") {
                 url = `https://${env.STORAGE.ACCOUNT_ID}.r2.cloudflarestorage.com/${this.bucketName}/${key}`;
+            } else {
+                url = `https://${this.bucketName}.s3.${env.STORAGE.REGION || "ap-south-1"}.amazonaws.com/${key}`;
             }
             return { url, path: key };
         } else {

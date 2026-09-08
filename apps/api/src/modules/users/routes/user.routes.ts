@@ -3,6 +3,9 @@ import { UserController } from "../controllers/user.controller.js";
 import { UserService } from "../services/user.service.js";
 import { UserRepository } from "../repositories/user.repository.js";
 import { createUserSchema, updateUserSchema, getUserSchema, deleteUserSchema, validateUserRequest, getPaginatedUsersSchema, restoreUserSchema, getAllUsersSchema } from "../validators/user.validator.js";
+import { registerDeviceTokenSchema, deleteDeviceTokenSchema } from "../validators/device-token.validator.js";
+import { DeviceTokenRepository } from "../repositories/device-token.repository.js";
+import { DeviceTokenController } from "../controllers/device-token.controller.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
 import { requirePermission } from "../../../middlewares/permission.middleware.js";
@@ -14,6 +17,9 @@ function createUserRouter(): Router {
     const userRepository = new UserRepository(pool);
     const userService = new UserService(userRepository);
     const userController = new UserController(userService);
+
+    const deviceTokenRepository = new DeviceTokenRepository(pool);
+    const deviceTokenController = new DeviceTokenController(deviceTokenRepository);
 
     router.use(authenticate);
 
@@ -150,6 +156,76 @@ function createUserRouter(): Router {
         authenticate,
         validateUserRequest(getAllUsersSchema),
         userController.getUsersForDropdown,
+    );
+
+    /**
+     * @swagger
+     * /users/device-token:
+     *   post:
+     *     tags: [Users]
+     *     summary: Register or update mobile device FCM token
+     *     description: Registers or updates an Android/iOS device token for push notifications.
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - deviceToken
+     *               - deviceType
+     *             properties:
+     *               deviceToken:
+     *                 type: string
+     *               deviceType:
+     *                 type: string
+     *                 enum: [android, ios]
+     *               deviceName:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Device token registered successfully
+     *       401:
+     *         description: Unauthorized
+     */
+    router.post(
+        "/device-token",
+        validateUserRequest(registerDeviceTokenSchema),
+        deviceTokenController.registerToken
+    );
+
+    /**
+     * @swagger
+     * /users/device-token:
+     *   delete:
+     *     tags: [Users]
+     *     summary: Deactivate a mobile device FCM token
+     *     description: Deactivates an Android/iOS device token upon user logout.
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - deviceToken
+     *             properties:
+     *               deviceToken:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Device token deactivated successfully
+     *       401:
+     *         description: Unauthorized
+     */
+    router.delete(
+        "/device-token",
+        validateUserRequest(deleteDeviceTokenSchema),
+        deviceTokenController.removeToken
     );
 
     /**

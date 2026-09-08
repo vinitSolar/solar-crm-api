@@ -18,6 +18,7 @@ import type { Job } from "bullmq";
 import { env } from "@packages/config/index.js";
 import { logger } from "@packages/logger/logger.js";
 import { emailProvider } from "../providers/email.provider.js";
+import { pushProvider } from "../providers/push.provider.js";
 import { NotificationRepository } from "../repositories/notification.repository.js";
 import {
     NOTIFICATION_CHANNEL,
@@ -52,6 +53,9 @@ async function processNotificationJob(job: Job<INotificationJobData>): Promise<v
     switch (payload.channel) {
         case NOTIFICATION_CHANNEL.EMAIL:
             await processEmailNotification(payload);
+            break;
+        case NOTIFICATION_CHANNEL.PUSH:
+            await pushProvider.sendPush(payload);
             break;
         default:
             throw new Error(`Unsupported notification channel: ${payload.channel}`);

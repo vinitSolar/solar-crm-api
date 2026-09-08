@@ -60,10 +60,16 @@ export const env = {
     },
     STORAGE: {
         PROVIDER: config.STORAGE_PROVIDER,
+        REGION: config.AWS_REGION,
         ACCOUNT_ID: config.R2_ACCOUNT_ID,
-        ACCESS_KEY_ID: config.R2_ACCESS_KEY_ID,
-        SECRET_ACCESS_KEY: config.R2_SECRET_ACCESS_KEY,
-        BUCKET: config.R2_BUCKET,
-        PUBLIC_URL: config.R2_PUBLIC_URL,
+        ACCESS_KEY_ID: config.AWS_ACCESS_KEY_ID || config.R2_ACCESS_KEY_ID,
+        SECRET_ACCESS_KEY: config.AWS_SECRET_ACCESS_KEY || config.R2_SECRET_ACCESS_KEY,
+        BUCKET: config.AWS_S3_BUCKET || config.R2_BUCKET,
+        PUBLIC_URL: config.AWS_S3_PUBLIC_URL || config.R2_PUBLIC_URL,
+    },
+    FIREBASE: {
+        PROJECT_ID: config.FIREBASE_PROJECT_ID,
+        CLIENT_EMAIL: config.FIREBASE_CLIENT_EMAIL,
+        PRIVATE_KEY: config.FIREBASE_PRIVATE_KEY,
     },
 } as const;

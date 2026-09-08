@@ -10,6 +10,7 @@
 
 import { logger } from "@packages/logger/logger.js";
 import { emailProvider } from "../providers/email.provider.js";
+import { pushProvider } from "../providers/push.provider.js";
 import { NotificationRepository } from "../repositories/notification.repository.js";
 import {
     NOTIFICATION_CHANNEL,
@@ -42,6 +43,9 @@ export class DirectDispatcher implements INotificationDispatcher {
             switch (payload.channel) {
                 case NOTIFICATION_CHANNEL.EMAIL:
                     await this.sendEmail(payload);
+                    break;
+                case NOTIFICATION_CHANNEL.PUSH:
+                    await pushProvider.sendPush(payload);
                     break;
                 default:
                     logger.warn(`Direct dispatch for channel ${payload.channel} is not yet implemented. [Log UID: ${logUid}]`);

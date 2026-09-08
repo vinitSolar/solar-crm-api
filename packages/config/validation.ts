@@ -50,13 +50,23 @@ export const envSchema = z.object({
     MAIL_PASSWORD: z.string().min(1, "MAIL_PASSWORD is required"),
     MAIL_FROM: z.string().email("MAIL_FROM must be a valid email"),
 
-    // Storage (Cloudflare R2 / Local)
+    // Storage (AWS S3 / Cloudflare R2 / Local)
     STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),
+    AWS_REGION: z.string().optional().default("ap-south-1"),
+    AWS_ACCESS_KEY_ID: z.string().optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().optional(),
+    AWS_S3_BUCKET: z.string().optional(),
+    AWS_S3_PUBLIC_URL: z.string().url("AWS_S3_PUBLIC_URL must be a valid URL").optional().or(z.literal("")),
     R2_ACCOUNT_ID: z.string().optional(),
     R2_ACCESS_KEY_ID: z.string().optional(),
     R2_SECRET_ACCESS_KEY: z.string().optional(),
     R2_BUCKET: z.string().optional(),
-    R2_PUBLIC_URL: z.string().url("R2_PUBLIC_URL must be a valid URL").optional(),
+    R2_PUBLIC_URL: z.string().url("R2_PUBLIC_URL must be a valid URL").optional().or(z.literal("")),
+
+    // Firebase Cloud Messaging (FCM)
+    FIREBASE_PROJECT_ID: z.string().optional(),
+    FIREBASE_CLIENT_EMAIL: z.string().optional(),
+    FIREBASE_PRIVATE_KEY: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

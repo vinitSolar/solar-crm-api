@@ -5,6 +5,7 @@ import type {
     IQuotationTermsConditionsItem,
     IQuotationExtra
 } from "../interfaces/quotation.interface.js";
+import { storageService } from "@packages/storage/index.js";
 
 export interface SafeQuotationItemResponse {
     uid: string;
@@ -153,7 +154,7 @@ export const toSafeQuotation = (
         validTill: quotation.validTill,
         status: quotation.status,
         notes: quotation.notes,
-        pdfUrl: quotation.pdfUrl,
+        pdfUrl: storageService.getPublicUrl(quotation.pdfPath) || quotation.pdfUrl,
         pdfPath: quotation.pdfPath,
         isActive: quotation.isActive,
         isDeleted: quotation.isDeleted,

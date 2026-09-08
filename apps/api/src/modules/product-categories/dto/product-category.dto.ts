@@ -1,4 +1,5 @@
 import type { IProductCategory } from "../interfaces/product-category.interface.js";
+import { storageService } from "@packages/storage/index.js";
 
 export interface IProductCategorySafe {
     uid: string;
@@ -18,7 +19,7 @@ export const toProductCategorySafe = (category: IProductCategory): IProductCateg
         uid: category.uid,
         name: category.name,
         description: category.description,
-        image: category.image,
+        image: storageService.getPublicUrl(category.image),
         sortOrder: category.sortOrder,
         isDynamic: (category.isDynamic === 1 || (category as any).is_dynamic === 1),
         isActive: category.isActive === 1,

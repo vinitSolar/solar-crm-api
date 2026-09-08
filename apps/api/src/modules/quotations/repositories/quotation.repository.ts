@@ -509,13 +509,13 @@ export class QuotationRepository {
         return result.rows.length > 0;
     }
 
-    async updatePdfInfo(uid: string, pdfUrl: string, pdfPath: string, updatedBy: string): Promise<void> {
+    async updatePdfInfo(uid: string, pdfPath: string, updatedBy: string): Promise<void> {
         const query = `
             UPDATE quotations
-            SET pdf_url = $1, pdf_path = $2, updated_by = $3, updated_at = CURRENT_TIMESTAMP
-            WHERE uid = $4
+            SET pdf_path = $1, updated_by = $2, updated_at = CURRENT_TIMESTAMP
+            WHERE uid = $3
         `;
-        await this.pool.query(query, [pdfUrl, pdfPath, updatedBy, uid]);
+        await this.pool.query(query, [pdfPath, updatedBy, uid]);
     }
 
     async updateSnapshotData(uid: string, snapshotData: string): Promise<void> {

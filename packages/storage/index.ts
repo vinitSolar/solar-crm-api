@@ -70,9 +70,32 @@ class StorageService {
         }
     }
 
+    /**
+     * Resolves a relative storage path (key) to a full public URL.
+     * Backwards-compatible: if the value is already a full URL, returns as-is.
+     */
+    getPublicUrl(filePath: string | null | undefined): string | null {
+        if (!filePath) return null;
+        // Already a full URL (legacy data) — return as-is
+        if (filePath.startsWith("http://") || filePath.startsWith("https://")) return filePath;
+        // Resolve dynamically based on current provider config
+        if (this.provider === "s3") {
+            const publicUrl = env.STORAGE.PUBLIC_URL;
+            if (publicUrl) {
+                return `${publicUrl.replace(/\/$/, "")}/${filePath}`;
+            }
+            if (env.STORAGE.ACCOUNT_ID && env.STORAGE.ACCOUNT_ID !== "dummy") {
+                return `https://${env.STORAGE.ACCOUNT_ID}.r2.cloudflarestorage.com/${this.bucketName}/${filePath}`;
+            }
+            return `https://${this.bucketName}.s3.${env.STORAGE.REGION || "ap-south-1"}.amazonaws.com/${filePath}`;
+        }
+        // Local provider
+        return `${this.baseUrl}/public/uploads/${filePath}`;
+    }
+
     async uploadFile(buffer: Buffer, originalName: string, mimeType: string, folder: string = "general"): Promise<string> {
-        const { url } = await this.uploadFileWithPath(buffer, originalName, mimeType, folder);
-        return url;
+        const { path } = await this.uploadFileWithPath(buffer, originalName, mimeType, folder);
+        return path;
     }
 
     /**

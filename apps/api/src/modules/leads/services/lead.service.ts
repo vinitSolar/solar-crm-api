@@ -8,6 +8,7 @@ import { toLeadSafe } from "../dto/lead.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { LEAD_MESSAGES, LEAD_SOURCE_MESSAGES, LEAD_STATUS_MESSAGES } from "../constants/lead.constants.js";
 import { logger } from "@packages/logger/index.js";
+import { notificationService, NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/index.js";
 
 export class LeadService {
     private readonly repository: LeadRepository;
@@ -78,6 +79,13 @@ export class LeadService {
                 await this.noteService.handleIncomingNote(tenantUid, 'lead', lead.uid, data.remarks, createdBy);
                 lead.remarks = data.remarks;
             }
+
+            // Real-time Push Notification to assigned mobile user (Android / iOS)
+            if (data.assignedTo) {
+                this.sendLeadAssignedPushNotification(tenantUid, lead, data.assignedTo, createdBy).catch(err => {
+                    logger.error("Failed to trigger lead assignment push notification:", err);
+                });
+            }
             
             return toLeadSafe(lead);
         } catch (error) {
@@ -132,7 +140,9 @@ export class LeadService {
             if (!leadStatus) throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 400);
         }
 
-        if (data.assignedTo && data.assignedTo !== existing.assignedTo) {
+        const isReassigned = Boolean(data.assignedTo && data.assignedTo !== existing.assignedTo);
+
+        if (isReassigned && data.assignedTo) {
             const user = await this.userRepository.getUserByUid(data.assignedTo, tenantUid);
             if (!user) {
                 throw new CustomError(LEAD_MESSAGES.VALIDATION_FAILED, 400, [
@@ -155,6 +165,14 @@ export class LeadService {
             if (data.remarks !== undefined) {
                 updated.remarks = data.remarks || null;
             }
+
+            // Real-time Push Notification to newly assigned mobile user (Android / iOS)
+            if (isReassigned && updated.assignedTo) {
+                this.sendLeadAssignedPushNotification(tenantUid, updated, updated.assignedTo, updatedBy).catch(err => {
+                    logger.error("Failed to trigger lead reassignment push notification:", err);
+                });
+            }
+
             return toLeadSafe(updated);
         } catch (error) {
             logger.error("LeadService.updateLead error", { error });
@@ -199,6 +217,37 @@ export class LeadService {
         const success = await this.repository.restore(tenantUid, uid, updatedBy);
         if (!success) {
             throw new CustomError(LEAD_MESSAGES.RESTORE_FAILED, 404);
+        }
+    }
+
+    /**
+     * Helper to dispatch real-time FCM Push Notification to assigned mobile device(s)
+     */
+    private async sendLeadAssignedPushNotification(
+        tenantUid: string,
+        lead: any,
+        assignedUserUid: string,
+        createdBy?: string
+    ): Promise<void> {
+        try {
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.LEAD_ASSIGNED,
+                recipient: assignedUserUid,
+                module: "lead",
+                referenceUid: lead.uid,
+                tenantUid,
+                createdBy: createdBy || "SYSTEM",
+                variables: {
+                    lead_number: lead.leadNumber || "Lead",
+                    customer_name: `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer",
+                    system_size: lead.systemSize ? `${lead.systemSize} kW` : "",
+                    city: lead.city || "",
+                    lead_uid: lead.uid,
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching lead assigned push notification:", err);
         }
     }
 }

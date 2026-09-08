@@ -38,7 +38,8 @@ export enum NOTIFICATION_TEMPLATE {
     INSTALLATION_SCHEDULED = "INSTALLATION_SCHEDULED",
     SUBSIDY_APPROVED = "SUBSIDY_APPROVED",
     PASSWORD_RESET = "PASSWORD_RESET",
-    FRANCHISE_CREDENTIALS = "FRANCHISE_CREDENTIALS"
+    FRANCHISE_CREDENTIALS = "FRANCHISE_CREDENTIALS",
+    LEAD_ASSIGNED = "LEAD_ASSIGNED"
 }
 
 /** BullMQ queue configuration */
@@ -71,5 +72,9 @@ export const NOTIFICATION_MESSAGES = {
     REDIS_AVAILABLE: "Redis is available for BullMQ.",
     REDIS_UNAVAILABLE: "Redis is unavailable. Using direct fallback.",
     EMAIL_SEND_SUCCESS: "Email sent successfully via provider.",
-    EMAIL_SEND_FAILED: "Email sending failed via provider."
+    EMAIL_SEND_FAILED: "Email sending failed via provider.",
+    PUSH_SEND_SUCCESS: "Push notification sent successfully via FCM provider.",
+    PUSH_SEND_FAILED: "Push notification sending failed via FCM provider.",
+    PUSH_NOT_CONFIGURED: "Firebase Cloud Messaging is not configured. Push skipped.",
+    PUSH_NO_DEVICE_TOKENS: "No active mobile device tokens found for recipient."
 } as const;

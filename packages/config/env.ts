@@ -3,7 +3,7 @@ import { envSchema } from "./validation.js";
 import type { EnvConfig } from "./validation.js";
 
 // Load environment variables from .env file
-dotenv.config();
+dotenv.config({ override: true });
 
 // Validate environment variables
 const parsedEnv = envSchema.safeParse(process.env);

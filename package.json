@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "tsx watch apps/api/src/server.ts",
     "start": "node dist/apps/api/src/server.js",
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "seed": "tsx packages/database/run-seed.ts",
     "seed:location": "tsx packages/database/seeds/seed_locations_from_json.ts",
     "seed:all": "tsx packages/database/run-seed.ts && tsx packages/database/seeds/seed_locations_from_json.ts"
@@ -31,6 +31,7 @@
     "prettier": "^3.9.4",
     "stream-json": "^3.5.0",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.9.4",
     "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",

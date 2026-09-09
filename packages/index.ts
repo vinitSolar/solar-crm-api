@@ -4,24 +4,30 @@ import { Client } from "pg";
 
 export async function connectDatabase() {
     try {
-        // Ensure database exists before connecting the main pool
-        const defaultClient = new Client({
-            host: process.env.DB_HOST,
-            port: Number(process.env.DB_PORT),
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: "postgres"
-        });
-        await defaultClient.connect();
-        const dbName = process.env.DB_NAME;
-        const res = await defaultClient.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
-        if (res.rowCount === 0) {
-            logger.info(`Database "${dbName}" does not exist. Creating...`);
-            const safeDbName = dbName?.replace(/"/g, '""');
-            await defaultClient.query(`CREATE DATABASE "${safeDbName}"`);
-            logger.info(`Database "${dbName}" created successfully.`);
+        // Ensure database exists before connecting the main pool (only for local development)
+        if (process.env.DB_HOST === "localhost" || process.env.DB_HOST === "127.0.0.1") {
+            try {
+                const defaultClient = new Client({
+                    host: process.env.DB_HOST,
+                    port: Number(process.env.DB_PORT),
+                    user: process.env.DB_USER,
+                    password: process.env.DB_PASSWORD,
+                    database: "postgres"
+                });
+                await defaultClient.connect();
+                const dbName = process.env.DB_NAME;
+                const res = await defaultClient.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
+                if (res.rowCount === 0) {
+                    logger.info(`Database "${dbName}" does not exist. Creating...`);
+                    const safeDbName = dbName?.replace(/"/g, '""');
+                    await defaultClient.query(`CREATE DATABASE "${safeDbName}"`);
+                    logger.info(`Database "${dbName}" created successfully.`);
+                }
+                await defaultClient.end();
+            } catch (err) {
+                logger.warn("Skipping local database auto-creation check:", err);
+            }
         }
-        await defaultClient.end();
 
         // Now connect the application pool
         const client = await pool.connect();

@@ -19,11 +19,12 @@ export const envSchema = z.object({
     PASSWORD_LENGTH: z.coerce.number().int().positive().default(12),
 
     // PostgreSQL
-    DB_HOST: z.string().min(1, "DB_HOST is required"),
+    DATABASE_URL: z.string().optional(),
+    DB_HOST: z.string().optional(),
     DB_PORT: z.coerce.number().int().positive().default(5432),
-    DB_USER: z.string().min(1, "DB_USER is required"),
-    DB_PASSWORD: z.string().min(1, "DB_PASSWORD is required"),
-    DB_NAME: z.string().min(1, "DB_NAME is required"),
+    DB_USER: z.string().optional(),
+    DB_PASSWORD: z.string().optional(),
+    DB_NAME: z.string().optional(),
     DB_SSL: booleanEnv.default(false),
 
     // JWT

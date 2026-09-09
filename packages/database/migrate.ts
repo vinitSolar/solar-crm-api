@@ -21,7 +21,15 @@ export async function runMigrations() {
         `);
 
         // Read all sql files from migrations directory
-        const migrationsDir = path.join(__dirname, "migrations");
+        let migrationsDir = path.join(__dirname, "migrations");
+        if (!fs.existsSync(migrationsDir)) {
+            const rootMigrationsDir = path.resolve(process.cwd(), "packages", "database", "migrations");
+            if (fs.existsSync(rootMigrationsDir)) {
+                migrationsDir = rootMigrationsDir;
+            } else {
+                throw new Error(`Migrations directory not found at "${migrationsDir}" or "${rootMigrationsDir}"`);
+            }
+        }
         const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith(".sql")).sort();
 
         // Get already executed migrations

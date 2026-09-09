@@ -5,7 +5,7 @@
   "license": "ISC",
   "author": "Vinit Shah",
   "type": "module",
-  "main": "index.js",
+  "main": "dist/apps/api/src/server.js",
   "scripts": {
     "dev": "tsx watch apps/api/src/server.ts",
     "start": "node dist/apps/api/src/server.js",

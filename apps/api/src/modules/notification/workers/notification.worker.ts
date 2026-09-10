@@ -19,6 +19,7 @@ import { env } from "@packages/config/index.js";
 import { logger } from "@packages/logger/logger.js";
 import { emailProvider } from "../providers/email.provider.js";
 import { pushProvider } from "../providers/push.provider.js";
+import { WhatsAppProvider } from "../../whatsapp/providers/whatsapp.provider.js";
 import { NotificationRepository } from "../repositories/notification.repository.js";
 import { InAppNotificationRepository } from "../repositories/in-app-notification.repository.js";
 import {
@@ -61,6 +62,9 @@ async function processNotificationJob(job: Job<INotificationJobData>): Promise<v
             break;
         case NOTIFICATION_CHANNEL.IN_APP:
             await processInAppNotification(payload);
+            break;
+        case NOTIFICATION_CHANNEL.WHATSAPP:
+            await processWhatsAppNotification(payload);
             break;
         default:
             throw new Error(`Unsupported notification channel: ${payload.channel}`);
@@ -113,6 +117,27 @@ async function processInAppNotification(payload: ISendNotificationPayload): Prom
         data: payload.variables || {},
         createdBy: payload.createdBy ?? null
     });
+}
+
+/**
+ * Handles WhatsApp channel dispatch via WhatsAppProvider.
+ */
+async function processWhatsAppNotification(payload: ISendNotificationPayload): Promise<void> {
+    const provider = new WhatsAppProvider();
+    const text = payload.variables?.text || payload.variables?.message || `Notification: ${payload.template}`;
+    if (payload.variables?.templateName) {
+        const params = Array.isArray(payload.variables.parameters)
+            ? (payload.variables.parameters as any[]).map(String)
+            : [];
+        await provider.sendTemplateMessage(
+            payload.recipient,
+            payload.variables.templateName,
+            payload.variables.languageCode || "en_US",
+            params
+        );
+    } else {
+        await provider.sendTextMessage(payload.recipient, text);
+    }
 }
 
 /** Tracks whether the worker has been started */

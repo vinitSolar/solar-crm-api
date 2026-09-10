@@ -86,6 +86,11 @@ export class LeadService {
                     logger.error("Failed to trigger lead assignment push notification:", err);
                 });
             }
+
+            // WhatsApp Notification to the created lead customer
+            this.sendLeadCreatedWhatsAppNotification(tenantUid, lead, createdBy).catch(err => {
+                logger.error("Failed to trigger lead creation WhatsApp notification:", err);
+            });
             
             return toLeadSafe(lead);
         } catch (error) {
@@ -297,6 +302,39 @@ export class LeadService {
             });
         } catch (err) {
             logger.error("Error dispatching lead status changed push notification:", err);
+        }
+    }
+
+    /**
+     * Helper to dispatch WhatsApp notification to customer when lead is created
+     */
+    private async sendLeadCreatedWhatsAppNotification(
+        tenantUid: string,
+        lead: any,
+        createdBy?: string
+    ): Promise<void> {
+        try {
+            if (!lead.mobileNumber) return;
+
+            const customerName = `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer";
+            const leadNum = lead.leadNumber || "your lead";
+
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.WHATSAPP,
+                template: NOTIFICATION_TEMPLATE.LEAD_CREATED_WHATSAPP,
+                recipient: lead.mobileNumber,
+                module: "lead",
+                referenceUid: lead.uid,
+                tenantUid,
+                createdBy: createdBy || "SYSTEM",
+                variables: {
+                    customer_name: customerName,
+                    lead_number: leadNum,
+                    text: `Hello ${customerName}! Your lead (${leadNum}) has been created successfully with SunSelect Solar. Our team will contact you shortly. Thank you!`
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching lead created WhatsApp notification:", err);
         }
     }
 }

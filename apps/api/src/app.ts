@@ -27,7 +27,13 @@ app.use(compression());
 /**
  * Parse Request Body
  */
-app.use(express.json());
+app.use(
+    express.json({
+        verify: (req: any, _res, buf) => {
+            req.rawBody = buf;
+        }
+    })
+);
 app.use(express.urlencoded({ extended: true }));
 
 /**
@@ -49,6 +55,13 @@ if (env.APP.NODE_ENV === "development") {
         customSiteTitle: `${env.APP.NAME} - API Docs`,
     }));
 }
+
+/**
+ * Webhook Routes (unauthenticated)
+ */
+import { createWhatsAppRouter } from "./modules/whatsapp/index.js";
+const { webhookRouter: whatsappWebhookRouter } = createWhatsAppRouter();
+app.use("/webhooks/whatsapp", whatsappWebhookRouter);
 
 /**
  * API Routes

@@ -143,8 +143,8 @@ export class WhatsAppProvider {
      */
     verifyWebhookSignature(rawBody: Buffer | string, signatureHeader?: string): boolean {
         const appSecret = env.WHATSAPP.META_APP_SECRET;
-        if (!appSecret) {
-            // Signature check disabled if APP_SECRET is not set
+        if (!appSecret || appSecret === "xxxxxxxx" || appSecret === "your_app_secret" || appSecret.trim() === "") {
+            // Signature check disabled if META_APP_SECRET is not set or set to dummy placeholder
             return true;
         }
 
@@ -152,12 +152,21 @@ export class WhatsAppProvider {
             return false;
         }
 
-        const signature = signatureHeader.replace("sha256=", "");
-        const expectedSignature = crypto
-            .createHmac("sha256", appSecret)
-            .update(rawBody)
-            .digest("hex");
+        try {
+            const signature = signatureHeader.replace("sha256=", "");
+            const expectedSignature = crypto
+                .createHmac("sha256", appSecret)
+                .update(rawBody)
+                .digest("hex");
 
-        return crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expectedSignature, "hex"));
+            if (signature.length !== expectedSignature.length) {
+                return false;
+            }
+
+            return crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expectedSignature, "hex"));
+        } catch (err) {
+            logger.warn(`[WhatsAppProvider] Webhook signature verification error:`, err);
+            return false;
+        }
     }
 }

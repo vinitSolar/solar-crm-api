@@ -58,12 +58,20 @@ export class DeviceTokenController {
 
     sendPushNotification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const authReq = req as IAuthenticatedRequest;
-            const tenantUid = authReq.tenantUid!;
-            const callingUserUid = authReq.user!.uid;
+            const authReq = req as Partial<IAuthenticatedRequest>;
+            const tenantUid = authReq.tenantUid;
+            const callingUserUid = authReq.user?.uid;
 
-            // Target user can be passed in body, params (:uid), or defaults to self
+            // Target user can be passed in body, params (:uid), or defaults to authenticated user
             const targetUserUid = req.body?.userUid || req.params?.uid || callingUserUid;
+
+            if (!targetUserUid) {
+                res.status(400).json({
+                    success: false,
+                    message: "userUid is required in the request body or URL path parameter."
+                });
+                return;
+            }
 
             const options = {
                 title: req.body?.title,
@@ -79,7 +87,7 @@ export class DeviceTokenController {
                 tenantUid,
                 targetUserUid,
                 options,
-                callingUserUid
+                callingUserUid || targetUserUid
             );
 
             res.status(200).json({

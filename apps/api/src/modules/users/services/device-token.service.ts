@@ -51,23 +51,24 @@ export class DeviceTokenService {
     }
 
     async sendPushNotification(
-        tenantUid: string,
+        tenantUid: string | undefined,
         targetUserUid: string,
         options: ISendPushNotificationOptions,
         createdBy: string
     ): Promise<ISendPushNotificationResult> {
         logger.info("DeviceTokenService.sendPushNotification", { tenantUid, targetUserUid, options });
 
-        // 1. Verify target user exists and belongs to this tenant
+        // 1. Verify target user exists
         const user = await this.userRepository.getUserByUid(targetUserUid, tenantUid);
         if (!user) {
             throw new CustomError(DEVICE_TOKEN_MESSAGES.USER_NOT_FOUND, 404);
         }
 
+        const effectiveTenantUid = tenantUid || user.tenantUid;
         const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email || "User";
 
         // 2. Check active device tokens for the recipient user
-        const activeTokens = await this.repository.getActiveTokensByUser(tenantUid, targetUserUid);
+        const activeTokens = await this.repository.getActiveTokensByUser(effectiveTenantUid, targetUserUid);
         const activeDevicesCount = activeTokens.length;
 
         // 3. Check Firebase status
@@ -119,7 +120,7 @@ export class DeviceTokenService {
             recipient: targetUserUid,
             module: "user",
             referenceUid: targetUserUid,
-            tenantUid,
+            tenantUid: effectiveTenantUid,
             createdBy,
             variables
         });

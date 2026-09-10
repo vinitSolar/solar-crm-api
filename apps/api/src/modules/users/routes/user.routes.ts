@@ -23,6 +23,74 @@ function createUserRouter(): Router {
     const deviceTokenService = new DeviceTokenService(deviceTokenRepository, userRepository);
     const deviceTokenController = new DeviceTokenController(deviceTokenService);
 
+    // Public push notification test routes (unauthenticated - requires target userUid)
+    /**
+     * @swagger
+     * /users/push-notification:
+     *   post:
+     *     tags: [Users]
+     *     summary: Send a push notification to a user
+     *     description: Dispatches an FCM real-time push notification to active mobile device(s) of a specific user. Does not require authentication.
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - userUid
+     *             properties:
+     *               userUid:
+     *                 type: string
+     *                 description: Target user UID.
+     *               title:
+     *                 type: string
+     *                 example: "Test Push"
+     *               body:
+     *                 type: string
+     *                 example: "Hello! This is a test notification."
+     *               template:
+     *                 type: string
+     *                 enum: [TEST_PUSH, LEAD_ASSIGNED]
+     *                 default: TEST_PUSH
+     *               leadNumber:
+     *                 type: string
+     *                 example: "SS00001"
+     *               customerName:
+     *                 type: string
+     *                 example: "Ramesh Patel"
+     *               systemSize:
+     *                 type: string
+     *                 example: "5 kW"
+     *               city:
+     *                 type: string
+     *                 example: "Navi Mumbai"
+     *     responses:
+     *       200:
+     *         description: Notification dispatch result
+     *       400:
+     *         description: userUid missing
+     *       404:
+     *         description: Target user not found
+     */
+    router.post(
+        "/push-notification",
+        validateUserRequest(sendPushNotificationSchema),
+        deviceTokenController.sendPushNotification
+    );
+
+    router.post(
+        "/test-push",
+        validateUserRequest(sendPushNotificationSchema),
+        deviceTokenController.sendPushNotification
+    );
+
+    router.post(
+        "/:uid/push-notification",
+        validateUserRequest(sendPushNotificationSchema),
+        deviceTokenController.sendPushNotification
+    );
+
     router.use(authenticate);
 
     /**
@@ -230,72 +298,6 @@ function createUserRouter(): Router {
         deviceTokenController.removeToken
     );
 
-    /**
-     * @swagger
-     * /users/push-notification:
-     *   post:
-     *     tags: [Users]
-     *     summary: Send a push notification to a user
-     *     description: Dispatches an FCM real-time push notification to active mobile device(s) of a specific user or the calling user.
-     *     security:
-     *       - bearerAuth: []
-     *     requestBody:
-     *       required: false
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             properties:
-     *               userUid:
-     *                 type: string
-     *                 description: Target user UID. If omitted, defaults to the authenticated user.
-     *               title:
-     *                 type: string
-     *                 example: "New Lead Assigned"
-     *               body:
-     *                 type: string
-     *                 example: "You have been assigned lead SS00001 - Ramesh Patel (5 kW)."
-     *               template:
-     *                 type: string
-     *                 enum: [TEST_PUSH, LEAD_ASSIGNED]
-     *                 default: TEST_PUSH
-     *               leadNumber:
-     *                 type: string
-     *                 example: "SS00001"
-     *               customerName:
-     *                 type: string
-     *                 example: "Ramesh Patel"
-     *               systemSize:
-     *                 type: string
-     *                 example: "5 kW"
-     *               city:
-     *                 type: string
-     *                 example: "Navi Mumbai"
-     *     responses:
-     *       200:
-     *         description: Notification dispatch result
-     *       401:
-     *         description: Unauthorized
-     *       404:
-     *         description: Target user not found
-     */
-    router.post(
-        "/push-notification",
-        validateUserRequest(sendPushNotificationSchema),
-        deviceTokenController.sendPushNotification
-    );
-
-    router.post(
-        "/test-push",
-        validateUserRequest(sendPushNotificationSchema),
-        deviceTokenController.sendPushNotification
-    );
-
-    router.post(
-        "/:uid/push-notification",
-        validateUserRequest(sendPushNotificationSchema),
-        deviceTokenController.sendPushNotification
-    );
 
     /**
      * @swagger

@@ -68,6 +68,14 @@ export const envSchema = z.object({
     FIREBASE_PROJECT_ID: z.string().optional(),
     FIREBASE_CLIENT_EMAIL: z.string().optional(),
     FIREBASE_PRIVATE_KEY: z.string().optional(),
+
+    // WhatsApp Cloud API (Meta)
+    WHATSAPP_API_VERSION: z.string().optional().default("v21.0"),
+    WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+    WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
+    WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+    META_APP_SECRET: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

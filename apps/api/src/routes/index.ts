@@ -27,8 +27,10 @@ import { masterDocumentRoutes, masterDocumentTypeRoutes } from "../modules/maste
 import { paymentRoutes } from "../modules/payments/index.js";
 import { bankDetailRoutes } from "../modules/bank-details/index.js";
 import { notificationRoutes } from "../modules/notification/index.js";
+import { createWhatsAppRouter } from "../modules/whatsapp/index.js";
 
 const apiRouter = Router();
+const { apiRouter: whatsappApiRouter } = createWhatsAppRouter();
 
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/roles", roleRoutes);
@@ -63,5 +65,6 @@ apiRouter.use("/master-document-types", masterDocumentTypeRoutes);
 apiRouter.use("/payments", paymentRoutes);
 apiRouter.use("/bank-details", bankDetailRoutes);
 apiRouter.use("/notifications", notificationRoutes);
+apiRouter.use("/whatsapp", whatsappApiRouter);
 
 export default apiRouter;

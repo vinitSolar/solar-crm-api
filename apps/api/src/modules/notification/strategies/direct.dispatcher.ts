@@ -11,6 +11,7 @@
 import { logger } from "@packages/logger/logger.js";
 import { emailProvider } from "../providers/email.provider.js";
 import { pushProvider } from "../providers/push.provider.js";
+import { WhatsAppProvider } from "../../whatsapp/providers/whatsapp.provider.js";
 import { NotificationRepository } from "../repositories/notification.repository.js";
 import { InAppNotificationRepository } from "../repositories/in-app-notification.repository.js";
 import {
@@ -52,6 +53,9 @@ export class DirectDispatcher implements INotificationDispatcher {
                     break;
                 case NOTIFICATION_CHANNEL.IN_APP:
                     await this.sendInApp(payload);
+                    break;
+                case NOTIFICATION_CHANNEL.WHATSAPP:
+                    await this.sendWhatsApp(payload);
                     break;
                 default:
                     logger.warn(`Direct dispatch for channel ${payload.channel} is not yet implemented. [Log UID: ${logUid}]`);
@@ -127,6 +131,24 @@ export class DirectDispatcher implements INotificationDispatcher {
             data: payload.variables || {},
             createdBy: payload.createdBy ?? null
         });
+    }
+
+    private async sendWhatsApp(payload: ISendNotificationPayload): Promise<void> {
+        const provider = new WhatsAppProvider();
+        const text = payload.variables?.text || payload.variables?.message || `Notification: ${payload.template}`;
+        if (payload.variables?.templateName) {
+            const params = Array.isArray(payload.variables.parameters)
+                ? (payload.variables.parameters as any[]).map(String)
+                : [];
+            await provider.sendTemplateMessage(
+                payload.recipient,
+                payload.variables.templateName,
+                payload.variables.languageCode || "en_US",
+                params
+            );
+        } else {
+            await provider.sendTextMessage(payload.recipient, text);
+        }
     }
 }
 

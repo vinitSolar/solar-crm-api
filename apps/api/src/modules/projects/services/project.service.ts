@@ -17,6 +17,8 @@ import { CustomError } from "../../../middlewares/error.middleware.js";
 import { PROJECT_MESSAGES, PROJECT_STATUS_MESSAGES } from "../constants/project.constants.js";
 import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constants.js";
 import { logger } from "@packages/logger/index.js";
+import { notificationService } from "../../notification/services/notification.service.js";
+import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
 
 export class ProjectService {
     private readonly repository: ProjectRepository;
@@ -143,6 +145,20 @@ export class ProjectService {
                 createdBy
             });
 
+            // Push Notification to assigned Sales Executive
+            if (lead.assignedTo) {
+                this.sendProjectCreatedPushNotification(tenantUid, project, lead.assignedTo, createdBy).catch(err => {
+                    logger.error("Failed to trigger project created push notification:", err);
+                });
+            }
+
+            // Push Notification to assigned Project Manager
+            if (project.projectManagerUid) {
+                this.sendProjectManagerAssignedPushNotification(tenantUid, project, project.projectManagerUid, createdBy).catch(err => {
+                    logger.error("Failed to trigger project manager assigned push notification:", err);
+                });
+            }
+
             return toProjectSafe(project);
         } catch (error) {
             logger.error("ProjectService.createProject error", {
@@ -230,9 +246,11 @@ export class ProjectService {
             throw new CustomError(PROJECT_MESSAGES.NOT_FOUND, 404);
         }
 
+        let newStatusName: string | undefined;
         if (data.projectStatusUid) {
             const status = await this.statusRepository.getByUid(tenantUid, data.projectStatusUid);
             if (!status) throw new CustomError(PROJECT_STATUS_MESSAGES.NOT_FOUND, 400);
+            newStatusName = status.name;
         }
 
         try {
@@ -257,6 +275,20 @@ export class ProjectService {
                 userAgent,
                 createdBy: updatedBy
             });
+
+            // Push Notification if PM changed
+            if (data.projectManagerUid && data.projectManagerUid !== existing.projectManagerUid) {
+                this.sendProjectManagerAssignedPushNotification(tenantUid, updated, data.projectManagerUid, updatedBy).catch(err => {
+                    logger.error("Failed to trigger project manager assigned push notification:", err);
+                });
+            }
+
+            // Push Notification if status changed
+            if (data.projectStatusUid && data.projectStatusUid !== existing.projectStatusUid && newStatusName) {
+                this.sendProjectStatusChangedPushNotification(tenantUid, updated, newStatusName, updatedBy).catch(err => {
+                    logger.error("Failed to trigger project status change push notification:", err);
+                });
+            }
 
             return toProjectSafe(updated);
         } catch (error) {
@@ -292,6 +324,11 @@ export class ProjectService {
                 ipAddress,
                 userAgent,
                 createdBy: updatedBy
+            });
+
+            // Push Notification to assigned PM
+            this.sendProjectManagerAssignedPushNotification(tenantUid, updated, projectManagerUid, updatedBy).catch(err => {
+                logger.error("Failed to trigger project manager assigned push notification:", err);
             });
 
             return toProjectSafe(updated);
@@ -331,6 +368,11 @@ export class ProjectService {
                 ipAddress,
                 userAgent,
                 createdBy: updatedBy
+            });
+
+            // Push Notification for status change
+            this.sendProjectStatusChangedPushNotification(tenantUid, updated, newStatus.name, updatedBy).catch(err => {
+                logger.error("Failed to trigger project status change push notification:", err);
             });
 
             return toProjectSafe(updated);
@@ -523,5 +565,96 @@ export class ProjectService {
         });
 
         return true;
+    }
+
+    /**
+     * Helper to dispatch real-time FCM Push Notification when a project is created
+     */
+    private async sendProjectCreatedPushNotification(
+        tenantUid: string,
+        project: any,
+        recipientUserUid: string,
+        createdBy?: string
+    ): Promise<void> {
+        try {
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.PROJECT_CREATED,
+                recipient: recipientUserUid,
+                module: "project",
+                referenceUid: project.uid,
+                tenantUid,
+                createdBy: createdBy || "SYSTEM",
+                variables: {
+                    project_number: project.projectNumber || "Project",
+                    project_name: project.projectName || "Solar Project",
+                    project_uid: project.uid,
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching project created push notification:", err);
+        }
+    }
+
+    /**
+     * Helper to dispatch real-time FCM Push Notification when a PM is assigned to a project
+     */
+    private async sendProjectManagerAssignedPushNotification(
+        tenantUid: string,
+        project: any,
+        projectManagerUid: string,
+        createdBy?: string
+    ): Promise<void> {
+        try {
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.PROJECT_MANAGER_ASSIGNED,
+                recipient: projectManagerUid,
+                module: "project",
+                referenceUid: project.uid,
+                tenantUid,
+                createdBy: createdBy || "SYSTEM",
+                variables: {
+                    project_number: project.projectNumber || "Project",
+                    project_name: project.projectName || "Solar Installation",
+                    project_uid: project.uid,
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching project manager assigned push notification:", err);
+        }
+    }
+
+    /**
+     * Helper to dispatch real-time FCM Push Notification when project status changes
+     */
+    private async sendProjectStatusChangedPushNotification(
+        tenantUid: string,
+        project: any,
+        statusName: string,
+        createdBy?: string
+    ): Promise<void> {
+        try {
+            const recipientUid = project.projectManagerUid;
+            if (!recipientUid) return;
+
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.PROJECT_STATUS_CHANGED,
+                recipient: recipientUid,
+                module: "project",
+                referenceUid: project.uid,
+                tenantUid,
+                createdBy: createdBy || "SYSTEM",
+                variables: {
+                    project_number: project.projectNumber || "Project",
+                    project_name: project.projectName || "Solar Project",
+                    status_name: statusName,
+                    project_uid: project.uid,
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching project status changed push notification:", err);
+        }
     }
 }

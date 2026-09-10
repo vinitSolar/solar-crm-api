@@ -17,6 +17,7 @@ import type { IPaginationQuery, IPaginatedResponse } from "../../leads/interface
 import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constants.js";
 
 import { storageService } from "@packages/storage/index.js";
+import { logger } from "@packages/logger/index.js";
 import path from "path";
 
 export class PaymentService {
@@ -97,8 +98,32 @@ export class PaymentService {
                     }
                 });
             } catch (error) {
-                // Notifications are best-effort, do not fail the transaction
-                console.error("Failed to queue payment notification:", error);
+                logger.error("Failed to queue customer payment email notification:", error);
+            }
+        }
+
+        // Push notification to assigned Sales Executive
+        if (lead.assignedTo) {
+            try {
+                await notificationService.send({
+                    tenantUid,
+                    channel: NOTIFICATION_CHANNEL.PUSH,
+                    template: NOTIFICATION_TEMPLATE.PAYMENT_RECEIVED,
+                    recipient: lead.assignedTo,
+                    module: "payment",
+                    referenceUid: payment.uid,
+                    createdBy: userUid,
+                    variables: {
+                        lead_number: lead.leadNumber || "Lead",
+                        customer_name: `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer",
+                        amount: payment.amount.toString(),
+                        payment_date: payment.paymentDate ? new Date(payment.paymentDate).toISOString() : new Date().toISOString(),
+                        transaction_reference: payment.transactionReference || "N/A",
+                        lead_uid: lead.uid,
+                    }
+                });
+            } catch (error) {
+                logger.error("Failed to trigger payment push notification:", error);
             }
         }
 

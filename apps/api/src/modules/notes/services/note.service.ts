@@ -3,16 +3,33 @@ import type { INoteSafe, IUpdateNote } from "../interfaces/note.interface.js";
 import { toNoteSafe } from "../dto/note.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import type { PoolClient } from "pg";
+import { notificationService } from "../../notification/services/notification.service.js";
+import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
+import { LeadRepository } from "../../leads/repositories/lead.repository.js";
+import { UserRepository } from "../../users/repositories/user.repository.js";
+import pool from "@packages/connection.js";
+import { logger } from "@packages/logger/index.js";
 
 export class NoteService {
     private readonly repository: NoteRepository;
+    private readonly leadRepository: LeadRepository;
+    private readonly userRepository: UserRepository;
 
-    constructor(repository: NoteRepository) {
+    constructor(repository: NoteRepository, leadRepository?: LeadRepository, userRepository?: UserRepository) {
         this.repository = repository;
+        this.leadRepository = leadRepository || new LeadRepository(pool);
+        this.userRepository = userRepository || new UserRepository(pool);
     }
 
     async createNote(tenantUid: string, module: string, moduleUid: string, noteText: string, createdBy?: string, client?: PoolClient): Promise<INoteSafe> {
         const note = await this.repository.create(tenantUid, module, moduleUid, noteText, createdBy, client);
+
+        if ((module === 'lead' || module === 'leads') && noteText) {
+            this.sendLeadNotePushNotification(tenantUid, moduleUid, noteText, createdBy).catch(err => {
+                logger.error("Failed to trigger lead note push notification:", err);
+            });
+        }
+
         return toNoteSafe(note);
     }
 
@@ -76,6 +93,56 @@ export class NoteService {
     async handleIncomingNote(tenantUid: string, module: string, moduleUid: string, noteText: string | null | undefined, userUid?: string, client?: PoolClient): Promise<void> {
         if (noteText && noteText.trim() !== '') {
             await this.repository.create(tenantUid, module, moduleUid, noteText, userUid, client);
+
+            if (module === 'lead' || module === 'leads') {
+                this.sendLeadNotePushNotification(tenantUid, moduleUid, noteText, userUid).catch(err => {
+                    logger.error("Failed to trigger lead note push notification:", err);
+                });
+            }
+        }
+    }
+
+    /**
+     * Helper to dispatch real-time FCM Push Notification when a note is added to a lead
+     */
+    private async sendLeadNotePushNotification(
+        tenantUid: string,
+        leadUid: string,
+        noteText: string,
+        authorUid?: string
+    ): Promise<void> {
+        try {
+            const lead = await this.leadRepository.getByUid(tenantUid, leadUid);
+            if (!lead || !lead.assignedTo) return;
+            // Skip notifying if the author of the note is the assigned user themselves
+            if (authorUid && authorUid === lead.assignedTo) return;
+
+            let authorName = "Team Member";
+            if (authorUid) {
+                const author = await this.userRepository.getUserByUid(authorUid, tenantUid);
+                if (author) {
+                    authorName = `${author.firstName || ""} ${author.lastName || ""}`.trim() || author.email || authorName;
+                }
+            }
+
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.LEAD_NOTE_ADDED,
+                recipient: lead.assignedTo,
+                module: "lead",
+                referenceUid: lead.uid,
+                tenantUid,
+                createdBy: authorUid || "SYSTEM",
+                variables: {
+                    lead_number: lead.leadNumber || "Lead",
+                    customer_name: `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer",
+                    author_name: authorName,
+                    note_text: noteText,
+                    lead_uid: lead.uid,
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching lead note push notification:", err);
         }
     }
 }

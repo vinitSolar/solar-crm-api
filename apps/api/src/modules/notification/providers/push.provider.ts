@@ -13,6 +13,7 @@ import { getMessaging, type MulticastMessage, type SendResponse } from "firebase
 import { env } from "@packages/config/index.js";
 import { logger } from "@packages/logger/index.js";
 import { DeviceTokenRepository } from "../../users/repositories/device-token.repository.js";
+import { InAppNotificationRepository } from "../repositories/in-app-notification.repository.js";
 import pool from "@packages/connection.js";
 import {
     NOTIFICATION_TEMPLATE,
@@ -24,9 +25,11 @@ class PushProvider {
     private isInitialized = false;
     private isAvailable = false;
     private readonly deviceTokenRepository: DeviceTokenRepository;
+    private readonly inAppNotificationRepository: InAppNotificationRepository;
 
     constructor() {
         this.deviceTokenRepository = new DeviceTokenRepository(pool);
+        this.inAppNotificationRepository = new InAppNotificationRepository(pool);
     }
 
     /**
@@ -280,16 +283,36 @@ class PushProvider {
      * @param payload Notification payload containing recipient user UID and variables
      */
     async sendPush(payload: ISendNotificationPayload): Promise<void> {
+        const userUid = payload.recipient;
+        const tenantUid = payload.tenantUid;
+        const { title, body, data } = this.formatContent(payload);
+
+        // 1. Persist notification to database for In-App Notification Center
+        try {
+            await this.inAppNotificationRepository.createNotification({
+                tenantUid,
+                userUid,
+                title,
+                body,
+                module: payload.module || "crm",
+                referenceUid: payload.referenceUid || null,
+                template: payload.template || null,
+                data,
+                createdBy: payload.createdBy ?? null
+            });
+            logger.info(`In-app notification persisted in database [User: ${userUid}, Module: ${payload.module}]`);
+        } catch (dbError) {
+            logger.error(`Failed to persist in-app notification [User: ${userUid}]:`, dbError);
+        }
+
+        // 2. Check if Firebase Admin SDK is available
         const isReady = this.initialize();
         if (!isReady) {
-            logger.info(`Push notification skipped (Firebase not configured) [User: ${payload.recipient}, Module: ${payload.module}]`);
+            logger.info(`Push notification skipped (Firebase not configured) [User: ${userUid}, Module: ${payload.module}]`);
             return;
         }
 
-        const userUid = payload.recipient;
-        const tenantUid = payload.tenantUid;
-
-        // 1. Fetch active mobile device tokens (Android / iOS)
+        // 3. Fetch active mobile device tokens (Android / iOS)
         const deviceTokens = await this.deviceTokenRepository.getActiveTokensByUser(tenantUid, userUid);
 
         if (!deviceTokens || deviceTokens.length === 0) {
@@ -298,9 +321,8 @@ class PushProvider {
         }
 
         const registrationTokens = deviceTokens.map(t => t.deviceToken);
-        const { title, body, data } = this.formatContent(payload);
 
-        // 2. Build multicast FCM message for mobile devices
+        // 4. Build multicast FCM message for mobile devices
         const multicastMessage: MulticastMessage = {
             tokens: registrationTokens,
             notification: {

@@ -12,6 +12,7 @@ import { logger } from "@packages/logger/logger.js";
 import { emailProvider } from "../providers/email.provider.js";
 import { pushProvider } from "../providers/push.provider.js";
 import { NotificationRepository } from "../repositories/notification.repository.js";
+import { InAppNotificationRepository } from "../repositories/in-app-notification.repository.js";
 import {
     NOTIFICATION_CHANNEL,
     NOTIFICATION_STATUS,
@@ -22,9 +23,11 @@ import type { ISendNotificationPayload, INotificationDispatcher } from "../inter
 
 export class DirectDispatcher implements INotificationDispatcher {
     private readonly repository: NotificationRepository;
+    private readonly inAppRepository: InAppNotificationRepository;
 
     constructor() {
         this.repository = new NotificationRepository();
+        this.inAppRepository = new InAppNotificationRepository();
     }
 
     /**
@@ -46,6 +49,9 @@ export class DirectDispatcher implements INotificationDispatcher {
                     break;
                 case NOTIFICATION_CHANNEL.PUSH:
                     await pushProvider.sendPush(payload);
+                    break;
+                case NOTIFICATION_CHANNEL.IN_APP:
+                    await this.sendInApp(payload);
                     break;
                 default:
                     logger.warn(`Direct dispatch for channel ${payload.channel} is not yet implemented. [Log UID: ${logUid}]`);
@@ -102,4 +108,25 @@ export class DirectDispatcher implements INotificationDispatcher {
         // Send via email provider
         await emailProvider.sendEmail(payload.recipient, subject, html);
     }
+
+    /**
+     * Handles in-app channel sending: persists record to notifications table.
+     */
+    private async sendInApp(payload: ISendNotificationPayload): Promise<void> {
+        const title = payload.variables?.title || "Notification";
+        const body = payload.variables?.body || payload.variables?.message || "";
+
+        await this.inAppRepository.createNotification({
+            tenantUid: payload.tenantUid,
+            userUid: payload.recipient,
+            title,
+            body,
+            module: payload.module || "crm",
+            referenceUid: payload.referenceUid || null,
+            template: payload.template || null,
+            data: payload.variables || {},
+            createdBy: payload.createdBy ?? null
+        });
+    }
 }
+

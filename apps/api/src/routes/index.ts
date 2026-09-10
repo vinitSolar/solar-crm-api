@@ -26,6 +26,7 @@ import { packageRoutes } from "../modules/packages/index.js";
 import { masterDocumentRoutes, masterDocumentTypeRoutes } from "../modules/master-documents/index.js";
 import { paymentRoutes } from "../modules/payments/index.js";
 import { bankDetailRoutes } from "../modules/bank-details/index.js";
+import { notificationRoutes } from "../modules/notification/index.js";
 
 const apiRouter = Router();
 
@@ -61,5 +62,6 @@ apiRouter.use("/master-documents", masterDocumentRoutes);
 apiRouter.use("/master-document-types", masterDocumentTypeRoutes);
 apiRouter.use("/payments", paymentRoutes);
 apiRouter.use("/bank-details", bankDetailRoutes);
+apiRouter.use("/notifications", notificationRoutes);
 
 export default apiRouter;

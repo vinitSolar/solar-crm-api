@@ -20,6 +20,7 @@ import { logger } from "@packages/logger/logger.js";
 import { emailProvider } from "../providers/email.provider.js";
 import { pushProvider } from "../providers/push.provider.js";
 import { NotificationRepository } from "../repositories/notification.repository.js";
+import { InAppNotificationRepository } from "../repositories/in-app-notification.repository.js";
 import {
     NOTIFICATION_CHANNEL,
     NOTIFICATION_STATUS,
@@ -37,6 +38,7 @@ interface INotificationJobData {
 }
 
 const repository = new NotificationRepository();
+const inAppRepository = new InAppNotificationRepository();
 
 /**
  * Processes a single notification job.
@@ -56,6 +58,9 @@ async function processNotificationJob(job: Job<INotificationJobData>): Promise<v
             break;
         case NOTIFICATION_CHANNEL.PUSH:
             await pushProvider.sendPush(payload);
+            break;
+        case NOTIFICATION_CHANNEL.IN_APP:
+            await processInAppNotification(payload);
             break;
         default:
             throw new Error(`Unsupported notification channel: ${payload.channel}`);
@@ -88,6 +93,26 @@ async function processEmailNotification(payload: ISendNotificationPayload): Prom
     const html = compileTemplate(rawHtml, variables);
 
     await emailProvider.sendEmail(payload.recipient, subject, html);
+}
+
+/**
+ * Handles in-app channel: persists notification to database for in-app notification center.
+ */
+async function processInAppNotification(payload: ISendNotificationPayload): Promise<void> {
+    const title = payload.variables?.title || "Notification";
+    const body = payload.variables?.body || payload.variables?.message || "";
+
+    await inAppRepository.createNotification({
+        tenantUid: payload.tenantUid,
+        userUid: payload.recipient,
+        title,
+        body,
+        module: payload.module || "crm",
+        referenceUid: payload.referenceUid || null,
+        template: payload.template || null,
+        data: payload.variables || {},
+        createdBy: payload.createdBy ?? null
+    });
 }
 
 /** Tracks whether the worker has been started */

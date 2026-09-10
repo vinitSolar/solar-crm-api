@@ -110,9 +110,9 @@ export class UserRepository {
         return result.rows;
     }
 
-    async getUserByUid(uid: string, tenantUid: string): Promise<IUser | null> {
-        const result = await this.pool.query(
-            `SELECT u.id, u.uid, u.tenant_uid as "tenantUid", u.role_uid as "roleUid", 
+    async getUserByUid(uid: string, tenantUid?: string): Promise<IUser | null> {
+        const query = tenantUid
+            ? `SELECT u.id, u.uid, u.tenant_uid as "tenantUid", u.role_uid as "roleUid", 
                     u.first_name as "firstName", u.last_name as "lastName", u.email, u.password, 
                     u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
                     u.is_deleted as "isDeleted", 
@@ -120,9 +120,19 @@ export class UserRepository {
                     u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"
              FROM users u
              LEFT JOIN roles r ON u.role_uid = r.uid
-             WHERE u.uid = $1 AND u.tenant_uid = $2`,
-            [uid, tenantUid]
-        );
+             WHERE u.uid = $1 AND u.tenant_uid = $2`
+            : `SELECT u.id, u.uid, u.tenant_uid as "tenantUid", u.role_uid as "roleUid", 
+                    u.first_name as "firstName", u.last_name as "lastName", u.email, u.password, 
+                    u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
+                    u.is_deleted as "isDeleted", 
+                    u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
+                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"
+             FROM users u
+             LEFT JOIN roles r ON u.role_uid = r.uid
+             WHERE u.uid = $1`;
+
+        const params = tenantUid ? [uid, tenantUid] : [uid];
+        const result = await this.pool.query(query, params);
 
         return result.rows.length > 0 ? result.rows[0] : null;
     }

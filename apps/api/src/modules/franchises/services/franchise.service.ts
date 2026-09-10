@@ -135,6 +135,27 @@ export class FranchiseService {
                 data.franchise.password
             );
 
+            // Push Notification to Creator / Head Office Admin alerting of new franchise
+            if (createdBy) {
+                notificationService.send({
+                    channel: NOTIFICATION_CHANNEL.PUSH,
+                    template: NOTIFICATION_TEMPLATE.FRANCHISE_CREATED,
+                    recipient: createdBy,
+                    module: "franchise",
+                    referenceUid: tenant.uid,
+                    tenantUid: tenant.uid,
+                    createdBy,
+                    variables: {
+                        franchise_name: tenant.name || data.franchise.name,
+                        franchise_code: tenant.code || data.franchise.code,
+                        city: data.business?.city || "",
+                        franchise_uid: tenant.uid,
+                    }
+                }).catch(err => {
+                    logger.error("Failed to trigger franchise created push notification:", err);
+                });
+            }
+
             return toCreateFranchiseDTO(tenant, credentials);
         } catch (error) {
             await client.query("ROLLBACK");

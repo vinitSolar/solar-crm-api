@@ -10,6 +10,8 @@ import { toSiteSurveySafe, toSiteSurveyDetailsSafe } from "../dto/site-survey.dt
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { SITE_SURVEY_MESSAGES } from "../constants/site-survey.constants.js";
 import { logger } from "@packages/logger/index.js";
+import { notificationService } from "../../notification/services/notification.service.js";
+import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
 
 export class SiteSurveyService {
     private readonly repository: SiteSurveyRepository;
@@ -62,6 +64,14 @@ export class SiteSurveyService {
                 await this.noteService.handleIncomingNote(tenantUid, 'site_survey', survey.uid, data.remarks, createdBy);
                 survey.remarks = data.remarks;
             }
+
+            // Push Notification to assigned Survey Engineer
+            if (data.assignedTo) {
+                this.sendSurveyScheduledPushNotification(tenantUid, survey, lead, data.assignedTo, createdBy).catch(err => {
+                    logger.error("Failed to trigger survey scheduled push notification:", err);
+                });
+            }
+
             return toSiteSurveySafe(survey);
         } catch (error) {
             logger.error("SiteSurveyService.createSiteSurvey error", { error });
@@ -145,6 +155,19 @@ export class SiteSurveyService {
             if (data.remarks !== undefined) {
                 updated.remarks = data.remarks || null;
             }
+
+            // Push Notification if survey was reassigned to a different engineer
+            const isReassigned = Boolean(data.assignedTo && data.assignedTo !== existing.assignedTo);
+            if (isReassigned && updated.assignedTo) {
+                this.leadRepository.getByUid(tenantUid, updated.leadUid).then(lead => {
+                    if (lead) {
+                        this.sendSurveyScheduledPushNotification(tenantUid, updated, lead, updated.assignedTo, updatedBy);
+                    }
+                }).catch(err => {
+                    logger.error("Failed to trigger survey reassignment push notification:", err);
+                });
+            }
+
             return toSiteSurveySafe(updated);
         } catch (error) {
             logger.error("SiteSurveyService.updateSiteSurvey error", { error });
@@ -217,6 +240,17 @@ export class SiteSurveyService {
             }
             // Update survey status to Completed (1)
             const updatedSurvey = await this.repository.update(tenantUid, uid, { status: 1 }, userUid);
+
+            // Push Notification to assigned Sales Executive
+            this.leadRepository.getByUid(tenantUid, survey.leadUid).then(lead => {
+                if (lead) {
+                    const feasibility = data.recommendedKw ? `${data.recommendedKw} kW Recommended` : "Completed";
+                    this.sendSurveyCompletedPushNotification(tenantUid, updatedSurvey, lead, feasibility, userUid);
+                }
+            }).catch(err => {
+                logger.error("Failed to trigger survey completed push notification:", err);
+            });
+
             return toSiteSurveySafe(updatedSurvey, toSiteSurveyDetailsSafe(details));
         } catch (error) {
             logger.error("SiteSurveyService.saveSurveyDetails error", { error });
@@ -256,6 +290,74 @@ export class SiteSurveyService {
         } catch (error) {
             logger.error("SiteSurveyService.updateSurveyDetails error", { error });
             throw new CustomError(SITE_SURVEY_MESSAGES.UPDATE_FAILED, 500);
+        }
+    }
+
+    /**
+     * Helper to dispatch real-time FCM Push Notification when site survey is scheduled
+     */
+    private async sendSurveyScheduledPushNotification(
+        tenantUid: string,
+        survey: any,
+        lead: any,
+        assignedUserUid: string,
+        createdBy?: string
+    ): Promise<void> {
+        try {
+            const scheduledDate = survey.scheduledDate 
+                ? (typeof survey.scheduledDate === 'string' ? survey.scheduledDate : new Date(survey.scheduledDate).toLocaleDateString('en-IN'))
+                : "Scheduled Date";
+
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.SITE_SURVEY_SCHEDULED,
+                recipient: assignedUserUid,
+                module: "site_survey",
+                referenceUid: survey.uid,
+                tenantUid,
+                createdBy: createdBy || "SYSTEM",
+                variables: {
+                    lead_number: lead.leadNumber || "Lead",
+                    customer_name: `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer",
+                    scheduled_date: scheduledDate,
+                    lead_uid: lead.uid,
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching site survey scheduled push notification:", err);
+        }
+    }
+
+    /**
+     * Helper to dispatch real-time FCM Push Notification when site survey is completed
+     */
+    private async sendSurveyCompletedPushNotification(
+        tenantUid: string,
+        survey: any,
+        lead: any,
+        feasibility?: string,
+        userUid?: string
+    ): Promise<void> {
+        try {
+            if (!lead || !lead.assignedTo) return;
+
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.SITE_SURVEY_COMPLETED,
+                recipient: lead.assignedTo,
+                module: "site_survey",
+                referenceUid: survey.uid,
+                tenantUid,
+                createdBy: userUid || "SYSTEM",
+                variables: {
+                    lead_number: lead.leadNumber || "Lead",
+                    customer_name: `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer",
+                    feasibility: feasibility || "Completed",
+                    lead_uid: lead.uid,
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching site survey completed push notification:", err);
         }
     }
 }

@@ -93,41 +93,182 @@ class PushProvider {
      */
     private formatContent(payload: ISendNotificationPayload): { title: string; body: string; data: Record<string, string> } {
         const v = payload.variables || {};
+        const moduleName = payload.module || "crm";
+        const referenceUid = payload.referenceUid || "";
 
         switch (payload.template) {
             case NOTIFICATION_TEMPLATE.LEAD_ASSIGNED: {
                 const leadNumber = v.lead_number || "Lead";
                 const customerName = v.customer_name || "Customer";
                 const systemSize = v.system_size ? ` (${v.system_size})` : "";
-                
                 return {
                     title: "New Lead Assigned",
                     body: `You have been assigned lead ${leadNumber} - ${customerName}${systemSize}.`,
                     data: {
-                        module: payload.module,
-                        referenceUid: payload.referenceUid,
+                        module: moduleName,
+                        referenceUid,
                         leadNumber,
                         customerName
                     }
                 };
             }
+
+            case NOTIFICATION_TEMPLATE.LEAD_STATUS_CHANGED: {
+                const leadNumber = v.lead_number || "Lead";
+                const customerName = v.customer_name || "Customer";
+                const statusName = v.status_name || "Updated";
+                return {
+                    title: "Lead Status Updated",
+                    body: `Lead ${leadNumber} (${customerName}) status changed to ${statusName}.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        leadNumber,
+                        statusName
+                    }
+                };
+            }
+
+            case NOTIFICATION_TEMPLATE.LEAD_NOTE_ADDED: {
+                const leadNumber = v.lead_number || "Lead";
+                const authorName = v.author_name || "Team Member";
+                const noteExcerpt = v.note_text ? (v.note_text.length > 80 ? `${v.note_text.substring(0, 80)}...` : v.note_text) : "New note added";
+                return {
+                    title: `New Note on Lead ${leadNumber}`,
+                    body: `${authorName}: "${noteExcerpt}"`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        leadNumber
+                    }
+                };
+            }
+
+            case NOTIFICATION_TEMPLATE.SITE_SURVEY_SCHEDULED: {
+                const leadNumber = v.lead_number || "Lead";
+                const scheduledDate = v.scheduled_date || "today";
+                const customerName = v.customer_name || "Customer";
+                return {
+                    title: "Site Survey Scheduled",
+                    body: `Survey scheduled for Lead ${leadNumber} (${customerName}) on ${scheduledDate}.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        leadNumber,
+                        scheduledDate
+                    }
+                };
+            }
+
+            case NOTIFICATION_TEMPLATE.SITE_SURVEY_COMPLETED: {
+                const leadNumber = v.lead_number || "Lead";
+                const customerName = v.customer_name || "Customer";
+                const feasibility = v.feasibility ? ` [Feasibility: ${v.feasibility}]` : "";
+                return {
+                    title: "Site Survey Completed",
+                    body: `Technical survey completed for Lead ${leadNumber} - ${customerName}${feasibility}.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        leadNumber
+                    }
+                };
+            }
+
+            case NOTIFICATION_TEMPLATE.PROJECT_CREATED: {
+                const projectNumber = v.project_number || "Project";
+                const projectName = v.project_name || "Solar Project";
+                return {
+                    title: "New Project Created",
+                    body: `Project ${projectNumber} (${projectName}) has been created.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        projectNumber
+                    }
+                };
+            }
+
+            case NOTIFICATION_TEMPLATE.PROJECT_MANAGER_ASSIGNED: {
+                const projectNumber = v.project_number || "Project";
+                const projectName = v.project_name || "Solar Installation";
+                return {
+                    title: "Assigned as Project Manager",
+                    body: `You have been assigned as Project Manager for ${projectNumber} - ${projectName}.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        projectNumber
+                    }
+                };
+            }
+
+            case NOTIFICATION_TEMPLATE.PROJECT_STATUS_CHANGED: {
+                const projectNumber = v.project_number || "Project";
+                const statusName = v.status_name || "Updated";
+                return {
+                    title: "Project Status Updated",
+                    body: `Project ${projectNumber} status changed to ${statusName}.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        projectNumber,
+                        statusName
+                    }
+                };
+            }
+
+            case NOTIFICATION_TEMPLATE.FRANCHISE_CREATED: {
+                const franchiseName = v.franchise_name || "Franchise";
+                const franchiseCode = v.franchise_code || "";
+                const city = v.city ? ` in ${v.city}` : "";
+                return {
+                    title: "New Franchise Onboarded",
+                    body: `Franchise ${franchiseName} (${franchiseCode}) has been onboarded${city}.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        franchiseCode,
+                        franchiseName
+                    }
+                };
+            }
+
+            case NOTIFICATION_TEMPLATE.PAYMENT_RECEIVED: {
+                const amount = v.amount || "0";
+                const leadNumber = v.lead_number || "Customer";
+                const customerName = v.customer_name || "";
+                const customerInfo = customerName ? ` (${customerName})` : "";
+                return {
+                    title: "Payment Logged",
+                    body: `Payment of ₹${amount} recorded for Lead ${leadNumber}${customerInfo}.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        amount,
+                        leadNumber
+                    }
+                };
+            }
+
             case NOTIFICATION_TEMPLATE.TEST_PUSH: {
                 return {
                     title: v.title || "SunSelect Test Notification",
                     body: v.body || v.message || "This is a test notification from SunSelect Solar CRM!",
                     data: {
-                        module: payload.module,
-                        referenceUid: payload.referenceUid
+                        module: moduleName,
+                        referenceUid
                     }
                 };
             }
+
             default:
                 return {
                     title: v.title || "SunSelect Solar Notification",
                     body: v.body || v.message || "You have a new update in SunSelect Solar CRM.",
                     data: {
-                        module: payload.module,
-                        referenceUid: payload.referenceUid
+                        module: moduleName,
+                        referenceUid
                     }
                 };
         }

@@ -135,12 +135,15 @@ export class LeadService {
             if (!leadSource) throw new CustomError(LEAD_SOURCE_MESSAGES.NOT_FOUND, 400);
         }
 
+        let newStatusName: string | undefined;
         if (data.statusUid) {
             const leadStatus = await this.statusRepository.getByUid(tenantUid, data.statusUid);
             if (!leadStatus) throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 400);
+            newStatusName = leadStatus.name;
         }
 
         const isReassigned = Boolean(data.assignedTo && data.assignedTo !== existing.assignedTo);
+        const isStatusChanged = Boolean(data.statusUid && data.statusUid !== existing.statusUid);
 
         if (isReassigned && data.assignedTo) {
             const user = await this.userRepository.getUserByUid(data.assignedTo, tenantUid);
@@ -173,6 +176,13 @@ export class LeadService {
                 });
             }
 
+            // Real-time Push Notification for status changes
+            if (isStatusChanged && updated.assignedTo && newStatusName) {
+                this.sendLeadStatusChangedPushNotification(tenantUid, updated, newStatusName, updated.assignedTo, updatedBy).catch(err => {
+                    logger.error("Failed to trigger lead status change push notification:", err);
+                });
+            }
+
             return toLeadSafe(updated);
         } catch (error) {
             logger.error("LeadService.updateLead error", { error });
@@ -194,6 +204,14 @@ export class LeadService {
             if (!updated) {
                 throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
             }
+
+            // Push Notification for status change
+            if (updated.assignedTo) {
+                this.sendLeadStatusChangedPushNotification(tenantUid, updated, leadStatus.name, updated.assignedTo, updatedBy).catch(err => {
+                    logger.error("Failed to trigger lead status change push notification:", err);
+                });
+            }
+
             return toLeadSafe(updated);
         } catch (error) {
             logger.error("LeadService.changeLeadStatus error", { error });
@@ -248,6 +266,37 @@ export class LeadService {
             });
         } catch (err) {
             logger.error("Error dispatching lead assigned push notification:", err);
+        }
+    }
+
+    /**
+     * Helper to dispatch real-time FCM Push Notification when lead status changes
+     */
+    private async sendLeadStatusChangedPushNotification(
+        tenantUid: string,
+        lead: any,
+        statusName: string,
+        recipientUserUid: string,
+        createdBy?: string
+    ): Promise<void> {
+        try {
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.LEAD_STATUS_CHANGED,
+                recipient: recipientUserUid,
+                module: "lead",
+                referenceUid: lead.uid,
+                tenantUid,
+                createdBy: createdBy || "SYSTEM",
+                variables: {
+                    lead_number: lead.leadNumber || "Lead",
+                    customer_name: `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer",
+                    status_name: statusName,
+                    lead_uid: lead.uid,
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching lead status changed push notification:", err);
         }
     }
 }

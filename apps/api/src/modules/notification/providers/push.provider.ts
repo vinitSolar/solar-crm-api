@@ -57,8 +57,16 @@ class PushProvider {
         }
 
         try {
-            // Handle escaped newlines in environment variable
-            privateKey = privateKey.replace(/\\n/g, "\n");
+            // Sanitize private key: strip enclosing quotes (common in cloud environments like Render)
+            privateKey = privateKey.trim();
+            if (
+                (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
+                (privateKey.startsWith("'") && privateKey.endsWith("'"))
+            ) {
+                privateKey = privateKey.slice(1, -1);
+            }
+            // Handle escaped newlines and carriage returns in environment variables
+            privateKey = privateKey.replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
 
             if (getApps().length === 0) {
                 initializeApp({
@@ -99,8 +107,7 @@ class PushProvider {
                         module: payload.module,
                         referenceUid: payload.referenceUid,
                         leadNumber,
-                        customerName,
-                        click_action: "FLUTTER_NOTIFICATION_CLICK"
+                        customerName
                     }
                 };
             }
@@ -110,8 +117,7 @@ class PushProvider {
                     body: v.body || v.message || "This is a test notification from SunSelect Solar CRM!",
                     data: {
                         module: payload.module,
-                        referenceUid: payload.referenceUid,
-                        click_action: "FLUTTER_NOTIFICATION_CLICK"
+                        referenceUid: payload.referenceUid
                     }
                 };
             }
@@ -121,8 +127,7 @@ class PushProvider {
                     body: v.body || v.message || "You have a new update in SunSelect Solar CRM.",
                     data: {
                         module: payload.module,
-                        referenceUid: payload.referenceUid,
-                        click_action: "FLUTTER_NOTIFICATION_CLICK"
+                        referenceUid: payload.referenceUid
                     }
                 };
         }
@@ -167,7 +172,6 @@ class PushProvider {
                 notification: {
                     sound: "default",
                     channelId: "crm_high_priority_notifications",
-                    clickAction: "FLUTTER_NOTIFICATION_CLICK",
                 }
             },
             apns: {

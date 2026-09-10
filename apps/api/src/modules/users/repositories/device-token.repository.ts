@@ -103,20 +103,59 @@ export class DeviceTokenRepository {
     }
 
     /**
-     * Retrieves all active mobile device tokens (Android / iOS) for a specific user.
+     * Deactivates all active device tokens for a specific user (used during logout).
      */
-    async getActiveTokensByUser(tenantUid: string, userUid: string): Promise<IUserDeviceToken[]> {
+    async deactivateAllByUser(userUid: string): Promise<number> {
         const query = `
-            SELECT 
-                id, uid, tenant_uid AS "tenantUid", user_uid AS "userUid",
-                device_token AS "deviceToken", device_type AS "deviceType",
-                device_name AS "deviceName", is_active AS "isActive",
-                created_at AS "createdAt", updated_at AS "updatedAt"
-            FROM user_device_tokens
-            WHERE tenant_uid = $1 AND user_uid = $2 AND is_active = 1
-              AND device_type IN ('android', 'ios')
+            UPDATE user_device_tokens
+            SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+            WHERE user_uid = $1 AND is_active = 1
         `;
-        const result = await this.pool.query(query, [tenantUid, userUid]);
+        const result = await this.pool.query(query, [userUid]);
+        return result.rowCount ?? 0;
+    }
+
+    /**
+     * Retrieves all active mobile device tokens (Android / iOS) for a specific user.
+     * Ensures the user is active, not deleted, and has an active token.
+     */
+    async getActiveTokensByUser(tenantUid?: string, userUid?: string): Promise<IUserDeviceToken[]> {
+        if (!userUid) return [];
+
+        let query: string;
+        let values: unknown[];
+
+        if (tenantUid) {
+            query = `
+                SELECT 
+                    t.id, t.uid, t.tenant_uid AS "tenantUid", t.user_uid AS "userUid",
+                    t.device_token AS "deviceToken", t.device_type AS "deviceType",
+                    t.device_name AS "deviceName", t.is_active AS "isActive",
+                    t.created_at AS "createdAt", t.updated_at AS "updatedAt"
+                FROM user_device_tokens t
+                INNER JOIN users u ON u.uid = t.user_uid
+                WHERE t.tenant_uid = $1 AND t.user_uid = $2 AND t.is_active = 1
+                  AND u.is_active = 1 AND u.is_deleted = 0
+                  AND t.device_type IN ('android', 'ios')
+            `;
+            values = [tenantUid, userUid];
+        } else {
+            query = `
+                SELECT 
+                    t.id, t.uid, t.tenant_uid AS "tenantUid", t.user_uid AS "userUid",
+                    t.device_token AS "deviceToken", t.device_type AS "deviceType",
+                    t.device_name AS "deviceName", t.is_active AS "isActive",
+                    t.created_at AS "createdAt", t.updated_at AS "updatedAt"
+                FROM user_device_tokens t
+                INNER JOIN users u ON u.uid = t.user_uid
+                WHERE t.user_uid = $1 AND t.is_active = 1
+                  AND u.is_active = 1 AND u.is_deleted = 0
+                  AND t.device_type IN ('android', 'ios')
+            `;
+            values = [userUid];
+        }
+
+        const result = await this.pool.query(query, values);
         return result.rows as IUserDeviceToken[];
     }
 

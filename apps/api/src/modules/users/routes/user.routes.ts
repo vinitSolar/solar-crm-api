@@ -272,7 +272,7 @@ function createUserRouter(): Router {
      *   delete:
      *     tags: [Users]
      *     summary: Explicitly unregister a mobile device FCM token
-     *     description: Explicitly unregisters an Android/iOS device token (e.g. if the user opts out of push notifications). Note that this should NOT be called on normal user logout if you want notifications to continue reaching the user while the app is in background or closed.
+     *     description: Explicitly unregisters an Android/iOS device token so notifications will no longer be delivered to this device.
      *     security:
      *       - bearerAuth: []
      *     requestBody:

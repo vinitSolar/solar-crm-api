@@ -1,6 +1,7 @@
 import type { AuthRepository } from "../repositories/auth.repository.js";
 import type { LoginRequestDto, LoginResponseDto } from "../dto/login.dto.js";
 import type { RefreshTokenRequestDto, RefreshTokenResponseDto } from "../dto/refresh-token.dto.js";
+import type { LogoutRequestDto } from "../dto/logout.dto.js";
 import { comparePassword, hashPassword } from "../utils/bcrypt.js";
 import { verifyRefreshToken } from "../utils/jwt.js";
 import { generateTokenPair, buildLoginResponse, buildRefreshResponse } from "../utils/token.js";
@@ -189,16 +190,37 @@ export class AuthService {
     }
 
     /**
-     * Logs out the user by deleting their session from the database.
-     * Note: FCM device tokens are intentionally preserved so push notifications
-     * continue to be delivered when the app is closed or in the background.
-     * Tokens are only pruned when Firebase reports them as permanently invalid.
+     * Logs out the user by deleting their session from the database
+     * and deactivating active mobile device tokens so logged-out users do not receive push notifications.
      *
-     * @param refreshToken - The refresh token of the session to invalidate.
+     * @param dto - Logout request DTO containing the refreshToken and optional deviceToken.
      */
-    async logout(refreshToken: string): Promise<void> {
+    async logout(dto: LogoutRequestDto | string): Promise<void> {
+        const refreshToken = typeof dto === "string" ? dto : dto.refreshToken;
+        const deviceToken = typeof dto === "string" ? undefined : dto.deviceToken;
+
         logger.info("AuthService.logout attempt");
-        
+
+        // Step 1: Look up session to identify the user before deleting session
+        const session = await this.authRepository.findSessionByToken(refreshToken);
+
+        // Step 2: Deactivate device token(s) so logged-out users do not receive push notifications
+        if (deviceToken) {
+            // Specific device token provided: deactivate this device
+            await this.deviceTokenRepository.deactivateByToken(deviceToken);
+            logger.info("Deactivated specific mobile device token during logout", {
+                deviceTokenPrefix: deviceToken.substring(0, 15) + "..."
+            });
+        } else if (session && session.user_uid) {
+            // No specific deviceToken provided: deactivate all active device tokens for this user
+            const count = await this.deviceTokenRepository.deactivateAllByUser(session.user_uid);
+            logger.info("Deactivated all active mobile device tokens for user during logout", {
+                userUid: session.user_uid,
+                deactivatedCount: count
+            });
+        }
+
+        // Step 3: Delete session from database
         await this.authRepository.deleteSession(refreshToken);
         
         logger.info("Logout successful");

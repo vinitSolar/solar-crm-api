@@ -91,7 +91,7 @@ export class AuthController {
 
             logger.info("AuthController.logout attempt");
 
-            await this.authService.logout(dto.refreshToken);
+            await this.authService.logout(dto);
 
             res.status(200).json({
                 success: true,

@@ -176,7 +176,7 @@ function createAuthRouter(): Router {
      *   post:
      *     tags: [Authentication]
      *     summary: Logout user
-     *     description: Logs out a user by invalidating their refresh token session. Note that mobile FCM device tokens remain active so background and closed-app notifications continue to be delivered.
+     *     description: Logs out a user by invalidating their refresh token session and deactivating mobile FCM device token(s) so logged-out users do not receive push notifications.
      *     requestBody:
      *       required: true
      *       content:
@@ -188,6 +188,10 @@ function createAuthRouter(): Router {
      *               refreshToken:
      *                 type: string
      *                 example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+     *               deviceToken:
+     *                 type: string
+     *                 description: Optional specific FCM device registration token to deactivate. If omitted, all active device tokens for the user session are deactivated.
+     *                 example: fM2z9_x...APA91b...
      *     responses:
      *       200:
      *         description: Logout successful

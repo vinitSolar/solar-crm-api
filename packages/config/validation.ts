@@ -70,7 +70,7 @@ export const envSchema = z.object({
     FIREBASE_PRIVATE_KEY: z.string().optional(),
 
     // WhatsApp Cloud API (Meta)
-    WHATSAPP_API_VERSION: z.string().optional().default("v21.0"),
+    WHATSAPP_API_VERSION: z.string().optional().default("v26.0"),
     WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
     WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
     WHATSAPP_ACCESS_TOKEN: z.string().optional(),

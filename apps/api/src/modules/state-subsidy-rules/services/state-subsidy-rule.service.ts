@@ -51,7 +51,7 @@ export class StateSubsidyRuleService {
             uid: rule.uid,
             schemeName: rule.scheme_name,
             stateUid: rule.state_uid,
-            state: rule.state_name || (rule.state_uid ? null : "All States"),
+            state: rule.state_name || (!rule.state_uid || rule.state_uid === "All" ? "All States" : null),
             subsidyPerKw: Number(rule.subsidy_per_kw),
             maximumSubsidyAmount: Number(rule.maximum_subsidy_amount),
             description: rule.description,

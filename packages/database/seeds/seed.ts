@@ -5,6 +5,7 @@ import { logger } from "../../logger/index.js";
 import { seedProductSpecifications } from "./seed_product_specifications.js";
 import { seedTenantDefaults } from "./seed_tenant_defaults.js";
 import { seedProducts } from "./seed_products.js";
+import { seedSubsidyRules } from "./seed_subsidy_rules.js";
 
 const SALT_ROUNDS = 10;
 
@@ -257,6 +258,9 @@ export async function seed(pool: Pool) {
 
         // 9. Seed products and their specifications
         await seedProducts(pool);
+
+        // 10. Seed subsidy rules (PM Surya Ghar: Muft Bijli Yojana)
+        await seedSubsidyRules(pool);
 
         logger.info("🎉 Database seed completed successfully!");
 

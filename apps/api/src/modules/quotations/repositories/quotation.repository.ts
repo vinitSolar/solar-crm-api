@@ -611,8 +611,10 @@ export class QuotationRepository {
         const query = `
             SELECT ssr.subsidy_per_kw, ssr.maximum_subsidy_amount
             FROM state_subsidy_rules ssr
-            JOIN states s ON s.uid::text = ssr.state_uid::text
-            WHERE LOWER(s.name) = LOWER($1) AND ssr.is_active = 1 AND ssr.is_deleted = 0
+            LEFT JOIN states s ON s.uid::text = ssr.state_uid::text
+            WHERE (LOWER(s.name) = LOWER($1) OR ssr.state_uid IS NULL OR ssr.state_uid = 'All')
+              AND ssr.is_active = 1 AND ssr.is_deleted = 0
+            ORDER BY CASE WHEN ssr.state_uid IS NOT NULL AND ssr.state_uid != 'All' THEN 0 ELSE 1 END
             LIMIT 1
         `;
         const result = await this.pool.query(query, [state]);

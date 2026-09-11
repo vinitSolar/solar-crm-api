@@ -14,17 +14,25 @@ import type {
 } from "../interfaces/whatsapp.interface.js";
 import { WhatsAppProvider } from "../providers/whatsapp.provider.js";
 import { WhatsAppRepository } from "../repositories/whatsapp.repository.js";
+import { WhatsAppSelfServiceService } from "./whatsapp-self-service.service.js";
+
+// In-memory LRU cache to deduplicate rapid concurrent webhook deliveries
+const processedWebhookMessageIds = new Set<string>();
+const MAX_PROCESSED_CACHE_SIZE = 5000;
 
 export class WhatsAppService {
     private readonly provider: WhatsAppProvider;
     private readonly repository: WhatsAppRepository;
+    private readonly selfService: WhatsAppSelfServiceService;
 
     constructor(
         provider = new WhatsAppProvider(),
-        repository = new WhatsAppRepository()
+        repository = new WhatsAppRepository(),
+        selfService = new WhatsAppSelfServiceService()
     ) {
         this.provider = provider;
         this.repository = repository;
+        this.selfService = selfService;
     }
 
     /**
@@ -198,25 +206,47 @@ export class WhatsAppService {
         const waMessageId = msg.id;
         const messageType = msg.type || WHATSAPP_MESSAGE_TYPE.TEXT;
 
+        // 1. Duplicate Webhook Protection (In-Memory + Database verification)
+        if (waMessageId) {
+            if (processedWebhookMessageIds.has(waMessageId)) {
+                logger.info(`[WhatsAppService] Duplicate webhook event detected in-memory for ${waMessageId}, skipping.`);
+                return;
+            }
+
+            const existing = await this.repository.findByWaMessageId(waMessageId);
+            if (existing) {
+                logger.info(`[WhatsAppService] Message ${waMessageId} already logged in database, skipping duplicate.`);
+                processedWebhookMessageIds.add(waMessageId);
+                return;
+            }
+
+            // Track processed ID to prevent rapid concurrent duplicates
+            processedWebhookMessageIds.add(waMessageId);
+            if (processedWebhookMessageIds.size > MAX_PROCESSED_CACHE_SIZE) {
+                const firstKey = processedWebhookMessageIds.values().next().value;
+                if (firstKey) processedWebhookMessageIds.delete(firstKey);
+            }
+        }
+
+        // 2. Extract message text across types (text, interactive buttons, list options, button clicks, media captions)
         let content: string | null = null;
         if (messageType === WHATSAPP_MESSAGE_TYPE.TEXT) {
             content = msg.text?.body || null;
+        } else if (msg.interactive?.button_reply) {
+            content = msg.interactive.button_reply.id || msg.interactive.button_reply.title || null;
+        } else if (msg.interactive?.list_reply) {
+            content = msg.interactive.list_reply.id || msg.interactive.list_reply.title || null;
+        } else if (msg.button) {
+            content = msg.button.payload || msg.button.text || null;
         } else if (msg[messageType]?.caption) {
             content = msg[messageType].caption;
         } else {
             content = `[${messageType.toUpperCase()} Media Message]`;
         }
 
-        logger.info(`[WhatsAppService] Received inbound WhatsApp message from ${fromNumber} (ID: ${waMessageId})`);
+        logger.info(`[WhatsAppService] Received inbound WhatsApp message from ${fromNumber} (ID: ${waMessageId}, Content: '${content}')`);
 
-        // Avoid logging duplicate inbound messages
-        const existing = await this.repository.findByWaMessageId(waMessageId);
-        if (existing) {
-            logger.info(`[WhatsAppService] Message ${waMessageId} already logged, skipping.`);
-            return;
-        }
-
-        // Log inbound message
+        // 3. Log inbound message
         await this.repository.createMessage({
             direction: WHATSAPP_DIRECTION.INBOUND,
             waMessageId,
@@ -228,20 +258,17 @@ export class WhatsAppService {
             rawPayload: msg
         });
 
-        // Trigger automatic reply if configured and Provider is available
+        // 4. Trigger Customer Self-Service Journey
         if (this.provider.isConfigured() && content) {
-            this.sendAutoReply(fromNumber).catch((err) => {
-                logger.error(`[WhatsAppService] Failed to send auto-reply to ${fromNumber}:`, err.message);
-            });
+            try {
+                const replyText = await this.selfService.handleIncomingMessage(fromNumber, content);
+                if (replyText) {
+                    await this.sendTextMessage(fromNumber, replyText);
+                }
+            } catch (err: any) {
+                logger.error(`[WhatsAppService] Failed to process self-service journey for ${fromNumber}:`, err.message);
+            }
         }
-    }
-
-    /**
-     * Send auto-reply in background
-     */
-    private async sendAutoReply(to: string): Promise<void> {
-        logger.info(`[WhatsAppService] Triggering auto-reply to ${to}`);
-        await this.sendTextMessage(to, WHATSAPP_MESSAGES.AUTO_REPLY_TEXT);
     }
 
     /**

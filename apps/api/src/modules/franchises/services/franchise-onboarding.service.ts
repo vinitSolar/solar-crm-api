@@ -18,6 +18,10 @@ import { FranchiseDocumentTypeRepository } from "../repositories/franchise-docum
 import { notificationService } from "../../notification/services/notification.service.js";
 import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
 import { env } from "@packages/config/env.js";
+import { 
+    DEFAULT_FRANCHISE_ROLES, 
+    getDefaultPermissionForFranchiseRole 
+} from "../constants/franchise-role-permissions.constants.js";
 
 const SALT_ROUNDS = 10;
 
@@ -70,20 +74,11 @@ export class FranchiseOnboardingService {
         logger.info("FranchiseOnboardingService.setupDefaultRolesAndAdmin", { tenantUid });
 
         try {
-            // 1. Define default roles
-            const defaultRoles = [
-                { name: "Franchise Owner(Admin)", description: "Full access to franchise operations", canSiteSurvey: 1, canInstallation: 1 },
-                { name: "Sales Executive", description: "Manage leads, quotations, and sales pipeline" },
-                { name: "Survey Engineer", description: "Conduct site surveys and upload reports" },
-                { name: "Backoffice", description: "Manage backoffice administrative tasks" },
-                { name: "Warehouse / Procurement", description: "Manage inventory and procurement" },
-                { name: "Installer", description: "Handle on-site solar installations" },
-            ];
-
+            // 1. Define and create default roles
+            const createdRolesMap = new Map<string, string>(); // roleName -> roleUid
             let adminRoleUid: string | null = null;
 
-            // 2. Create the roles
-            for (const roleDef of defaultRoles) {
+            for (const roleDef of DEFAULT_FRANCHISE_ROLES) {
                 const roleUid = uuidv4();
                 
                 // createRole(uid, tenantUid, data, createdBy)
@@ -93,6 +88,8 @@ export class FranchiseOnboardingService {
                     roleDef,
                     createdBy
                 );
+
+                createdRolesMap.set(roleDef.name, role.uid);
 
                 if (roleDef.name === "Franchise Owner(Admin)") {
                     adminRoleUid = role.uid;
@@ -174,60 +171,33 @@ export class FranchiseOnboardingService {
                 }
             }
 
-            // 4.5 Assign all menu permissions to Admin Role
+            // 4.5 Assign default menu permissions for all franchise roles
             const allMenus = await this.menuRepository.findAll("active");
             if (allMenus.length > 0) {
-                const masterSettingMenus = [
-                    "LEAD_SOURCES", "LEAD_STATUSES", "PROJECT_STATUSES",
-                    "PRODUCTS", "SUBSIDIES", "packages", "QUOTATION_MASTERS", "DOCUMENT_TYPES",
-                    "installation_milestones", "PRODUCT_CATEGORIES", "PRODUCT_SPECIFICATIONS", 
-                    "PRODUCT_BRANDS", "PRODUCT_UNITS", "STATE_SUBSIDY_RULES", 
-                    "QUOTATION_TERMS", "QUOTATION_SCOPE"
-                ];
-                const tenantSettingMenus = ["USERS", "ROLES"];
-
-                const adminPermissions = allMenus.map((menu: any) => {
-                    const isFranchiseMenu = menu.code === "FRANCHISES" || menu.code === "PLATFORM_SETTINGS";
-                    const isMasterSetting = masterSettingMenus.includes(menu.code);
-                    const isTenantSetting = tenantSettingMenus.includes(menu.code);
-
-                    if (isFranchiseMenu) {
+                for (const [roleName, roleUid] of createdRolesMap.entries()) {
+                    const rolePermissions = allMenus.map((menu: any) => {
+                        const perm = getDefaultPermissionForFranchiseRole(roleName, menu.code);
                         return {
                             menuUid: menu.uid,
-                            canView: 0,
-                            canCreate: 0,
-                            canEdit: 0,
-                            canDelete: 0,
-                            canSetting: 0,
+                            canView: perm.canView,
+                            canCreate: perm.canCreate,
+                            canEdit: perm.canEdit,
+                            canDelete: perm.canDelete,
+                            canSetting: perm.canSetting,
                         };
-                    }
+                    });
 
-                    if (isMasterSetting) {
-                        return {
-                            menuUid: menu.uid,
-                            canView: 1,
-                            canCreate: 0,
-                            canEdit: 0,
-                            canDelete: 0,
-                            canSetting: 0,
-                        };
-                    }
-
-                    return {
-                        menuUid: menu.uid,
-                        canView: 1,
-                        canCreate: 1,
-                        canEdit: 1,
-                        canDelete: 1,
-                        canSetting: isTenantSetting ? 1 : 0,
-                    };
-                });
-                await this.rolePermissionRepository.upsertMenuPermissions(
-                    adminRoleUid as string,
-                    tenantUid,
-                    adminPermissions
-                );
-                logger.info(`Assigned ${adminPermissions.length} menu permissions to Admin role`, { adminRoleUid, tenantUid });
+                    await this.rolePermissionRepository.upsertMenuPermissions(
+                        roleUid,
+                        tenantUid,
+                        rolePermissions
+                    );
+                    logger.info(`Assigned ${rolePermissions.length} menu permissions to role '${roleName}'`, { 
+                        roleUid, 
+                        roleName,
+                        tenantUid 
+                    });
+                }
             }
 
             // 5. Create default Lead Sources

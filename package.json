@@ -11,6 +11,7 @@
     "start": "node dist/apps/api/src/server.js",
     "build": "tsc && tsc-alias && tsx scripts/copy-assets.ts",
     "seed": "tsx packages/database/run-seed.ts",
+    "seed:subsidy": "tsx packages/database/seeds/seed_subsidy_rules.ts",
     "seed:location": "tsx packages/database/seeds/seed_locations_from_json.ts",
     "seed:all": "tsx packages/database/run-seed.ts && tsx packages/database/seeds/seed_locations_from_json.ts"
   },

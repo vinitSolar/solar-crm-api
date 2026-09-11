@@ -138,6 +138,57 @@ export class WhatsAppService {
     }
 
     /**
+     * Send outbound interactive message (list/button) and log to database
+     */
+    async sendInteractiveMessage(
+        to: string,
+        interactive: Record<string, unknown>,
+        tenantUid?: string | null,
+        createdBy?: string | null
+    ): Promise<IWhatsAppMessageSafe> {
+        let waMessageId: string | null = null;
+        let status: WhatsAppMessageStatus = WHATSAPP_MESSAGE_STATUS.SENT;
+        let errorCode: string | undefined;
+        let errorMessage: string | undefined;
+        let rawPayload: Record<string, unknown> = {};
+
+        try {
+            const metaResponse = await this.provider.sendInteractiveMessage(to, interactive);
+            waMessageId = metaResponse.messages?.[0]?.id || null;
+            rawPayload = metaResponse as unknown as Record<string, unknown>;
+        } catch (err: any) {
+            status = WHATSAPP_MESSAGE_STATUS.FAILED;
+            errorMessage = err.message || "Failed to send interactive message";
+            errorCode = err.code || null;
+            rawPayload = err.raw || {};
+            logger.error(`[WhatsAppService] Outbound interactive failed: ${errorMessage}`);
+        }
+
+        const bodyContent = (interactive.body as any)?.text || JSON.stringify(interactive);
+
+        const loggedMsg = await this.repository.createMessage({
+            tenantUid,
+            direction: WHATSAPP_DIRECTION.OUTBOUND,
+            waMessageId,
+            fromNumber: env.WHATSAPP.PHONE_NUMBER_ID || "CRM_SYSTEM",
+            toNumber: to,
+            messageType: WHATSAPP_MESSAGE_TYPE.INTERACTIVE,
+            content: bodyContent,
+            status,
+            errorCode,
+            errorMessage,
+            rawPayload,
+            createdBy
+        });
+
+        if (status === WHATSAPP_MESSAGE_STATUS.FAILED) {
+            throw new Error(errorMessage || WHATSAPP_MESSAGES.SEND_FAILED);
+        }
+
+        return this.repository.toSafe(loggedMsg);
+    }
+
+    /**
      * Verify Meta Webhook signature (HMAC SHA-256)
      */
     verifyWebhookSignature(rawBody: Buffer | string, signatureHeader?: string): boolean {
@@ -228,23 +279,28 @@ export class WhatsAppService {
             }
         }
 
-        // 2. Extract message text across types (text, interactive buttons, list options, button clicks, media captions)
+        // 2. Extract message text and interactive id across types
         let content: string | null = null;
-        if (messageType === WHATSAPP_MESSAGE_TYPE.TEXT) {
-            content = msg.text?.body || null;
+        let interactiveId: string | null = null;
+
+        if (msg.interactive?.list_reply) {
+            interactiveId = msg.interactive.list_reply.id || null;
+            content = msg.interactive.list_reply.title || interactiveId;
         } else if (msg.interactive?.button_reply) {
-            content = msg.interactive.button_reply.id || msg.interactive.button_reply.title || null;
-        } else if (msg.interactive?.list_reply) {
-            content = msg.interactive.list_reply.id || msg.interactive.list_reply.title || null;
+            interactiveId = msg.interactive.button_reply.id || null;
+            content = msg.interactive.button_reply.title || interactiveId;
+        } else if (messageType === WHATSAPP_MESSAGE_TYPE.TEXT) {
+            content = msg.text?.body || null;
         } else if (msg.button) {
-            content = msg.button.payload || msg.button.text || null;
+            interactiveId = msg.button.payload || null;
+            content = msg.button.text || msg.button.payload || null;
         } else if (msg[messageType]?.caption) {
             content = msg[messageType].caption;
         } else {
             content = `[${messageType.toUpperCase()} Media Message]`;
         }
 
-        logger.info(`[WhatsAppService] Received inbound WhatsApp message from ${fromNumber} (ID: ${waMessageId}, Content: '${content}')`);
+        logger.info(`[WhatsAppService] Received inbound WhatsApp message from ${fromNumber} (ID: ${waMessageId}, Content: '${content}', InteractiveId: '${interactiveId}')`);
 
         // 3. Log inbound message
         await this.repository.createMessage({
@@ -259,11 +315,13 @@ export class WhatsAppService {
         });
 
         // 4. Trigger Customer Self-Service Journey
-        if (this.provider.isConfigured() && content) {
+        if (this.provider.isConfigured() && (content || interactiveId)) {
             try {
-                const replyText = await this.selfService.handleIncomingMessage(fromNumber, content);
-                if (replyText) {
-                    await this.sendTextMessage(fromNumber, replyText);
+                const response = await this.selfService.handleIncomingMessage(fromNumber, content || "", interactiveId);
+                if (response.type === "interactive") {
+                    await this.sendInteractiveMessage(fromNumber, response.payload as Record<string, unknown>);
+                } else if (response.type === "text" && typeof response.payload === "string") {
+                    await this.sendTextMessage(fromNumber, response.payload);
                 }
             } catch (err: any) {
                 logger.error(`[WhatsAppService] Failed to process self-service journey for ${fromNumber}:`, err.message);

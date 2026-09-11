@@ -116,6 +116,12 @@ export interface IWebhookValue {
         timestamp: string;
         type: string;
         text?: { body: string };
+        interactive?: {
+            type?: string;
+            list_reply?: { id: string; title: string; description?: string };
+            button_reply?: { id: string; title: string };
+        };
+        button?: { text: string; payload: string };
         image?: { id: string; mime_type: string; sha256: string; caption?: string };
         document?: { id: string; mime_type: string; sha256: string; filename?: string; caption?: string };
     }>;

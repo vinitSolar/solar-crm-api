@@ -11,6 +11,8 @@
 import { logger } from "@packages/logger/logger.js";
 import {
     WHATSAPP_CONVERSATION_STATE,
+    WHATSAPP_GREETINGS,
+    WHATSAPP_INTERACTIVE_ACTIONS,
     WHATSAPP_MENU_OPTIONS,
     WHATSAPP_NAV_RESET_COMMANDS,
     WHATSAPP_SELF_SERVICE_MESSAGES
@@ -19,6 +21,12 @@ import type { ICustomerLeadSummary } from "../interfaces/whatsapp-self-service.i
 import { WhatsAppSessionRepository } from "../repositories/whatsapp-session.repository.js";
 import { WhatsAppSelfServiceRepository } from "../repositories/whatsapp-self-service.repository.js";
 import { WhatsAppJourneyBuilderService } from "./whatsapp-journey-builder.service.js";
+
+export interface ISelfServiceResponse {
+    type: "interactive" | "text";
+    payload: Record<string, unknown> | string;
+    text: string;
+}
 
 export class WhatsAppSelfServiceService {
     private readonly sessionRepo: WhatsAppSessionRepository;
@@ -52,16 +60,18 @@ export class WhatsAppSelfServiceService {
     }
 
     /**
-     * Process incoming message and return customer-safe reply text
+     * Process incoming message and return customer-safe reply (interactive or text)
      */
     async handleIncomingMessage(
         fromNumber: string,
-        incomingText: string
-    ): Promise<string> {
+        incomingText: string,
+        interactiveId?: string | null
+    ): Promise<ISelfServiceResponse> {
         const cleanText = (incomingText || "").trim().toLowerCase();
+        const cleanInteractiveId = (interactiveId || "").trim().toLowerCase();
         const { normalizedPhone, national10Digit } = this.normalizePhoneNumber(fromNumber);
 
-        logger.info(`[WhatsAppSelfService] Processing message from ${normalizedPhone} ('${cleanText}')`);
+        logger.info(`[WhatsAppSelfService] Processing message from ${normalizedPhone} (text: '${cleanText}', interactiveId: '${cleanInteractiveId}')`);
 
         // 1. Search CRM for matching leads
         const matchingLeads = await this.selfServiceRepo.findLeadsByPhoneNumber(normalizedPhone, national10Digit);
@@ -69,7 +79,11 @@ export class WhatsAppSelfServiceService {
         // CASE 3: Customer not found
         if (!matchingLeads || matchingLeads.length === 0) {
             logger.info(`[WhatsAppSelfService] No active lead found for phone ${normalizedPhone}. Sending not found.`);
-            return WHATSAPP_SELF_SERVICE_MESSAGES.CUSTOMER_NOT_FOUND;
+            return {
+                type: "text",
+                payload: WHATSAPP_SELF_SERVICE_MESSAGES.CUSTOMER_NOT_FOUND,
+                text: WHATSAPP_SELF_SERVICE_MESSAGES.CUSTOMER_NOT_FOUND
+            };
         }
 
         // 2. Fetch or initialize conversation session
@@ -107,13 +121,10 @@ export class WhatsAppSelfServiceService {
             // CASE 2: Multiple matching leads
             const candidateUids = matchingLeads.map((l) => l.uid);
 
-            // If session already exists with a valid selected lead from the matching list
             if (session && session.leadUid && candidateUids.includes(session.leadUid)) {
-                // Customer has an active lead context
                 activeLead = matchingLeads.find((l) => l.uid === session!.leadUid) || null;
             }
 
-            // Check if user is currently in LEAD_SELECTION state selecting an option
             if (session && session.currentState === WHATSAPP_CONVERSATION_STATE.LEAD_SELECTION) {
                 const selectedIndex = parseInt(cleanText, 10) - 1;
                 const candidateList = (session.metadata?.candidateLeadUids as string[]) || candidateUids;
@@ -130,17 +141,26 @@ export class WhatsAppSelfServiceService {
                             currentState: WHATSAPP_CONVERSATION_STATE.MAIN_MENU,
                             metadata: { candidateLeadUids: candidateList }
                         });
-                        return this.journeyBuilder.buildMainMenu(activeLead.firstName);
+                        const menuPayload = this.journeyBuilder.buildInteractiveMainMenu(false);
+                        return {
+                            type: "interactive",
+                            payload: menuPayload,
+                            text: WHATSAPP_SELF_SERVICE_MESSAGES.MAIN_MENU_BODY
+                        };
                     }
                 }
 
-                // If invalid selection number received in LEAD_SELECTION state
-                return this.journeyBuilder.buildLeadSelectionMenu(matchingLeads);
+                const leadSelectionText = this.journeyBuilder.buildLeadSelectionMenu(matchingLeads);
+                return {
+                    type: "text",
+                    payload: leadSelectionText,
+                    text: leadSelectionText
+                };
             }
 
-            // If no active lead is selected yet, prompt lead selection
             if (!activeLead) {
                 logger.info(`[WhatsAppSelfService] Multiple leads found (${matchingLeads.length}) for ${normalizedPhone}. Prompting selection.`);
+                const leadSelectionText = this.journeyBuilder.buildLeadSelectionMenu(matchingLeads);
                 if (!session) {
                     await this.sessionRepo.createSession({
                         tenantUid: matchingLeads[0]!.tenantUid,
@@ -156,79 +176,126 @@ export class WhatsAppSelfServiceService {
                         metadata: { candidateLeadUids: candidateUids }
                     });
                 }
-                return this.journeyBuilder.buildLeadSelectionMenu(matchingLeads);
+                return {
+                    type: "text",
+                    payload: leadSelectionText,
+                    text: leadSelectionText
+                };
             }
         }
 
         if (!activeLead) {
-            return WHATSAPP_SELF_SERVICE_MESSAGES.CUSTOMER_NOT_FOUND;
+            return {
+                type: "text",
+                payload: WHATSAPP_SELF_SERVICE_MESSAGES.CUSTOMER_NOT_FOUND,
+                text: WHATSAPP_SELF_SERVICE_MESSAGES.CUSTOMER_NOT_FOUND
+            };
         }
 
-        // 4. Handle Navigation Reset Commands ('0', 'menu', 'main menu', 'home', etc.)
-        if (WHATSAPP_NAV_RESET_COMMANDS.has(cleanText)) {
+        // ========================================
+        // MESSAGE ROUTING PRIORITY
+        // ========================================
+
+        // 1. Check whether it is an Interactive List or Button Reply
+        const isStatusAction = cleanInteractiveId === WHATSAPP_INTERACTIVE_ACTIONS.APPLICATION_STATUS
+            || cleanText === WHATSAPP_INTERACTIVE_ACTIONS.APPLICATION_STATUS
+            || cleanText === WHATSAPP_MENU_OPTIONS.APPLICATION_STATUS;
+
+        const isJourneyAction = cleanInteractiveId === WHATSAPP_INTERACTIVE_ACTIONS.SOLAR_JOURNEY
+            || cleanText === WHATSAPP_INTERACTIVE_ACTIONS.SOLAR_JOURNEY
+            || cleanText === WHATSAPP_MENU_OPTIONS.SOLAR_JOURNEY;
+
+        const isExecutiveAction = cleanInteractiveId === WHATSAPP_INTERACTIVE_ACTIONS.ASSIGNED_EXECUTIVE
+            || cleanText === WHATSAPP_INTERACTIVE_ACTIONS.ASSIGNED_EXECUTIVE
+            || cleanText === WHATSAPP_MENU_OPTIONS.ASSIGNED_EXECUTIVE;
+
+        const isMainMenuAction = cleanInteractiveId === WHATSAPP_INTERACTIVE_ACTIONS.MAIN_MENU
+            || cleanText === WHATSAPP_INTERACTIVE_ACTIONS.MAIN_MENU;
+
+        if (isStatusAction) {
+            const entities = await this.selfServiceRepo.getLeadWorkflowEntities(activeLead.tenantUid, activeLead.uid);
+            const { currentStage, lastUpdated } = this.journeyBuilder.deriveStages(activeLead, entities);
             if (session) {
-                await this.sessionRepo.updateSession(session.uid, {
-                    currentState: WHATSAPP_CONVERSATION_STATE.MAIN_MENU
-                });
+                await this.sessionRepo.updateSession(session.uid, { currentState: WHATSAPP_CONVERSATION_STATE.APPLICATION_STATUS });
             }
-            return this.journeyBuilder.buildMainMenu(activeLead.firstName);
+            const bodyText = this.journeyBuilder.buildApplicationStatus(activeLead, currentStage, lastUpdated);
+            return {
+                type: "interactive",
+                payload: this.journeyBuilder.buildInteractiveButtonReply(bodyText),
+                text: bodyText
+            };
         }
 
-        // 5. Handle Menu Selection Options
-        switch (cleanText) {
-            case WHATSAPP_MENU_OPTIONS.APPLICATION_STATUS: {
-                // FEATURE 1: 📊 My Application Status
-                const entities = await this.selfServiceRepo.getLeadWorkflowEntities(activeLead.tenantUid, activeLead.uid);
-                const { currentStage, lastUpdated } = this.journeyBuilder.deriveStages(activeLead, entities);
-
-                if (session) {
-                    await this.sessionRepo.updateSession(session.uid, {
-                        currentState: WHATSAPP_CONVERSATION_STATE.APPLICATION_STATUS
-                    });
-                }
-
-                return this.journeyBuilder.buildApplicationStatus(activeLead, currentStage, lastUpdated);
+        if (isJourneyAction) {
+            const entities = await this.selfServiceRepo.getLeadWorkflowEntities(activeLead.tenantUid, activeLead.uid);
+            const { stages } = this.journeyBuilder.deriveStages(activeLead, entities);
+            if (session) {
+                await this.sessionRepo.updateSession(session.uid, { currentState: WHATSAPP_CONVERSATION_STATE.SOLAR_JOURNEY });
             }
-
-            case WHATSAPP_MENU_OPTIONS.SOLAR_JOURNEY: {
-                // FEATURE 2: 📋 My Solar Journey
-                const entities = await this.selfServiceRepo.getLeadWorkflowEntities(activeLead.tenantUid, activeLead.uid);
-                const { stages } = this.journeyBuilder.deriveStages(activeLead, entities);
-
-                if (session) {
-                    await this.sessionRepo.updateSession(session.uid, {
-                        currentState: WHATSAPP_CONVERSATION_STATE.SOLAR_JOURNEY
-                    });
-                }
-
-                return this.journeyBuilder.buildSolarJourney(activeLead, stages);
-            }
-
-            case WHATSAPP_MENU_OPTIONS.ASSIGNED_EXECUTIVE: {
-                // FEATURE 3: 👤 My Assigned Executive
-                let executive = null;
-                if (activeLead.assignedTo) {
-                    executive = await this.selfServiceRepo.getAssignedExecutive(activeLead.tenantUid, activeLead.assignedTo);
-                }
-
-                if (session) {
-                    await this.sessionRepo.updateSession(session.uid, {
-                        currentState: WHATSAPP_CONVERSATION_STATE.ASSIGNED_EXECUTIVE
-                    });
-                }
-
-                return this.journeyBuilder.buildAssignedExecutive(executive);
-            }
-
-            default: {
-                // If the customer sends a greeting or first message while in MAIN_MENU
-                if (session?.currentState === WHATSAPP_CONVERSATION_STATE.MAIN_MENU && (cleanText === "hi" || cleanText === "hello" || cleanText === "hey")) {
-                    return this.journeyBuilder.buildMainMenu(activeLead.firstName);
-                }
-
-                // If currently viewing a sub-menu and sends an invalid choice, return invalid option message
-                return WHATSAPP_SELF_SERVICE_MESSAGES.INVALID_OPTION;
-            }
+            const bodyText = this.journeyBuilder.buildSolarJourney(activeLead, stages);
+            return {
+                type: "interactive",
+                payload: this.journeyBuilder.buildInteractiveButtonReply(bodyText),
+                text: bodyText
+            };
         }
+
+        if (isExecutiveAction) {
+            let executive = null;
+            if (activeLead.assignedTo) {
+                executive = await this.selfServiceRepo.getAssignedExecutive(activeLead.tenantUid, activeLead.assignedTo);
+            }
+            if (session) {
+                await this.sessionRepo.updateSession(session.uid, { currentState: WHATSAPP_CONVERSATION_STATE.ASSIGNED_EXECUTIVE });
+            }
+            const bodyText = this.journeyBuilder.buildAssignedExecutive(executive);
+            return {
+                type: "interactive",
+                payload: this.journeyBuilder.buildInteractiveButtonReply(bodyText),
+                text: bodyText
+            };
+        }
+
+        if (isMainMenuAction) {
+            if (session) {
+                await this.sessionRepo.updateSession(session.uid, { currentState: WHATSAPP_CONVERSATION_STATE.MAIN_MENU });
+            }
+            return {
+                type: "interactive",
+                payload: this.journeyBuilder.buildInteractiveMainMenu(false),
+                text: WHATSAPP_SELF_SERVICE_MESSAGES.MAIN_MENU_BODY
+            };
+        }
+
+        // 2. Check whether it is a normal greeting / navigation command
+        const isGreetingOrCommand = WHATSAPP_GREETINGS.has(cleanText)
+            || WHATSAPP_NAV_RESET_COMMANDS.has(cleanText)
+            || cleanText.startsWith("hi ")
+            || cleanText.startsWith("hello ")
+            || cleanText.startsWith("good morning")
+            || cleanText.startsWith("good afternoon")
+            || cleanText.startsWith("good evening");
+
+        if (isGreetingOrCommand) {
+            if (session) {
+                await this.sessionRepo.updateSession(session.uid, { currentState: WHATSAPP_CONVERSATION_STATE.MAIN_MENU });
+            }
+            return {
+                type: "interactive",
+                payload: this.journeyBuilder.buildInteractiveMainMenu(false),
+                text: WHATSAPP_SELF_SERVICE_MESSAGES.MAIN_MENU_BODY
+            };
+        }
+
+        // 3. Unknown text message: Politely guide the customer to the Interactive Main Menu (NEVER show error)
+        logger.info(`[WhatsAppSelfService] Unrecognized message '${cleanText}' from ${normalizedPhone}. Guiding customer to Interactive Main Menu.`);
+        if (session) {
+            await this.sessionRepo.updateSession(session.uid, { currentState: WHATSAPP_CONVERSATION_STATE.MAIN_MENU });
+        }
+        return {
+            type: "interactive",
+            payload: this.journeyBuilder.buildInteractiveMainMenu(true),
+            text: WHATSAPP_SELF_SERVICE_MESSAGES.GUIDANCE_BODY
+        };
     }
 }

@@ -59,6 +59,33 @@ export const DEFAULT_FRANCHISE_ROLES: IFranchiseRoleDef[] = [
     },
 ];
 
+export const FRANCHISE_LOOKUP_MENUS = [
+    'DOCUMENT_TYPES',
+    'INSTALLATION_MILESTONES',
+    'LEAD_SOURCES',
+    'LEAD_STATUSES',
+    'PRODUCT_BRANDS',
+    'PRODUCT_CATEGORIES',
+    'PRODUCT_SPECIFICATIONS',
+    'PRODUCT_UNITS',
+    'PROJECT_STATUSES',
+    'QUOTATION_MASTERS',
+    'QUOTATION_TERMS',
+    'QUOTATION_SCOPE',
+    'STATE_SUBSIDY_RULES',
+    'SUBSIDY_DOCUMENT_TYPES',
+    'BANK_DETAILS',
+    'SUBSIDIES',
+];
+
+const READ_ONLY_PERMISSION: IPermissionAction = {
+    canView: 1,
+    canCreate: 0,
+    canEdit: 0,
+    canDelete: 0,
+    canSetting: 0,
+};
+
 const NO_PERMISSION: IPermissionAction = {
     canView: 0,
     canCreate: 0,
@@ -72,6 +99,17 @@ export function getDefaultPermissionForFranchiseRole(
     menuCode: string
 ): IPermissionAction {
     const code = menuCode.toUpperCase();
+
+    // 1. Head Office strictly forbidden menus for all franchise roles:
+    if (code === "FRANCHISES" || code === "PLATFORM_SETTINGS") {
+        return NO_PERMISSION;
+    }
+
+    // 2. Master lookup & configuration data: All franchise roles get read-only view access
+    // so mobile and web applications can populate dropdowns, status pills, and filters.
+    if (FRANCHISE_LOOKUP_MENUS.includes(code)) {
+        return READ_ONLY_PERMISSION;
+    }
 
     switch (roleName) {
         case "Franchise Owner(Admin)": {

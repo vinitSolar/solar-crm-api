@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { logger } from "@packages/logger/index.js";
 import pool from "@packages/connection.js";
 import type { IAuthenticatedRequest } from "../modules/auth/interfaces/auth.interface.js";
+import { FRANCHISE_LOOKUP_MENUS } from "../modules/franchises/constants/franchise-role-permissions.constants.js";
 
 /**
  * Middleware to check if the authenticated user has specific permission for a menu module.
@@ -33,7 +34,7 @@ export function requirePermission(menuCode: string, action: 'can_view' | 'can_cr
                     ON m.uid = rmp.menu_uid AND rmp.role_uid = $1 AND rmp.tenant_uid = $3
                 LEFT JOIN user_menu_permissions ump 
                     ON m.uid = ump.menu_uid AND ump.user_uid = $2 AND ump.tenant_uid = $3
-                WHERE m.code = $4 AND m.is_active = 1
+                WHERE LOWER(m.code) = LOWER($4) AND m.is_active = 1
             `;
 
             const result = await pool.query(query, [authReq.roleUid, authReq.user.uid, authReq.tenantUid, menuCode]);
@@ -50,6 +51,13 @@ export function requirePermission(menuCode: string, action: 'can_view' | 'can_cr
             const hasPermission = result.rows[0].has_permission === 1;
 
             if (!hasPermission) {
+                // All authenticated CRM users can view master lookup and status data (read-only)
+                // to populate status tabs, dropdowns, and filters across mobile and web apps.
+                if (action === 'can_view' && FRANCHISE_LOOKUP_MENUS.includes(menuCode.toUpperCase())) {
+                    next();
+                    return;
+                }
+
                 logger.warn("Permission check failed: User lacks required permission", {
                     userUid: authReq.user.uid,
                     roleUid: authReq.roleUid,

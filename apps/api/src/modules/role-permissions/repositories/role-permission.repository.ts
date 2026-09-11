@@ -73,12 +73,30 @@ export class RolePermissionRepository {
         try {
             await client.query("BEGIN");
 
-            // Delete existing permissions for this role + tenant
-            await client.query(
-                `DELETE FROM role_menu_permissions 
-                 WHERE role_uid = $1 AND tenant_uid = $2`,
-                [roleUid, tenantUid],
+            // For franchise tenants, preserve master lookup permissions (HEAD_OFFICE_ONLY_MENUS)
+            // so role permission edits in UI don't wipe them out.
+            const tenantCheck = await client.query(
+                `SELECT type FROM tenants WHERE uid = $1 AND is_deleted = 0 LIMIT 1`,
+                [tenantUid]
             );
+            const isFranchise = tenantCheck.rows[0]?.type !== 0;
+
+            if (isFranchise) {
+                await client.query(
+                    `DELETE FROM role_menu_permissions 
+                     WHERE role_uid = $1 AND tenant_uid = $2
+                     AND menu_uid NOT IN (
+                         SELECT uid FROM menus WHERE UPPER(code) = ANY($3)
+                     )`,
+                    [roleUid, tenantUid, HEAD_OFFICE_ONLY_MENUS.map((c: string) => c.toUpperCase())],
+                );
+            } else {
+                await client.query(
+                    `DELETE FROM role_menu_permissions 
+                     WHERE role_uid = $1 AND tenant_uid = $2`,
+                    [roleUid, tenantUid],
+                );
+            }
 
             // Insert new permissions
             if (permissions.length > 0) {

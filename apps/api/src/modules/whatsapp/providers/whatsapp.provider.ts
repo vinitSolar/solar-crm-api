@@ -139,6 +139,48 @@ export class WhatsAppProvider {
     }
 
     /**
+     * Send an interactive message (list or buttons) via Meta WhatsApp Cloud API
+     */
+    async sendInteractiveMessage(
+        to: string,
+        interactive: Record<string, unknown>
+    ): Promise<IMetaSendMessageResponse> {
+        if (!this.isConfigured()) {
+            logger.warn(`[WhatsAppProvider] ${WHATSAPP_MESSAGES.NOT_CONFIGURED}`);
+            throw new Error(WHATSAPP_MESSAGES.NOT_CONFIGURED);
+        }
+
+        const cleanPhone = to.replace(/[^0-9]/g, "");
+        const url = this.getBaseUrl();
+        const payload = {
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: cleanPhone,
+            type: "interactive",
+            interactive
+        };
+
+        const headers = {
+            Authorization: `Bearer ${env.WHATSAPP.ACCESS_TOKEN}`,
+            "Content-Type": "application/json"
+        };
+
+        try {
+            logger.info(`[WhatsAppProvider] Sending interactive message (type: ${interactive.type}) to ${cleanPhone}`);
+            const response = await axios.post<IMetaSendMessageResponse>(url, payload, { headers, timeout: 10000 });
+            logger.info(`[WhatsAppProvider] Interactive message sent successfully. Meta ID: ${response.data.messages?.[0]?.id}`);
+            return response.data;
+        } catch (error: any) {
+            const errData = error.response?.data?.error || error.message;
+            logger.error(`[WhatsAppProvider] Meta API error sending interactive message:`, errData);
+            const err = new Error(`WhatsApp API Error: ${typeof errData === "object" ? errData.message : errData}`) as any;
+            if (typeof errData === "object" && errData.code) err.code = String(errData.code);
+            err.raw = typeof errData === "object" ? errData : { message: errData };
+            throw err;
+        }
+    }
+
+    /**
      * Verify incoming Meta webhook signature (x-hub-signature-256)
      */
     verifyWebhookSignature(rawBody: Buffer | string, signatureHeader?: string): boolean {

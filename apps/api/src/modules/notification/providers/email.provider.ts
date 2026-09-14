@@ -5,11 +5,17 @@
  * It does NOT log to the database — that responsibility belongs to the service/dispatcher layer.
  */
 
+import dns from "node:dns";
 import nodemailer from "nodemailer";
 import type nodemailerTypes from "nodemailer";
 import { env } from "@packages/config/index.js";
 import { logger } from "@packages/logger/logger.js";
 import { NOTIFICATION_MESSAGES } from "../constants/notification.constants.js";
+
+// Ensure Node.js prioritizes IPv4 over IPv6 to prevent ENETUNREACH in containerized cloud environments like Render
+if (typeof dns.setDefaultResultOrder === "function") {
+    dns.setDefaultResultOrder("ipv4first");
+}
 
 class EmailProvider {
     private transporter: nodemailerTypes.Transporter | null = null;
@@ -17,7 +23,7 @@ class EmailProvider {
 
     /**
      * Returns the singleton Nodemailer transporter.
-     * Uses Nodemailer's built-in Gmail service for maximum compatibility on Render.
+     * Uses explicit host/port with family: 4 (IPv4) to avoid IPv6 ENETUNREACH on cloud containers.
      */
     private getTransporter(): nodemailerTypes.Transporter {
         if (!this.transporter) {
@@ -27,33 +33,21 @@ class EmailProvider {
             const pass = env.MAIL.PASSWORD ? env.MAIL.PASSWORD.replace(/\s+/g, "") : undefined;
 
             const isGmail = host.includes("gmail.com") || (user ? user.includes("@gmail.com") : false);
+            const resolvedHost = isGmail ? "smtp.gmail.com" : host;
             const secure = port === 465;
 
-            logger.info(`Initializing Nodemailer (User: ${user}, isGmail: ${isGmail})`);
+            logger.info(`Initializing Nodemailer (User: ${user}, Host: ${resolvedHost}, Port: ${port}, Secure: ${secure})`);
 
-            if (isGmail) {
-                // Nodemailer's official built-in Gmail service preset with timeouts to prevent hanging
-                this.transporter = nodemailer.createTransport({
-                    service: "gmail",
-                    auth: {
-                        user,
-                        pass,
-                    },
-                    connectionTimeout: 8000,
-                    greetingTimeout: 8000,
-                    socketTimeout: 10000,
-                });
-            } else {
-                this.transporter = nodemailer.createTransport({
-                    host,
-                    port,
-                    secure,
-                    auth: user && pass ? { user, pass } : undefined,
-                    connectionTimeout: 8000,
-                    greetingTimeout: 8000,
-                    socketTimeout: 10000,
-                });
-            }
+            this.transporter = nodemailer.createTransport({
+                host: resolvedHost,
+                port,
+                secure,
+                family: 4, // Force IPv4 to prevent ENETUNREACH on Render/Docker environments without IPv6 routing
+                auth: user && pass ? { user, pass } : undefined,
+                connectionTimeout: 8000,
+                greetingTimeout: 8000,
+                socketTimeout: 10000,
+            } as any);
         }
         return this.transporter;
     }

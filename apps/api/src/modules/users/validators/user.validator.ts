@@ -9,8 +9,11 @@ export const getPaginatedUsersSchema = z.object({
         search: z.string().optional(),
         status: z.enum(["active", "deleted", "all"]).optional(),
         canSiteSurvey: z.number().int().min(0).max(1).optional(),
+        can_site_survey: z.number().int().min(0).max(1).optional(),
         canInstallation: z.number().int().min(0).max(1).optional(),
-        canSale: z.number().int().min(0).max(1).optional(),
+        can_installation: z.number().int().min(0).max(1).optional(),
+        canSale: z.number().int().min(0).max(1).optional().default(0),
+        can_sale: z.number().int().min(0).max(1).optional().default(0),
     })
 });
 
@@ -62,9 +65,21 @@ export const getAllUsersSchema = z.object({
     body: z.object({
         status: z.enum(["active", "deleted", "all"]).optional(),
         canSiteSurvey: z.number().int().min(0).max(1).optional(),
+        can_site_survey: z.number().int().min(0).max(1).optional(),
         canInstallation: z.number().int().min(0).max(1).optional(),
-        canSale: z.number().int().min(0).max(1).optional(),
-    })
+        can_installation: z.number().int().min(0).max(1).optional(),
+        canSale: z.number().int().min(0).max(1).optional().default(0),
+        can_sale: z.number().int().min(0).max(1).optional().default(0),
+    }).optional(),
+    query: z.object({
+        status: z.enum(["active", "deleted", "all"]).optional(),
+        canSiteSurvey: z.coerce.number().int().min(0).max(1).optional(),
+        can_site_survey: z.coerce.number().int().min(0).max(1).optional(),
+        canInstallation: z.coerce.number().int().min(0).max(1).optional(),
+        can_installation: z.coerce.number().int().min(0).max(1).optional(),
+        canSale: z.coerce.number().int().min(0).max(1).optional().default(0),
+        can_sale: z.coerce.number().int().min(0).max(1).optional().default(0),
+    }).optional(),
 });
 
 export function validateUserRequest(schema: z.ZodTypeAny) {

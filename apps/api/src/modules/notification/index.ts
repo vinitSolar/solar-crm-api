@@ -5,7 +5,6 @@
 export { notificationService } from "./services/notification.service.js";
 export { startNotificationWorker } from "./workers/notification.worker.js";
 export { emailProvider } from "./providers/email.provider.js";
-export type { EmailServiceType } from "./providers/email.provider.js";
 
 export { notificationRoutes } from "./routes/notification.routes.js";
 export { inAppNotificationService } from "./services/in-app-notification.service.js";

@@ -126,7 +126,7 @@ export function getDefaultPermissionForFranchiseRole(
         }
 
         case "Sales Executive": {
-            if (code === "DASHBOARD" || code === "PROJECTS" || code === "PRODUCTS" || code === "PACKAGES") {
+            if (code === "DASHBOARD" || code === "PROJECTS" || code === "PRODUCTS" || code === "PACKAGES" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
             if (code === "LEADS" || code === "QUOTATIONS") {
@@ -139,7 +139,7 @@ export function getDefaultPermissionForFranchiseRole(
         }
 
         case "Survey Engineer": {
-            if (code === "DASHBOARD" || code === "LEADS" || code === "PROJECTS") {
+            if (code === "DASHBOARD" || code === "LEADS" || code === "PROJECTS" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
             if (code === "SURVEYS") {
@@ -149,7 +149,7 @@ export function getDefaultPermissionForFranchiseRole(
         }
 
         case "Installer": {
-            if (code === "DASHBOARD") {
+            if (code === "DASHBOARD" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
             if (code === "PROJECTS") {
@@ -159,7 +159,7 @@ export function getDefaultPermissionForFranchiseRole(
         }
 
         case "Backoffice": {
-            if (code === "DASHBOARD" || code === "PRODUCTS" || code === "PACKAGES") {
+            if (code === "DASHBOARD" || code === "PRODUCTS" || code === "PACKAGES" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
             if (code === "LEADS" || code === "SURVEYS" || code === "PROJECTS") {
@@ -172,13 +172,16 @@ export function getDefaultPermissionForFranchiseRole(
         }
 
         case "Warehouse / Procurement": {
-            if (code === "DASHBOARD" || code === "PROJECTS" || code === "PRODUCTS" || code === "PACKAGES") {
+            if (code === "DASHBOARD" || code === "PROJECTS" || code === "PRODUCTS" || code === "PACKAGES" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
             return NO_PERMISSION;
         }
 
         default:
+            if (code === "USERS") {
+                return READ_ONLY_PERMISSION;
+            }
             return NO_PERMISSION;
     }
 }

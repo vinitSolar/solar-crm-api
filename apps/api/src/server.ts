@@ -1,3 +1,8 @@
+import dns from "node:dns";
+if (typeof dns.setDefaultResultOrder === "function") {
+    dns.setDefaultResultOrder("ipv4first");
+}
+
 import { env } from "@packages/config/index.js";
 import { connectDatabase } from "@packages/index.js";
 import { startNotificationWorker, emailProvider } from "./modules/notification/index.js";

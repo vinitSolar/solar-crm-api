@@ -52,6 +52,8 @@ export const env = {
         LEVEL: config.LOG_LEVEL,
     },
     MAIL: {
+        PROVIDER: config.MAIL_PROVIDER,
+        RESEND_API_KEY: config.RESEND_API_KEY,
         HOST: config.MAIL_HOST,
         PORT: config.MAIL_PORT,
         USER: config.MAIL_USER,

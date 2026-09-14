@@ -44,12 +44,28 @@ export const envSchema = z.object({
     // Logger
     LOG_LEVEL: z.enum(["error", "warn", "info", "http", "verbose", "debug", "silly"]).default("info"),
 
-    // Mail
-    MAIL_HOST: z.string().min(1, "MAIL_HOST is required"),
-    MAIL_PORT: z.coerce.number().int().positive(),
-    MAIL_USER: z.string().min(1, "MAIL_USER is required"),
-    MAIL_PASSWORD: z.string().min(1, "MAIL_PASSWORD is required"),
-    MAIL_FROM: z.string().email("MAIL_FROM must be a valid email"),
+    // Mail (SMTP / Nodemailer or HTTP API via Resend)
+    MAIL_PROVIDER: z.preprocess((val) => {
+        if (typeof val === "string") {
+            const normalized = val.trim().toLowerCase();
+            if (normalized === "nodemailer" || normalized === "nodemailor" || normalized === "smtp") {
+                return "nodemailer";
+            }
+            if (normalized === "resend") {
+                return "resend";
+            }
+            if (normalized === "auto") {
+                return "auto";
+            }
+        }
+        return val;
+    }, z.enum(["nodemailer", "smtp", "resend", "auto"]).default("auto")),
+    RESEND_API_KEY: z.string().optional(),
+    MAIL_HOST: z.string().optional().default("smtp.gmail.com"),
+    MAIL_PORT: z.coerce.number().int().positive().optional().default(587),
+    MAIL_USER: z.string().optional(),
+    MAIL_PASSWORD: z.string().optional(),
+    MAIL_FROM: z.string().min(1, "MAIL_FROM is required").default("noreply@sunselect.com"),
 
     // Storage (AWS S3 / Cloudflare R2 / Local)
     STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),

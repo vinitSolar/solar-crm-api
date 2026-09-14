@@ -61,6 +61,7 @@
     "pg": "^8.22.0",
     "postalcodes-india": "^1.1.4",
     "puppeteer": "^25.3.0",
+    "resend": "^6.28.0",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^14.0.1",

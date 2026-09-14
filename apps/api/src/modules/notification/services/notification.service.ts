@@ -86,7 +86,11 @@ class NotificationService {
                 await this.bullmqDispatcher.dispatch(payload, logUid);
             } else {
                 logger.info(`Dispatching notification via Direct fallback [Log UID: ${logUid}]`);
-                await this.directDispatcher.dispatch(payload, logUid);
+                // Dispatch directly in the background so API callers are never blocked by email network latency or SMTP timeouts
+                this.directDispatcher.dispatch(payload, logUid).catch((dispatchError: unknown) => {
+                    const msg = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
+                    logger.error(`Direct fallback dispatch error [Log UID: ${logUid}]: ${msg}`);
+                });
             }
 
             return { success: true, logUid };

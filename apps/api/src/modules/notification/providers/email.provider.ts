@@ -22,26 +22,26 @@ class EmailProvider {
     private getTransporter(): nodemailerTypes.Transporter {
         if (!this.transporter) {
             const host = env.MAIL.HOST || "smtp.gmail.com";
-            const port = env.MAIL.PORT || 587;
+            const port = Number(env.MAIL.PORT) || 587;
             const user = env.MAIL.USER;
-            const pass = env.MAIL.PASSWORD;
+            const pass = env.MAIL.PASSWORD ? env.MAIL.PASSWORD.replace(/\s+/g, "") : undefined;
 
-            const isGmail = host.includes("gmail.com") || user?.includes("@gmail.com");
+            const isGmail = host.includes("gmail.com") || (user ? user.includes("@gmail.com") : false);
             const secure = port === 465;
 
             logger.info(`Initializing Nodemailer (User: ${user}, isGmail: ${isGmail})`);
 
             if (isGmail) {
-                // Nodemailer's official built-in Gmail service preset
+                // Nodemailer's official built-in Gmail service preset with timeouts to prevent hanging
                 this.transporter = nodemailer.createTransport({
                     service: "gmail",
                     auth: {
                         user,
                         pass,
                     },
-                    pool: true,
-                    maxConnections: 5,
-                    maxMessages: 100,
+                    connectionTimeout: 8000,
+                    greetingTimeout: 8000,
+                    socketTimeout: 10000,
                 });
             } else {
                 this.transporter = nodemailer.createTransport({
@@ -49,9 +49,9 @@ class EmailProvider {
                     port,
                     secure,
                     auth: user && pass ? { user, pass } : undefined,
-                    connectionTimeout: 15000,
-                    greetingTimeout: 15000,
-                    socketTimeout: 20000,
+                    connectionTimeout: 8000,
+                    greetingTimeout: 8000,
+                    socketTimeout: 10000,
                 });
             }
         }

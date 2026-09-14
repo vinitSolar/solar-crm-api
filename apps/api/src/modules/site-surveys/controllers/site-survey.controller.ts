@@ -31,9 +31,10 @@ export class SiteSurveyController {
         try {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
             const uid = req.params.uid as string;
 
-            const survey = await this.service.getSiteSurveyByUid(tenantUid, uid);
+            const survey = await this.service.getSiteSurveyByUid(tenantUid, uid, userUid);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.FETCHED_SUCCESSFULLY,
@@ -48,9 +49,10 @@ export class SiteSurveyController {
         try {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
             const query = req.body;
 
-            const result = await this.service.getSiteSurveysPaginated(tenantUid, query);
+            const result = await this.service.getSiteSurveysPaginated(tenantUid, query, userUid);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.FETCHED_SUCCESSFULLY,
@@ -66,9 +68,10 @@ export class SiteSurveyController {
         try {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
             const status = req.query.status as "active" | "deleted" | "all" | undefined;
 
-            const surveys = await this.service.getAllSiteSurveys(tenantUid, status);
+            const surveys = await this.service.getAllSiteSurveys(tenantUid, status, userUid);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.FETCHED_SUCCESSFULLY,

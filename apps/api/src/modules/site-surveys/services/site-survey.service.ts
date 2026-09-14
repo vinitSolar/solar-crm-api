@@ -79,10 +79,53 @@ export class SiteSurveyService {
         }
     }
 
-    async getSiteSurveyByUid(tenantUid: string, uid: string): Promise<ISiteSurveySafe> {
+    /**
+     * Checks if a user is an Admin or Tenant Owner with full visibility across all site surveys.
+     */
+    private async isUserAdminOrOwner(userUid: string, tenantUid: string): Promise<boolean> {
+        const user = await this.userRepository.getUserByUid(userUid, tenantUid);
+        if (!user) {
+            return false;
+        }
+
+        if (user.isOwner === 1) {
+            return true;
+        }
+
+        if (user.roleName) {
+            const role = user.roleName.trim();
+            const lowerRole = role.toLowerCase();
+            if (
+                role === "Master" ||
+                role === "Franchise Owner(Admin)" ||
+                lowerRole.includes("admin") ||
+                lowerRole.includes("owner")
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    async getSiteSurveyByUid(tenantUid: string, uid: string, currentUserUid?: string): Promise<ISiteSurveySafe> {
         const survey = await this.repository.getByUid(tenantUid, uid);
         if (!survey) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
+        }
+
+        if (currentUserUid) {
+            const isAdminOrOwner = await this.isUserAdminOrOwner(currentUserUid, tenantUid);
+            if (!isAdminOrOwner) {
+                const isAssignedOrCreator =
+                    survey.assignedTo === currentUserUid ||
+                    survey.createdBy === currentUserUid ||
+                    survey.updatedBy === currentUserUid;
+
+                if (!isAssignedOrCreator) {
+                    throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
+                }
+            }
         }
 
         const details = await this.detailsRepository.getBySiteSurveyUid(tenantUid, uid);
@@ -91,10 +134,22 @@ export class SiteSurveyService {
         return toSiteSurveySafe(survey, detailsSafe);
     }
 
-    async getSiteSurveysPaginated(tenantUid: string, query: IPaginationQuery): Promise<IPaginatedResponse<ISiteSurveySafe>> {
+    async getSiteSurveysPaginated(
+        tenantUid: string,
+        query: IPaginationQuery,
+        currentUserUid?: string
+    ): Promise<IPaginatedResponse<ISiteSurveySafe>> {
         const page = query.page && query.page > 0 ? query.page : 1;
         const limit = query.limit && query.limit > 0 ? query.limit : 10;
         
+        let scopedUserUid: string | undefined = undefined;
+        if (currentUserUid) {
+            const isAdminOrOwner = await this.isUserAdminOrOwner(currentUserUid, tenantUid);
+            if (!isAdminOrOwner) {
+                scopedUserUid = currentUserUid;
+            }
+        }
+
         const result = await this.repository.getPaginated(
             tenantUid, 
             page, 
@@ -106,7 +161,8 @@ export class SiteSurveyService {
             query.fromDate,
             query.toDate,
             query.assignedTo,
-            query.leadUid
+            query.leadUid,
+            scopedUserUid
         );
 
         return {
@@ -120,8 +176,20 @@ export class SiteSurveyService {
         };
     }
 
-    async getAllSiteSurveys(tenantUid: string, status: "active" | "deleted" | "all" = "active"): Promise<ISiteSurveySafe[]> {
-        const surveys = await this.repository.getAll(tenantUid, status);
+    async getAllSiteSurveys(
+        tenantUid: string,
+        status: "active" | "deleted" | "all" = "active",
+        currentUserUid?: string
+    ): Promise<ISiteSurveySafe[]> {
+        let scopedUserUid: string | undefined = undefined;
+        if (currentUserUid) {
+            const isAdminOrOwner = await this.isUserAdminOrOwner(currentUserUid, tenantUid);
+            if (!isAdminOrOwner) {
+                scopedUserUid = currentUserUid;
+            }
+        }
+
+        const surveys = await this.repository.getAll(tenantUid, status, scopedUserUid);
         return surveys.map(survey => toSiteSurveySafe(survey));
     }
 
@@ -129,6 +197,18 @@ export class SiteSurveyService {
         const existing = await this.repository.getByUid(tenantUid, uid);
         if (!existing) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const isAdminOrOwner = await this.isUserAdminOrOwner(updatedBy, tenantUid);
+        if (!isAdminOrOwner) {
+            const isAssignedOrCreator =
+                existing.assignedTo === updatedBy ||
+                existing.createdBy === updatedBy ||
+                existing.updatedBy === updatedBy;
+
+            if (!isAssignedOrCreator) {
+                throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
+            }
         }
 
         if (data.assignedTo && data.assignedTo !== existing.assignedTo) {
@@ -170,6 +250,7 @@ export class SiteSurveyService {
 
             return toSiteSurveySafe(updated);
         } catch (error) {
+            if (error instanceof CustomError) throw error;
             logger.error("SiteSurveyService.updateSiteSurvey error", { error });
             throw new CustomError(SITE_SURVEY_MESSAGES.UPDATE_FAILED, 500);
         }
@@ -181,6 +262,18 @@ export class SiteSurveyService {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
         }
 
+        const isAdminOrOwner = await this.isUserAdminOrOwner(updatedBy, tenantUid);
+        if (!isAdminOrOwner) {
+            const isAssignedOrCreator =
+                existing.assignedTo === updatedBy ||
+                existing.createdBy === updatedBy ||
+                existing.updatedBy === updatedBy;
+
+            if (!isAssignedOrCreator) {
+                throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
+            }
+        }
+
         if (status < 0 || status > 3) {
             throw new CustomError(SITE_SURVEY_MESSAGES.INVALID_STATUS, 400);
         }
@@ -189,6 +282,7 @@ export class SiteSurveyService {
             const updated = await this.repository.update(tenantUid, uid, { status }, updatedBy);
             return toSiteSurveySafe(updated);
         } catch (error) {
+            if (error instanceof CustomError) throw error;
             logger.error("SiteSurveyService.changeSiteSurveyStatus error", { error });
             throw new CustomError(SITE_SURVEY_MESSAGES.UPDATE_FAILED, 500);
         }
@@ -198,6 +292,18 @@ export class SiteSurveyService {
         const existing = await this.repository.getByUid(tenantUid, uid);
         if (!existing) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const isAdminOrOwner = await this.isUserAdminOrOwner(deletedBy, tenantUid);
+        if (!isAdminOrOwner) {
+            const isAssignedOrCreator =
+                existing.assignedTo === deletedBy ||
+                existing.createdBy === deletedBy ||
+                existing.updatedBy === deletedBy;
+
+            if (!isAssignedOrCreator) {
+                throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
+            }
         }
 
         const success = await this.repository.softDelete(tenantUid, uid, deletedBy);

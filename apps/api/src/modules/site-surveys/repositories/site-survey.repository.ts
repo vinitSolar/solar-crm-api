@@ -71,7 +71,8 @@ export class SiteSurveyRepository {
         fromDate?: string,
         toDate?: string,
         assignedTo?: string,
-        leadUid?: string
+        leadUid?: string,
+        scopedUserUid?: string
     ): Promise<{ rows: ISiteSurvey[]; total: number }> {
         const params: any[] = [tenantUid];
         let whereClause = "ss.tenant_uid = $1";
@@ -118,6 +119,12 @@ export class SiteSurveyRepository {
                 u.first_name ILIKE $${searchIndex} OR
                 u.last_name ILIKE $${searchIndex}
             )`;
+        }
+
+        if (scopedUserUid) {
+            params.push(scopedUserUid);
+            const userIndex = params.length;
+            whereClause += ` AND (ss.assigned_to = $${userIndex} OR ss.created_by = $${userIndex} OR ss.updated_by = $${userIndex})`;
         }
 
         const countQuery = `
@@ -217,12 +224,22 @@ export class SiteSurveyRepository {
         return (result.rowCount ?? 0) > 0;
     }
 
-    async getAll(tenantUid: string, status: "active" | "deleted" | "all" = "active"): Promise<ISiteSurvey[]> {
+    async getAll(
+        tenantUid: string,
+        status: "active" | "deleted" | "all" = "active",
+        scopedUserUid?: string
+    ): Promise<ISiteSurvey[]> {
         let whereClause = "ss.tenant_uid = $1";
         const params: any[] = [tenantUid];
 
         if (status === "active") whereClause += " AND ss.is_deleted = 0";
         else if (status === "deleted") whereClause += " AND ss.is_deleted = 1";
+
+        if (scopedUserUid) {
+            params.push(scopedUserUid);
+            const userIndex = params.length;
+            whereClause += ` AND (ss.assigned_to = $${userIndex} OR ss.created_by = $${userIndex} OR ss.updated_by = $${userIndex})`;
+        }
 
         const query = `
             SELECT ${SITE_SURVEY_COLUMNS},

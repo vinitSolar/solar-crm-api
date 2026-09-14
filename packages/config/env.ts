@@ -53,6 +53,7 @@ export const env = {
     },
     MAIL: {
         PROVIDER: config.MAIL_PROVIDER,
+        BREVO_API_KEY: config.BREVO_API_KEY,
         RESEND_API_KEY: config.RESEND_API_KEY,
         HOST: config.MAIL_HOST,
         PORT: config.MAIL_PORT,

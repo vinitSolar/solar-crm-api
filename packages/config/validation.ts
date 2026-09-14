@@ -44,12 +44,15 @@ export const envSchema = z.object({
     // Logger
     LOG_LEVEL: z.enum(["error", "warn", "info", "http", "verbose", "debug", "silly"]).default("info"),
 
-    // Mail (SMTP / Nodemailer or HTTP API via Resend)
+    // Mail (SMTP / Nodemailer or HTTP API via Brevo / Resend)
     MAIL_PROVIDER: z.preprocess((val) => {
         if (typeof val === "string") {
             const normalized = val.trim().toLowerCase();
             if (normalized === "nodemailer" || normalized === "nodemailor" || normalized === "smtp") {
                 return "nodemailer";
+            }
+            if (normalized === "brevo") {
+                return "brevo";
             }
             if (normalized === "resend") {
                 return "resend";
@@ -59,7 +62,8 @@ export const envSchema = z.object({
             }
         }
         return val;
-    }, z.enum(["nodemailer", "smtp", "resend", "auto"]).default("auto")),
+    }, z.enum(["nodemailer", "smtp", "brevo", "resend", "auto"]).default("auto")),
+    BREVO_API_KEY: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
     MAIL_HOST: z.string().optional().default("smtp.gmail.com"),
     MAIL_PORT: z.coerce.number().int().positive().optional().default(587),

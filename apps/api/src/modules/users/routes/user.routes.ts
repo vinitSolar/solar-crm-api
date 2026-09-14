@@ -178,9 +178,17 @@ function createUserRouter(): Router {
      *       401:
      *         description: Unauthorized
      */
+    router.get(
+        "/all",
+        requirePermission("USERS", "can_view"),
+        authenticate,
+        validateUserRequest(getAllUsersSchema),
+        userController.getAllUsers,
+    );
+
     router.post(
         "/all",
-        requirePermission("USERS", "can_create"),
+        requirePermission("USERS", "can_view"),
         authenticate,
         validateUserRequest(getAllUsersSchema),
         userController.getAllUsers,
@@ -220,9 +228,17 @@ function createUserRouter(): Router {
      *       401:
      *         description: Unauthorized
      */
+    router.get(
+        "/dropdown",
+        requirePermission("USERS", "can_view"),
+        authenticate,
+        validateUserRequest(getAllUsersSchema),
+        userController.getUsersForDropdown,
+    );
+
     router.post(
         "/dropdown",
-        requirePermission("USERS", "can_create"),
+        requirePermission("USERS", "can_view"),
         authenticate,
         validateUserRequest(getAllUsersSchema),
         userController.getUsersForDropdown,

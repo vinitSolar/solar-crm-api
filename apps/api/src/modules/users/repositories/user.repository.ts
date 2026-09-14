@@ -25,16 +25,16 @@ export class UserRepository {
             conditions.push(`(u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`);
         }
 
-        if (query.canSiteSurvey !== undefined) {
-            params.push(query.canSiteSurvey);
+        if (query.canSiteSurvey === 1) {
+            params.push(1);
             conditions.push(`r.can_site_survey = $${params.length}`);
         }
-        if (query.canInstallation !== undefined) {
-            params.push(query.canInstallation);
+        if (query.canInstallation === 1) {
+            params.push(1);
             conditions.push(`r.can_installation = $${params.length}`);
         }
-        if (query.canSale !== undefined) {
-            params.push(query.canSale);
+        if (query.canSale === 1) {
+            params.push(1);
             conditions.push(`r.can_sale = $${params.length}`);
         }
 
@@ -78,16 +78,16 @@ export class UserRepository {
             conditions.push("u.is_deleted = 1");
         }
 
-        if (canSiteSurvey !== undefined) {
-            params.push(canSiteSurvey);
+        if (canSiteSurvey === 1) {
+            params.push(1);
             conditions.push(`r.can_site_survey = $${params.length}`);
         }
-        if (canInstallation !== undefined) {
-            params.push(canInstallation);
+        if (canInstallation === 1) {
+            params.push(1);
             conditions.push(`r.can_installation = $${params.length}`);
         }
-        if (canSale !== undefined) {
-            params.push(canSale);
+        if (canSale === 1) {
+            params.push(1);
             conditions.push(`r.can_sale = $${params.length}`);
         }
 

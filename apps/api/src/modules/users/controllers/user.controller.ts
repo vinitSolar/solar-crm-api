@@ -29,15 +29,16 @@ export class UserController {
             if (status) {
                 query.status = status;
             }
-            if (req.body.canSiteSurvey !== undefined) {
-                query.canSiteSurvey = req.body.canSiteSurvey as number;
+            const canSiteSurveyRaw = req.body.canSiteSurvey ?? req.body.can_site_survey;
+            if (canSiteSurveyRaw !== undefined) {
+                query.canSiteSurvey = Number(canSiteSurveyRaw);
             }
-            if (req.body.canInstallation !== undefined) {
-                query.canInstallation = req.body.canInstallation as number;
+            const canInstallationRaw = req.body.canInstallation ?? req.body.can_installation;
+            if (canInstallationRaw !== undefined) {
+                query.canInstallation = Number(canInstallationRaw);
             }
-            if (req.body.canSale !== undefined) {
-                query.canSale = req.body.canSale as number;
-            }
+            const canSaleRaw = req.body.canSale ?? req.body.can_sale ?? 0;
+            query.canSale = Number(canSaleRaw);
 
             const paginatedResponse = await this.userService.getUsersByTenant(authReq.tenantUid, query);
 
@@ -55,10 +56,14 @@ export class UserController {
     getAllUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const status = req.body.status as "active" | "deleted" | "all" | undefined;
-            const canSiteSurvey = req.body.canSiteSurvey !== undefined ? Number(req.body.canSiteSurvey) : undefined;
-            const canInstallation = req.body.canInstallation !== undefined ? Number(req.body.canInstallation) : undefined;
-            const canSale = req.body.canSale !== undefined ? Number(req.body.canSale) : undefined;
+            const raw = { ...(req.query || {}), ...(req.body || {}) };
+            const status = raw.status as "active" | "deleted" | "all" | undefined;
+            const canSiteSurveyRaw = raw.canSiteSurvey ?? raw.can_site_survey;
+            const canSiteSurvey = canSiteSurveyRaw !== undefined ? Number(canSiteSurveyRaw) : undefined;
+            const canInstallationRaw = raw.canInstallation ?? raw.can_installation;
+            const canInstallation = canInstallationRaw !== undefined ? Number(canInstallationRaw) : undefined;
+            const canSaleRaw = raw.canSale ?? raw.can_sale ?? 0;
+            const canSale = Number(canSaleRaw);
             logger.info("UserController.getAllUsers", { tenantUid: authReq.tenantUid, status });
 
             const users = await this.userService.getAllUsersByTenant(authReq.tenantUid, status, canSiteSurvey, canInstallation, canSale);
@@ -76,10 +81,14 @@ export class UserController {
     getUsersForDropdown = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const status = req.body.status as "active" | "deleted" | "all" | undefined;
-            const canSiteSurvey = req.body.canSiteSurvey !== undefined ? Number(req.body.canSiteSurvey) : undefined;
-            const canInstallation = req.body.canInstallation !== undefined ? Number(req.body.canInstallation) : undefined;
-            const canSale = req.body.canSale !== undefined ? Number(req.body.canSale) : undefined;
+            const raw = { ...(req.query || {}), ...(req.body || {}) };
+            const status = raw.status as "active" | "deleted" | "all" | undefined;
+            const canSiteSurveyRaw = raw.canSiteSurvey ?? raw.can_site_survey;
+            const canSiteSurvey = canSiteSurveyRaw !== undefined ? Number(canSiteSurveyRaw) : undefined;
+            const canInstallationRaw = raw.canInstallation ?? raw.can_installation;
+            const canInstallation = canInstallationRaw !== undefined ? Number(canInstallationRaw) : undefined;
+            const canSaleRaw = raw.canSale ?? raw.can_sale ?? 0;
+            const canSale = Number(canSaleRaw);
             logger.info("UserController.getUsersForDropdown", { tenantUid: authReq.tenantUid, status });
 
             const users = await this.userService.getUsersForDropdown(authReq.tenantUid, authReq.user.uid, status, canSiteSurvey, canInstallation, canSale);

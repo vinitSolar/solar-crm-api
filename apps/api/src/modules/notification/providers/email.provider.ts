@@ -93,7 +93,7 @@ class EmailProvider {
                     method: "GET",
                     headers: {
                         accept: "application/json",
-                        "api-key": env.MAIL.BREVO_API_KEY!,
+                        "api-key": env.MAIL.BREVO_API_KEY!.trim(),
                     },
                 });
 
@@ -142,7 +142,7 @@ class EmailProvider {
             method: "POST",
             headers: {
                 accept: "application/json",
-                "api-key": env.MAIL.BREVO_API_KEY!,
+                "api-key": env.MAIL.BREVO_API_KEY!.trim(),
                 "content-type": "application/json",
             },
             body: JSON.stringify({

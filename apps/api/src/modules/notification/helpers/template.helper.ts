@@ -6,6 +6,7 @@
  */
 
 import fs from "fs";
+import path from "path";
 import { logger } from "@packages/logger/logger.js";
 import { NOTIFICATION_TEMPLATE, NOTIFICATION_MESSAGES } from "../constants/notification.constants.js";
 import { quotationGeneratedTemplate } from "../templates/quotation-generated/template.js";
@@ -50,14 +51,37 @@ export function getTemplateConfig(template: NOTIFICATION_TEMPLATE): ITemplateCon
 
 /**
  * Loads raw HTML content from the template file path.
+ * Includes automatic fallback for production builds when running from dist/
  */
 export function loadTemplateHtml(htmlPath: string): string {
-    if (!fs.existsSync(htmlPath)) {
+    let resolvedPath = htmlPath;
+
+    if (!fs.existsSync(resolvedPath)) {
+        // Fallback 1: If running from dist, check corresponding source file in apps/api/src/
+        const srcPath = resolvedPath.replace(/([\\\/])dist([\\\/])/, "$1");
+        if (fs.existsSync(srcPath)) {
+            resolvedPath = srcPath;
+        } else {
+            // Fallback 2: Check relative to process.cwd()
+            const relativePath = path.resolve(
+                process.cwd(),
+                "apps/api/src/modules/notification/templates",
+                path.basename(path.dirname(htmlPath)),
+                path.basename(htmlPath)
+            );
+            if (fs.existsSync(relativePath)) {
+                resolvedPath = relativePath;
+            }
+        }
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
         const message = `${NOTIFICATION_MESSAGES.TEMPLATE_LOAD_FAILED} path: ${htmlPath}`;
         logger.error(message);
         throw new Error(message);
     }
-    return fs.readFileSync(htmlPath, "utf-8");
+
+    return fs.readFileSync(resolvedPath, "utf-8");
 }
 
 /**

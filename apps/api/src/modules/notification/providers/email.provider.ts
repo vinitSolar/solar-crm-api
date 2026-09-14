@@ -23,9 +23,10 @@ class EmailProvider {
 
     /**
      * Returns the singleton Nodemailer transporter.
-     * Uses explicit host/port with family: 4 (IPv4) to avoid IPv6 ENETUNREACH on cloud containers.
+     * Pre-resolves the host to IPv4 to bypass Nodemailer's internal dual-stack resolver
+     * which randomly picks unreachable IPv6 addresses on cloud containers (Render).
      */
-    private getTransporter(): nodemailerTypes.Transporter {
+    private async getTransporter(): Promise<nodemailerTypes.Transporter> {
         if (!this.transporter) {
             const host = env.MAIL.HOST || "smtp.gmail.com";
             const port = Number(env.MAIL.PORT) || 587;
@@ -36,13 +37,27 @@ class EmailProvider {
             const resolvedHost = isGmail ? "smtp.gmail.com" : host;
             const secure = port === 465;
 
-            logger.info(`Initializing Nodemailer (User: ${user}, Host: ${resolvedHost}, Port: ${port}, Secure: ${secure})`);
+            // Pre-resolve IPv4 address directly so Nodemailer never attempts IPv6 connections
+            let targetHost = resolvedHost;
+            try {
+                const ipv4Addresses = await dns.promises.resolve4(resolvedHost);
+                if (ipv4Addresses && ipv4Addresses.length > 0 && ipv4Addresses[0]) {
+                    targetHost = ipv4Addresses[0];
+                    logger.info(`Nodemailer pre-resolved ${resolvedHost} to IPv4: ${targetHost}`);
+                }
+            } catch (dnsError: any) {
+                logger.warn(`Could not pre-resolve IPv4 for ${resolvedHost}: ${dnsError.message}. Using hostname.`);
+            }
+
+            logger.info(`Initializing Nodemailer (User: ${user}, TargetHost: ${targetHost}, Port: ${port}, Secure: ${secure})`);
 
             this.transporter = nodemailer.createTransport({
-                host: resolvedHost,
+                host: targetHost,
                 port,
                 secure,
-                family: 4, // Force IPv4 to prevent ENETUNREACH on Render/Docker environments without IPv6 routing
+                tls: {
+                    servername: resolvedHost, // Preserves SSL/TLS hostname verification against smtp.gmail.com
+                },
                 auth: user && pass ? { user, pass } : undefined,
                 connectionTimeout: 8000,
                 greetingTimeout: 8000,
@@ -59,7 +74,7 @@ class EmailProvider {
         if (this.isVerified) return true;
 
         try {
-            const transporter = this.getTransporter();
+            const transporter = await this.getTransporter();
             await transporter.verify();
             logger.info("Nodemailer: Gmail connection successfully established and verified.");
             this.isVerified = true;
@@ -70,6 +85,7 @@ class EmailProvider {
                 command: error.command,
                 response: error.response,
             });
+            this.transporter = null;
             return false;
         }
     }
@@ -82,7 +98,7 @@ class EmailProvider {
      * @param html    Compiled HTML body
      */
     async sendEmail(to: string, subject: string, html: string): Promise<void> {
-        const transporter = this.getTransporter();
+        const transporter = await this.getTransporter();
         const from = env.MAIL.FROM || env.MAIL.USER;
 
         logger.info(`Nodemailer: Sending email to ${to} [Subject: ${subject}]`);
@@ -97,6 +113,7 @@ class EmailProvider {
                 response: error.response,
                 responseCode: error.responseCode,
             });
+            this.transporter = null;
             throw error;
         }
     }

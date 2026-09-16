@@ -1,0 +1,29 @@
+# Dependencies (Docker runs its own npm install)
+node_modules/
+# Build output (Docker runs its own build)
+dist/
+# Git
+.git/
+.gitignore
+# Environment (mounted at runtime via docker-compose, never baked into image)
+.env
+.env.example
+# Logs
+logs/
+# Large data files (not needed at runtime)
+locations.json
+Untitled-1.json
+# IDE & tooling
+.gemini/
+scratch/
+.vscode/
+.idea/
+# Documentation
+docs/
+# OS files
+.DS_Store
+Thumbs.db
+# Docker files (no need to copy into the image)
+Dockerfile
+docker-compose.yml
+docker-compose*.yml

@@ -8,6 +8,7 @@ import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constan
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { TENANT_TYPE } from "../../franchises/constants/franchise.constants.js";
 import pool from "@packages/connection.js";
+import { getOrSetCache, safeCacheDelPattern } from "@packages/redis/index.js";
 
 export interface ICreateSubsidyPayload {
     schemeName?: string;
@@ -126,6 +127,7 @@ export class StateSubsidyRuleService {
             await this.requiredDocRepository.createMany(createdRule.uid, documentTypeUids, userUid, client);
 
             await client.query("COMMIT");
+            safeCacheDelPattern("cache:subsidy:rules:*").catch(() => {});
 
             // Audit Logs
             if (this.auditLogService) {
@@ -194,6 +196,7 @@ export class StateSubsidyRuleService {
             }
 
             await client.query("COMMIT");
+            safeCacheDelPattern("cache:subsidy:rules:*").catch(() => {});
 
             // Audit Logs
             if (this.auditLogService) {
@@ -246,14 +249,17 @@ export class StateSubsidyRuleService {
     }
 
     public async getRulesByStateUid(stateUid: string): Promise<IStateSubsidyRuleSafe[]> {
-        const rules = await this.repository.findByStateUidOrAll(stateUid);
-        const subsidyUids = rules.map((r) => r.uid);
-        const countsMap = await this.requiredDocRepository.getCountsBySubsidyUids(subsidyUids);
+        const cacheKey = `cache:subsidy:rules:state:${stateUid}`;
+        return getOrSetCache(cacheKey, 86400, async () => {
+            const rules = await this.repository.findByStateUidOrAll(stateUid);
+            const subsidyUids = rules.map((r) => r.uid);
+            const countsMap = await this.requiredDocRepository.getCountsBySubsidyUids(subsidyUids);
 
-        return rules.map((r) => {
-            const sanitized = this.sanitize(r);
-            sanitized.requiredDocumentsCount = countsMap[r.uid] || 0;
-            return sanitized;
+            return rules.map((r) => {
+                const sanitized = this.sanitize(r);
+                sanitized.requiredDocumentsCount = countsMap[r.uid] || 0;
+                return sanitized;
+            });
         });
     }
 
@@ -282,7 +288,7 @@ export class StateSubsidyRuleService {
     }
 
     public async getDropdownRules(): Promise<IStateSubsidyRuleDropdown[]> {
-        return await this.repository.getDropdown();
+        return getOrSetCache("cache:subsidy:rules:dropdown", 86400, () => this.repository.getDropdown());
     }
 
     public async softDeleteRule(uid: string, userUid: string, tenantUid: string): Promise<void> {
@@ -299,6 +305,7 @@ export class StateSubsidyRuleService {
             await this.repository.softDelete(uid, userUid, client);
             await this.requiredDocRepository.softDeleteBySubsidyUid(uid, userUid, client);
             await client.query("COMMIT");
+            safeCacheDelPattern("cache:subsidy:rules:*").catch(() => {});
 
             if (this.auditLogService) {
                 await this.auditLogService.log({
@@ -327,6 +334,7 @@ export class StateSubsidyRuleService {
         }
 
         await this.repository.restore(uid, userUid);
+        safeCacheDelPattern("cache:subsidy:rules:*").catch(() => {});
 
         if (this.auditLogService) {
             await this.auditLogService.log({

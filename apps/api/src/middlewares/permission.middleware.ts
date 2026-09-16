@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "@packages/logger/index.js";
 import pool from "@packages/connection.js";
+import { safeCacheGet, safeCacheSet } from "@packages/redis/index.js";
 import type { IAuthenticatedRequest } from "../modules/auth/interfaces/auth.interface.js";
 import { FRANCHISE_LOOKUP_MENUS } from "../modules/franchises/constants/franchise-role-permissions.constants.js";
 
@@ -24,6 +25,36 @@ export function requirePermission(menuCode: string, action: 'can_view' | 'can_cr
 
         // Master tenant (Head Office) users might bypass all, or Master role bypasses all.
         // Let's rely on actual DB permissions. For HO Admin, the DB already has all permissions granted.
+
+        const cacheKey = `cache:perm:${authReq.tenantUid}:${authReq.roleUid}:${authReq.user.uid}:${menuCode.toLowerCase()}:${action}`;
+
+        // 1. Fast path: check Redis cache (never throws, returns null if offline)
+        const cachedPermission = await safeCacheGet<number>(cacheKey);
+        if (cachedPermission !== null) {
+            const hasPermission = cachedPermission === 1;
+
+            if (hasPermission) {
+                next();
+                return;
+            }
+
+            if (action === 'can_view' && FRANCHISE_LOOKUP_MENUS.includes(menuCode.toUpperCase())) {
+                next();
+                return;
+            }
+
+            logger.warn("Permission check failed (cached): User lacks required permission", {
+                userUid: authReq.user.uid,
+                roleUid: authReq.roleUid,
+                menuCode,
+                action,
+            });
+            res.status(403).json({
+                success: false,
+                message: "Forbidden: You do not have permission to perform this action",
+            });
+            return;
+        }
 
         try {
             const query = `
@@ -49,6 +80,9 @@ export function requirePermission(menuCode: string, action: 'can_view' | 'can_cr
             }
 
             const hasPermission = result.rows[0].has_permission === 1;
+
+            // Cache result for 5 minutes (300 seconds) in background
+            safeCacheSet(cacheKey, hasPermission ? 1 : 0, 300).catch(() => {});
 
             if (!hasPermission) {
                 // All authenticated CRM users can view master lookup and status data (read-only)

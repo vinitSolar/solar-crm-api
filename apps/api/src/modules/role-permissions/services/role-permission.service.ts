@@ -5,6 +5,7 @@ import type { IRoleMenuPermissionSafe, IUpsertRoleMenuPermission } from "../inte
 import { toRoleMenuPermissionSafe } from "../dto/role-permission.dto.js";
 import { ROLE_PERMISSION_MESSAGES } from "../constants/role-permission.constants.js";
 import { logger } from "@packages/logger/index.js";
+import { safeCacheDelPattern } from "@packages/redis/index.js";
 
 /**
  * Role Permission Service.
@@ -85,5 +86,8 @@ export class RolePermissionService {
             tenantUid,
             permissions,
         );
+
+        // Invalidate cached permissions for this tenant and role
+        safeCacheDelPattern(`cache:perm:${tenantUid}:${roleUid}:*`).catch(() => {});
     }
 }

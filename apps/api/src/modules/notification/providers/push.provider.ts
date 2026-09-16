@@ -100,6 +100,24 @@ class PushProvider {
         const referenceUid = payload.referenceUid || "";
 
         switch (payload.template) {
+            case NOTIFICATION_TEMPLATE.QUOTATION_FAILED: {
+                const quotationNumber = v.quotation_number || "Quotation";
+                const leadNumber = v.lead_number || "Lead";
+                const customerName = v.customer_name || "Customer";
+                const errorDetail = v.error_message ? `: ${v.error_message}` : "";
+                return {
+                    title: `Quotation Generation Failed (${quotationNumber})`,
+                    body: `Generation failed for Lead ${leadNumber} (${customerName})${errorDetail}.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        quotationNumber,
+                        leadNumber,
+                        customerName
+                    }
+                };
+            }
+
             case NOTIFICATION_TEMPLATE.LEAD_ASSIGNED: {
                 const leadNumber = v.lead_number || "Lead";
                 const customerName = v.customer_name || "Customer";

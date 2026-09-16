@@ -28,8 +28,15 @@ class EmailProvider {
 
     /**
      * Checks whether Brevo HTTP API is configured and should be used.
+     * Honors env.MAIL.PROVIDER ('nodemailer' | 'smtp' | 'brevo' | 'auto').
      */
     private isBrevoEnabled(): boolean {
+        if (env.MAIL.PROVIDER === "nodemailer" || env.MAIL.PROVIDER === "smtp") {
+            return false;
+        }
+        if (env.MAIL.PROVIDER === "brevo") {
+            return Boolean(env.MAIL.BREVO_API_KEY && env.MAIL.BREVO_API_KEY.trim().length > 0);
+        }
         return Boolean(env.MAIL.BREVO_API_KEY && env.MAIL.BREVO_API_KEY.trim().length > 0);
     }
 

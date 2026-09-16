@@ -4,6 +4,7 @@ import { CustomError } from "../../../middlewares/error.middleware.js";
 import { PACKAGE_MESSAGES } from "../constants/messages.js";
 import { logger } from "@packages/logger/index.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
+import { getOrSetCache, safeCacheDelPattern } from "@packages/redis/index.js";
 
 export class PackageService {
     private readonly repository: PackageRepository;
@@ -87,6 +88,7 @@ export class PackageService {
         }
 
         const createdPackage = await this.repository.createPackage(tenantUid, userUid, data, mappedProducts, mappedScopeOfWork);
+        safeCacheDelPattern(`cache:packages:dropdown:${tenantUid}:*`).catch(() => {});
         return createdPackage;
     }
 
@@ -162,6 +164,7 @@ export class PackageService {
         }
 
         await this.repository.updatePackage(uid, tenantUid, userUid, data, mappedProducts, mappedScopeOfWork);
+        safeCacheDelPattern(`cache:packages:dropdown:${tenantUid}:*`).catch(() => {});
     }
 
     async getPackageByUid(uid: string, tenantUid: string): Promise<PackageResponseDTO> {
@@ -177,7 +180,8 @@ export class PackageService {
     }
 
     async getDropdownPackages(tenantUid: string, status?: "active" | "deleted" | "all"): Promise<any[]> {
-        return await this.repository.getDropdown(tenantUid, status);
+        const cacheKey = `cache:packages:dropdown:${tenantUid}:${status || "active"}`;
+        return getOrSetCache(cacheKey, 3600, () => this.repository.getDropdown(tenantUid, status));
     }
 
     async deletePackage(uid: string, tenantUid: string, userUid: string): Promise<void> {
@@ -186,6 +190,7 @@ export class PackageService {
             throw new CustomError(PACKAGE_MESSAGES.ERROR_NOT_FOUND, 404);
         }
         await this.repository.softDelete(uid, tenantUid, userUid);
+        safeCacheDelPattern(`cache:packages:dropdown:${tenantUid}:*`).catch(() => {});
     }
 
     async restorePackage(uid: string, tenantUid: string, userUid: string): Promise<void> {
@@ -194,5 +199,6 @@ export class PackageService {
             throw new CustomError(PACKAGE_MESSAGES.ERROR_NOT_FOUND, 404);
         }
         await this.repository.restore(uid, tenantUid, userUid);
+        safeCacheDelPattern(`cache:packages:dropdown:${tenantUid}:*`).catch(() => {});
     }
 }

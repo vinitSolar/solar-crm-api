@@ -6,6 +6,7 @@ import { CustomError } from "../../../middlewares/error.middleware.js";
 import { PRODUCT_BRAND_MESSAGES } from "../constants/product-brand.constants.js";
 import { storageService } from "@packages/storage/index.js";
 import { logger } from "@packages/logger/index.js";
+import { safeCacheGet, safeCacheSet, safeCacheDelPattern } from "@packages/redis/index.js";
 
 export class ProductBrandService {
     private readonly repository: ProductBrandRepository;
@@ -40,6 +41,8 @@ export class ProductBrandService {
             ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
             createdBy: userUid,
         });
+
+        await safeCacheDelPattern("cache:product-brands:*");
 
         return toProductBrandSafe(brand);
     }
@@ -77,6 +80,8 @@ export class ProductBrandService {
             throw new CustomError(PRODUCT_BRAND_MESSAGES.NOT_FOUND, 404);
         }
 
+        await safeCacheDelPattern("cache:product-brands:*");
+
         return toProductBrandSafe(updated);
     }
 
@@ -89,8 +94,16 @@ export class ProductBrandService {
     }
 
     async getDropdownBrands(): Promise<IProductBrandDropdown[]> {
+        const cacheKey = "cache:product-brands:dropdown";
+        const cached = await safeCacheGet<IProductBrandDropdown[]>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         const brands = await this.repository.findAll("active");
-        return brands.map(toProductBrandDropdown);
+        const result = brands.map(toProductBrandDropdown);
+        await safeCacheSet(cacheKey, result, 7200); // 2 hours
+        return result;
     }
 
     async getPaginatedBrands(query: IProductBrandPaginationQuery): Promise<{ data: IProductBrandSafe[]; total: number; totalPages: number }> {
@@ -115,6 +128,7 @@ export class ProductBrandService {
         }
 
         await this.repository.softDelete(uid, userUid);
+        await safeCacheDelPattern("cache:product-brands:*");
     }
 
     async restoreBrand(uid: string, userUid: string): Promise<void> {
@@ -123,5 +137,6 @@ export class ProductBrandService {
             throw new CustomError(PRODUCT_BRAND_MESSAGES.NOT_FOUND, 404);
         }
         await this.repository.restore(uid, userUid);
+        await safeCacheDelPattern("cache:product-brands:*");
     }
 }

@@ -572,6 +572,8 @@ export class QuotationRepository {
     }
 
     async getLeadDetails(tenantUid: string, leadUid: string): Promise<{
+        uid: string;
+        leadNumber: string | null;
         firstName: string;
         lastName: string | null;
         mobileNumber: string;
@@ -583,7 +585,7 @@ export class QuotationRepository {
         systemSize: number | null;
     } | null> {
         const query = `
-            SELECT first_name, last_name, mobile_number, email, address, city, state, pin_code, system_size
+            SELECT uid, lead_number, first_name, last_name, mobile_number, email, address, city, state, pin_code, system_size
             FROM leads
             WHERE tenant_uid = $1 AND uid = $2 AND is_deleted = 0
             LIMIT 1
@@ -592,6 +594,8 @@ export class QuotationRepository {
         if (result.rows.length === 0) return null;
         const row = result.rows[0];
         return {
+            uid: row.uid,
+            leadNumber: row.lead_number,
             firstName: row.first_name,
             lastName: row.last_name,
             mobileNumber: row.mobile_number,

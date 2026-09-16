@@ -11,6 +11,7 @@ import { PRODUCT_MESSAGES } from "../constants/product.constants.js";
 import pool from "@packages/connection.js";
 import { storageService } from "@packages/storage/index.js";
 import { logger } from "@packages/logger/index.js";
+import { getOrSetCache, safeCacheDel } from "@packages/redis/index.js";
 
 export class ProductService {
     private readonly repository: ProductRepository;
@@ -122,6 +123,7 @@ export class ProductService {
             }
 
             await client.query("COMMIT");
+            safeCacheDel("cache:products:dropdown").catch(() => {});
             return toProductSafe(product);
         } catch (error) {
             await client.query("ROLLBACK");
@@ -232,6 +234,7 @@ export class ProductService {
             }
 
             await client.query("COMMIT");
+            safeCacheDel("cache:products:dropdown").catch(() => {});
             return toProductSafe(updatedProduct);
         } catch (error) {
             await client.query("ROLLBACK");
@@ -252,8 +255,10 @@ export class ProductService {
     }
 
     async getDropdownProducts(): Promise<IProductDropdown[]> {
-        const products = await this.repository.findAll("active");
-        return products.map(toProductDropdown);
+        return getOrSetCache("cache:products:dropdown", 3600, async () => {
+            const products = await this.repository.findAll("active");
+            return products.map(toProductDropdown);
+        });
     }
 
     async getPaginatedProducts(query: IProductPaginationQuery): Promise<{ data: IProductSafe[]; total: number; totalPages: number }> {
@@ -273,6 +278,7 @@ export class ProductService {
         }
 
         await this.repository.softDelete(uid, userUid);
+        safeCacheDel("cache:products:dropdown").catch(() => {});
     }
 
     async restoreProduct(uid: string, userUid: string): Promise<void> {
@@ -281,5 +287,6 @@ export class ProductService {
             throw new CustomError(PRODUCT_MESSAGES.NOT_FOUND, 404);
         }
         await this.repository.restore(uid, userUid);
+        safeCacheDel("cache:products:dropdown").catch(() => {});
     }
 }

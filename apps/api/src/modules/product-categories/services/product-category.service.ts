@@ -8,6 +8,7 @@ import { storageService } from "@packages/storage/index.js";
 import { logger } from "@packages/logger/index.js";
 import { ProductSpecificationRepository } from "../../product-specifications/repositories/product-specification.repository.js";
 import pool from "@packages/connection.js";
+import { safeCacheGet, safeCacheSet, safeCacheDelPattern } from "@packages/redis/index.js";
 
 export class ProductCategoryService {
     private readonly repository: ProductCategoryRepository;
@@ -57,6 +58,8 @@ export class ProductCategoryService {
                 });
             }
         }
+
+        await safeCacheDelPattern("cache:product-categories:*");
 
         return toProductCategorySafe(category);
     }
@@ -131,6 +134,8 @@ export class ProductCategoryService {
             }
         }
 
+        await safeCacheDelPattern("cache:product-categories:*");
+
         return toProductCategorySafe(updated);
     }
 
@@ -143,8 +148,16 @@ export class ProductCategoryService {
     }
 
     async getDropdownCategories(): Promise<IProductCategoryDropdown[]> {
+        const cacheKey = "cache:product-categories:dropdown";
+        const cached = await safeCacheGet<IProductCategoryDropdown[]>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         const categories = await this.repository.findAll("active");
-        return categories.map(toProductCategoryDropdown);
+        const result = categories.map(toProductCategoryDropdown);
+        await safeCacheSet(cacheKey, result, 7200); // 2 hours
+        return result;
     }
 
     async getPaginatedCategories(query: IProductCategoryPaginationQuery): Promise<{ data: IProductCategorySafe[]; total: number; totalPages: number }> {
@@ -169,6 +182,7 @@ export class ProductCategoryService {
         }
 
         await this.repository.softDelete(uid, userUid);
+        await safeCacheDelPattern("cache:product-categories:*");
     }
 
     async restoreCategory(uid: string, userUid: string): Promise<void> {
@@ -177,5 +191,6 @@ export class ProductCategoryService {
             throw new CustomError(PRODUCT_CATEGORY_MESSAGES.NOT_FOUND, 404);
         }
         await this.repository.restore(uid, userUid);
+        await safeCacheDelPattern("cache:product-categories:*");
     }
 }

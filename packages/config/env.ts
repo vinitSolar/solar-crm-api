@@ -68,7 +68,7 @@ export const env = {
         ACCESS_KEY_ID: config.AWS_ACCESS_KEY_ID || config.R2_ACCESS_KEY_ID,
         SECRET_ACCESS_KEY: config.AWS_SECRET_ACCESS_KEY || config.R2_SECRET_ACCESS_KEY,
         BUCKET: config.AWS_S3_BUCKET || config.R2_BUCKET,
-        PUBLIC_URL: config.AWS_S3_PUBLIC_URL || config.R2_PUBLIC_URL,
+        PUBLIC_URL:  config.AWS_S3_PUBLIC_URL || config.R2_PUBLIC_URL,
     },
     FIREBASE: {
         PROJECT_ID: config.FIREBASE_PROJECT_ID,

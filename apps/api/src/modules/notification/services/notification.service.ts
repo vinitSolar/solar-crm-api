@@ -83,13 +83,19 @@ class NotificationService {
             // 4. Dispatch via the appropriate strategy
             if (redisAvailable) {
                 logger.info(`Dispatching notification via BullMQ [Log UID: ${logUid}]`);
-                await this.bullmqDispatcher.dispatch(payload, logUid);
+                try {
+                    await this.bullmqDispatcher.dispatch(payload, logUid);
+                } catch (bullmqError: any) {
+                    logger.warn(`BullMQ dispatch failed: ${bullmqError?.message || bullmqError}. Falling back to direct dispatch.`);
+                    this.directDispatcher.dispatch(payload, logUid).catch((dispatchError: unknown) => {
+                        logger.error(`${NOTIFICATION_MESSAGES.SEND_FAILED}: ${(dispatchError as Error).message}`);
+                    });
+                }
             } else {
                 logger.info(`Dispatching notification via Direct fallback [Log UID: ${logUid}]`);
                 // Dispatch directly in the background so API callers are never blocked by email network latency or SMTP timeouts
                 this.directDispatcher.dispatch(payload, logUid).catch((dispatchError: unknown) => {
-                    const msg = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
-                    logger.error(`Direct fallback dispatch error [Log UID: ${logUid}]: ${msg}`);
+                    logger.error(`${NOTIFICATION_MESSAGES.SEND_FAILED}: ${(dispatchError as Error).message}`);
                 });
             }
 

@@ -4,6 +4,7 @@ import { QuotationRepository } from "../repositories/quotation.repository.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
 import { QuotationTermsConditionRepository } from "../../quotation-terms-conditions/repositories/quotation-terms-condition.repository.js";
 import { BankDetailRepository } from "../../bank-details/repositories/bank-detail.repository.js";
+import { UserRepository } from "../../users/repositories/user.repository.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { isRedisAvailable } from "../../notification/helpers/redis-health.helper.js";
 import { QueueSnapshotStrategy, DirectSnapshotStrategy } from "../strategies/snapshot.strategy.js";
@@ -305,20 +306,23 @@ export class QuotationService {
                 logger.error(`Failed to deactivate older quotations for lead ${quotation.leadUid}`, err);
             });
 
-            // Trigger background snapshot generation using Strategy Pattern
-            const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
-            await strategy.execute(tenantUid, quotation.uid, createdBy);
+            // Trigger background snapshot and PDF generation (non-blocking for ultra-fast API response)
+            setImmediate(async () => {
+                try {
+                    const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
+                    await strategy.execute(tenantUid, quotation.uid, createdBy);
 
-            // Auto-generate PDF during creation in the background
-            this.generatePdf(tenantUid, quotation.uid, createdBy).then(pdfResult => {
-                const pdfUrl = pdfResult.pdfUrl;
-                if (pdfUrl) {
-                    this.sendQuotationEmailBackground(tenantUid, quotation.uid, pdfUrl, createdBy).catch(err => {
-                        logger.error(`Failed to trigger background quotation email sending:`, err);
-                    });
+                    const pdfResult = await this.generatePdf(tenantUid, quotation.uid, createdBy);
+                    if (pdfResult.pdfUrl) {
+                        this.sendQuotationEmailBackground(tenantUid, quotation.uid, pdfResult.pdfUrl, createdBy).catch(err => {
+                            logger.error(`Failed to trigger background quotation email sending:`, err);
+                        });
+                    }
+                } catch (err: any) {
+                    const errorMsg = err?.message || "Failed to generate quotation snapshot or PDF.";
+                    logger.error(`Background PDF creation failed for Quote: ${quotation.uid}`, err);
+                    await this.sendQuotationFailedNotification(tenantUid, quotation.uid, createdBy, errorMsg);
                 }
-            }).catch(err => {
-                logger.error(`Failed to auto-generate PDF for Quote: ${quotation.uid}`, err);
             });
 
             const quotationWithPdf = {
@@ -328,8 +332,12 @@ export class QuotationService {
             };
 
             return toSafeQuotation(quotationWithPdf, createdItems, createdSows, createdTcs);
-        } catch (error) {
+        } catch (error: any) {
             await client.query("ROLLBACK");
+            const errorMsg = error?.message || "Quotation creation failed.";
+            this.sendQuotationFailedNotification(tenantUid, "N/A", createdBy, errorMsg, data).catch(err => {
+                logger.error(`Failed to dispatch creation failure alert for Lead: ${data.leadUid}`, err);
+            });
             throw error;
         } finally {
             client.release();
@@ -527,13 +535,18 @@ export class QuotationService {
 
             await client.query("COMMIT");
 
-            // Trigger background snapshot generation using Strategy Pattern
-            const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
-            await strategy.execute(tenantUid, updatedQuotation.uid, updatedBy);
+            // Trigger background snapshot and PDF regeneration (non-blocking for fast API response)
+            setImmediate(async () => {
+                try {
+                    const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
+                    await strategy.execute(tenantUid, updatedQuotation.uid, updatedBy);
 
-            // Auto-regenerate PDF during update to sync details in the background
-            this.generatePdf(tenantUid, updatedQuotation.uid, updatedBy).catch(err => {
-                logger.error(`Failed to auto-regenerate PDF for Quote: ${updatedQuotation.uid}`, err);
+                    await this.generatePdf(tenantUid, updatedQuotation.uid, updatedBy);
+                } catch (err: any) {
+                    const errorMsg = err?.message || "Failed to regenerate quotation snapshot or PDF.";
+                    logger.error(`Background PDF regeneration failed for Quote: ${updatedQuotation.uid}`, err);
+                    await this.sendQuotationFailedNotification(tenantUid, updatedQuotation.uid, updatedBy, errorMsg);
+                }
             });
 
             const updatedQuotationWithPdf = {
@@ -955,6 +968,75 @@ export class QuotationService {
             });
         } catch (error) {
             logger.error(`Error in quotation notification dispatch:`, error);
+        }
+    }
+
+    /**
+     * Sends a failure notification to the user who created/triggered the quotation
+     * via In-App / Push and Email alerts with lead ID, lead number, customer name, and error details.
+     */
+    public async sendQuotationFailedNotification(
+        tenantUid: string,
+        quotationUid: string,
+        userUid: string,
+        errorMessage: string,
+        creationData?: Partial<ICreateQuotationRequest>
+    ): Promise<void> {
+        try {
+            logger.info(`Dispatching quotation failure notification for Quote: ${quotationUid}, User: ${userUid}`);
+
+            // 1. Fetch quotation and lead details
+            const quotation = quotationUid && quotationUid !== "N/A" ? await this.repository.findByUid(tenantUid, quotationUid) : null;
+            const leadUid = quotation?.leadUid || creationData?.leadUid;
+            let leadNumber = "N/A";
+            let customerName = "Customer";
+            let systemSize = quotation?.systemSize 
+                ? `${Number(quotation.systemSize)} kW` 
+                : creationData?.systemSize 
+                    ? `${Number(creationData.systemSize)} kW` 
+                    : "N/A";
+            const quotationNumber = quotation?.quotationNumber || (quotationUid !== "N/A" ? quotationUid : "Draft");
+
+            if (leadUid) {
+                const lead = await this.repository.getLeadDetails(tenantUid, leadUid);
+                if (lead) {
+                    leadNumber = lead.leadNumber || lead.uid;
+                    customerName = `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer";
+                    if (systemSize === "N/A" && lead.systemSize) {
+                        systemSize = `${Number(lead.systemSize)} kW`;
+                    }
+                }
+            }
+
+            // 2. Fetch User details (the creator)
+            const userRepo = new UserRepository(pool);
+            const user = await userRepo.getUserByUid(userUid, tenantUid);
+            const creatorName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "Team Member";
+
+            const variables = {
+                creator_name: creatorName,
+                quotation_number: quotationNumber,
+                lead_number: leadNumber,
+                customer_name: customerName,
+                system_size: systemSize,
+                error_message: errorMessage
+            };
+
+            // 3. Send In-App & Mobile Push notification
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.QUOTATION_FAILED,
+                recipient: userUid,
+                module: "quotation",
+                referenceUid: quotationUid !== "N/A" ? quotationUid : (leadUid || userUid),
+                tenantUid,
+                createdBy: userUid,
+                variables
+            }).catch(err => {
+                logger.error(`Failed to send in-app/push notification for quotation failure [UID: ${quotationUid}]:`, err);
+            });
+        } catch (error) {
+            logger.error(`Failed in sendQuotationFailedNotification for Quote ${quotationUid}:`, error);
         }
     }
 }

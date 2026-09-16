@@ -4,6 +4,7 @@ import { toSafeMenu, type SafeMenu } from "../dto/menu.dto.js";
 import { MENU_MESSAGES } from "../constants/menu.constants.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { v4 as uuidv4 } from "uuid";
+import { safeCacheGet, safeCacheSet, safeCacheDelPattern } from "@packages/redis/index.js";
 
 export class MenuService {
     private readonly menuRepository: MenuRepository;
@@ -29,6 +30,8 @@ export class MenuService {
 
         const uid = uuidv4();
         const menu = await this.menuRepository.create({ ...data, uid });
+
+        await safeCacheDelPattern("cache:menus:*");
 
         return toSafeMenu(menu);
     }
@@ -58,6 +61,8 @@ export class MenuService {
             throw new CustomError(MENU_MESSAGES.NOT_FOUND, 404);
         }
 
+        await safeCacheDelPattern("cache:menus:*");
+
         return toSafeMenu(updatedMenu);
     }
 
@@ -71,8 +76,16 @@ export class MenuService {
     }
 
     async getAllMenus(status?: "active" | "deleted" | "all", tenantUid?: string): Promise<SafeMenu[]> {
+        const cacheKey = `cache:menus:all:${status || "active"}:${tenantUid || "global"}`;
+        const cached = await safeCacheGet<SafeMenu[]>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         const menus = await this.menuRepository.findAll(status, tenantUid);
-        return menus.map(toSafeMenu);
+        const result = menus.map(toSafeMenu);
+        await safeCacheSet(cacheKey, result, 7200); // 2 hours
+        return result;
     }
 
     async getMenusByPagination(query: IMenuPaginationQuery, tenantUid?: string): Promise<{ data: SafeMenu[]; meta: { total: number; page: number; limit: number; totalPages: number } }> {
@@ -97,6 +110,7 @@ export class MenuService {
         }
 
         await this.menuRepository.softDelete(uid);
+        await safeCacheDelPattern("cache:menus:*");
     }
 
     async restoreMenu(uid: string): Promise<void> {
@@ -106,5 +120,6 @@ export class MenuService {
         }
 
         await this.menuRepository.restore(uid);
+        await safeCacheDelPattern("cache:menus:*");
     }
 }

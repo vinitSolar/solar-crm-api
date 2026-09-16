@@ -320,10 +320,18 @@ export class AuthService {
         const redisKey = `auth:otp:${email.toLowerCase()}`;
 
         // Store OTP in Redis or Fallback DB
+        let storedInRedis = false;
         if (isRedisAvailable()) {
-            await redisClient.setex(redisKey, OTP_EXPIRY_SECONDS, otp);
-        } else {
-            logger.warn("Redis unavailable, using Postgres fallback for OTP generation", { email });
+            try {
+                await redisClient.setex(redisKey, OTP_EXPIRY_SECONDS, otp);
+                storedInRedis = true;
+            } catch (redisError: any) {
+                logger.warn(`Redis setex failed: ${redisError?.message || redisError}. Using Postgres fallback.`, { email });
+            }
+        }
+
+        if (!storedInRedis) {
+            logger.info("Using Postgres fallback for OTP generation", { email });
             const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
             await this.otpRepository.saveOtp(email.toLowerCase(), otp, expiresAt);
         }
@@ -359,16 +367,25 @@ export class AuthService {
 
         let isValid = false;
 
+        // 1. Try Redis verification first if available
         if (isRedisAvailable()) {
-            const redisKey = `auth:otp:${data.email.toLowerCase()}`;
-            const storedOtp = await redisClient.get(redisKey);
-            
-            if (storedOtp === data.otp) {
-                isValid = true;
-                await redisClient.del(redisKey); // OTP is single-use
+            try {
+                const redisKey = `auth:otp:${data.email.toLowerCase()}`;
+                const storedOtp = await redisClient.get(redisKey);
+                
+                if (storedOtp) {
+                    if (storedOtp === data.otp) {
+                        isValid = true;
+                        await redisClient.del(redisKey).catch(() => {}); // OTP is single-use
+                    }
+                }
+            } catch (redisError: any) {
+                logger.warn(`Redis get failed during OTP verification: ${redisError?.message || redisError}. Checking Postgres fallback.`, { email: data.email });
             }
-        } else {
-            logger.warn("Redis unavailable, using Postgres fallback for OTP verification", { email: data.email });
+        }
+
+        // 2. If not verified via Redis (or if OTP was stored in DB fallback when Redis was down), check Postgres
+        if (!isValid) {
             isValid = await this.otpRepository.verifyOtp(data.email.toLowerCase(), data.otp);
         }
 
@@ -377,14 +394,17 @@ export class AuthService {
             throw new CustomError(AUTH_MESSAGES.OTP_INVALID, 400);
         }
 
-        const user = await this.authRepository.findByEmail(data.email);
+        // Concurrently query database for user and compute bcrypt hash in parallel
+        const [user, hashedPassword] = await Promise.all([
+            this.authRepository.findByEmail(data.email),
+            hashPassword(data.newPassword)
+        ]);
+
         if (!user) {
             logger.warn("Reset password failed: User not found", { email: data.email });
             throw new CustomError(AUTH_MESSAGES.USER_NOT_FOUND, 404);
         }
 
-        // Hash new password and update
-        const hashedPassword = await hashPassword(data.newPassword);
         await this.authRepository.updatePassword(user.uid, hashedPassword);
 
         logger.info("Password reset successfully", { userUid: user.uid });

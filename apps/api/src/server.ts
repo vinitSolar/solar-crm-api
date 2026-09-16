@@ -5,6 +5,7 @@ if (typeof dns.setDefaultResultOrder === "function") {
 
 import { env } from "@packages/config/index.js";
 import { connectDatabase } from "@packages/index.js";
+import { connectRedis } from "@packages/redis/index.js";
 import { startNotificationWorker, emailProvider } from "./modules/notification/index.js";
 import { startQuotationWorker } from "./modules/quotations/index.js";
 import http from "http";
@@ -16,6 +17,9 @@ const server = http.createServer(app);
 async function startServer() {
     // Connect to database and run migrations
     await connectDatabase();
+
+    // Connect to Redis if available
+    await connectRedis();
 
     // Verify email provider configuration / connectivity
     emailProvider.verifyConnection().catch(() => {});

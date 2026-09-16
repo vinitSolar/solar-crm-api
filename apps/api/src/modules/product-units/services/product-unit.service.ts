@@ -4,6 +4,7 @@ import type { ICreateProductUnitRequest, IUpdateProductUnitRequest, IProductUnit
 import { toProductUnitSafe, toProductUnitDropdown, type IProductUnitSafe, type IProductUnitDropdown } from "../dto/product-unit.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { PRODUCT_UNIT_MESSAGES } from "../constants/product-unit.constants.js";
+import { safeCacheGet, safeCacheSet, safeCacheDelPattern } from "@packages/redis/index.js";
 
 export class ProductUnitService {
     private readonly repository: ProductUnitRepository;
@@ -28,6 +29,8 @@ export class ProductUnitService {
             sortOrder: data.sortOrder,
             createdBy: userUid,
         });
+
+        await safeCacheDelPattern("cache:product-units:*");
 
         return toProductUnitSafe(unit);
     }
@@ -54,6 +57,8 @@ export class ProductUnitService {
             throw new CustomError(PRODUCT_UNIT_MESSAGES.NOT_FOUND, 404);
         }
 
+        await safeCacheDelPattern("cache:product-units:*");
+
         return toProductUnitSafe(updated);
     }
 
@@ -66,8 +71,16 @@ export class ProductUnitService {
     }
 
     async getDropdownUnits(): Promise<IProductUnitDropdown[]> {
+        const cacheKey = "cache:product-units:dropdown";
+        const cached = await safeCacheGet<IProductUnitDropdown[]>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         const units = await this.repository.findAll("active");
-        return units.map(toProductUnitDropdown);
+        const result = units.map(toProductUnitDropdown);
+        await safeCacheSet(cacheKey, result, 7200); // 2 hours
+        return result;
     }
 
     async getPaginatedUnits(query: IProductUnitPaginationQuery): Promise<{ data: IProductUnitSafe[]; total: number; totalPages: number }> {
@@ -92,6 +105,7 @@ export class ProductUnitService {
         }
 
         await this.repository.softDelete(uid, userUid);
+        await safeCacheDelPattern("cache:product-units:*");
     }
 
     async restoreUnit(uid: string, userUid: string): Promise<void> {
@@ -100,5 +114,6 @@ export class ProductUnitService {
             throw new CustomError(PRODUCT_UNIT_MESSAGES.NOT_FOUND, 404);
         }
         await this.repository.restore(uid, userUid);
+        await safeCacheDelPattern("cache:product-units:*");
     }
 }

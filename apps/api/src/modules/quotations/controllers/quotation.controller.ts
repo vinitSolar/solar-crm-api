@@ -132,15 +132,52 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
     const tenantUid = authReq.user.tenantUid;
     const uid = req.params.uid as string;
     const createdBy = authReq.user.uid;
+    const isSync = req.query.sync === "true" || req.body?.sync === true;
 
-    const { pdfUrl, pdfPath } = await quotationService.generatePdf(tenantUid, uid, createdBy);
+    // 1. If PDF already exists and forced regeneration is not requested, return immediately
+    const existing = await quotationService.getByUid(tenantUid, uid);
+    if (!isSync && existing.pdfUrl) {
+        return res.status(200).json({
+            success: true,
+            message: "Quotation PDF retrieved successfully.",
+            data: {
+                status: "ready",
+                pdfUrl: existing.pdfUrl,
+                pdfPath: existing.pdfPath
+            }
+        });
+    }
 
-    res.status(200).json({
+    // 2. If sync parameter was explicitly requested, await generation directly
+    if (isSync) {
+        const { pdfUrl, pdfPath } = await quotationService.generatePdf(tenantUid, uid, createdBy);
+        return res.status(200).json({
+            success: true,
+            message: "Quotation PDF generated successfully.",
+            data: {
+                status: "ready",
+                pdfUrl,
+                pdfPath
+            }
+        });
+    }
+
+    // 3. Trigger PDF generation in background (non-blocking for fast API response)
+    setImmediate(async () => {
+        try {
+            await quotationService.generatePdf(tenantUid, uid, createdBy);
+        } catch (err: any) {
+            const errorMsg = err?.message || "Failed to generate quotation PDF.";
+            await quotationService.sendQuotationFailedNotification(tenantUid, uid, createdBy, errorMsg);
+        }
+    });
+
+    res.status(202).json({
         success: true,
-        message: "Quotation PDF generated successfully.",
+        message: "Quotation PDF generation started in background.",
         data: {
-            pdfUrl,
-            pdfPath
+            status: "processing",
+            quotationUid: uid
         }
     });
 });

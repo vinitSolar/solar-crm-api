@@ -25,3 +25,12 @@ if (fs.existsSync(templatesSrc)) {
     });
     console.log("✅ Successfully copied email templates to dist/apps/api/src/modules/notification/templates");
 }
+
+// 3. Copy public static assets (logos, icons, defaults)
+const publicSrc = path.resolve(process.cwd(), "apps/api/public");
+const publicDest = path.resolve(process.cwd(), "dist/apps/api/public");
+
+if (fs.existsSync(publicSrc)) {
+    fs.cpSync(publicSrc, publicDest, { recursive: true, force: true });
+    console.log("✅ Successfully copied public static assets to dist/apps/api/public");
+}

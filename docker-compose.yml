@@ -1,0 +1,76 @@
+# Docker Compose configuration for SunSelect CRM
+# Run with: docker compose up --build
+
+services:
+
+  # ──────────────────────────────────────────────
+  # Redis — In-memory store for BullMQ + caching
+  # ──────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    # ↑ Official Redis image, Alpine variant (~30MB, lightweight)
+    #   You don't build this — Docker pulls it from Docker Hub
+    ports:
+      - "6379:6379"
+      # ↑ Maps host port 6379 → container port 6379
+      #   Lets you connect from your Windows machine using RedisInsight/CLI
+      #   Format: "HOST_PORT:CONTAINER_PORT"
+    volumes:
+      - redis-data:/data
+      # ↑ Persists Redis data to a named volume
+      #   Without this, cached data + pending BullMQ jobs vanish on restart
+    restart: unless-stopped
+    # ↑ Auto-restarts if Redis crashes, but not if you manually stop it
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 1s
+    # ↑ Ensures Redis is accepting connections before dependant services start
+
+  # ──────────────────────────────────────────────
+  # API — Node.js Express + BullMQ Workers
+  # ──────────────────────────────────────────────
+  api:
+    build: .
+    # ↑ Build the image using the Dockerfile in the current directory
+    #   This runs your multi-stage build (install → compile → prune)
+    ports:
+      - "5000:5000"
+      # ↑ Maps host port 5000 → container port 5000
+      #   Your API is accessible at http://localhost:5000 from your browser
+    env_file:
+      - .env
+      # ↑ Loads ALL your env vars from .env into the container
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      # ↑ Allows container to connect to PostgreSQL running on your local Windows host machine
+    environment:
+      - REDIS_HOST=redis
+      # ↑ Connects to Redis container defined above
+      # Local PostgreSQL on Windows host machine:
+      - DB_HOST=host.docker.internal
+      - DATABASE_URL=postgresql://postgres:root@host.docker.internal:5432/sunselect_crm
+      - DB_SSL=false
+    depends_on:
+      redis:
+        condition: service_healthy
+      # ↑ Only starts the API container AFTER Redis passes its health check (PONG)
+    shm_size: '256mb'
+    # ↑ Increases /dev/shm from default 64MB so Puppeteer PDF generation doesn't run out of memory
+    volumes:
+      - uploads:/app/dist/apps/api/public/uploads
+      # ↑ Persists uploaded files (STORAGE_PROVIDER=local)
+      #   Your StorageService resolves localUploadPath to this directory
+      #   inside the compiled dist/ output
+    restart: unless-stopped
+
+# ──────────────────────────────────────────────
+# Named Volumes — Persistent data that survives container restarts
+# ──────────────────────────────────────────────
+volumes:
+  redis-data:
+    # Stores Redis RDB snapshots + AOF logs
+  uploads:
+    # Stores files uploaded via StorageService (local provider)

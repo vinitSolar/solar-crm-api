@@ -4,6 +4,7 @@ import { toProjectStatusSafe } from "../dto/project.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { PROJECT_STATUS_MESSAGES } from "../constants/project.constants.js";
 import { logger } from "@packages/logger/index.js";
+import { safeCacheGet, safeCacheSet, safeCacheDelPattern } from "@packages/redis/index.js";
 
 export class ProjectStatusService {
     private readonly repository: ProjectStatusRepository;
@@ -16,6 +17,7 @@ export class ProjectStatusService {
         logger.info("ProjectStatusService.createProjectStatus", { tenantUid });
         try {
             const projectStatus = await this.repository.create(tenantUid, data, createdBy);
+            await safeCacheDelPattern(`cache:project-statuses:*:${tenantUid}:*`);
             return toProjectStatusSafe(projectStatus);
         } catch (error) {
             logger.error("ProjectStatusService.createProjectStatus error", { error });
@@ -32,8 +34,16 @@ export class ProjectStatusService {
     }
 
     async getAllProjectStatuses(tenantUid: string, status: "active" | "deleted" | "all" = "active"): Promise<IProjectStatusSafe[]> {
+        const cacheKey = `cache:project-statuses:all:${tenantUid}:${status}`;
+        const cached = await safeCacheGet<IProjectStatusSafe[]>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         const projectStatuses = await this.repository.getAll(tenantUid, status);
-        return projectStatuses.map(toProjectStatusSafe);
+        const result = projectStatuses.map(toProjectStatusSafe);
+        await safeCacheSet(cacheKey, result, 7200); // 2 hours
+        return result;
     }
 
     async updateProjectStatus(tenantUid: string, uid: string, data: IUpdateProjectStatus, updatedBy: string): Promise<IProjectStatusSafe> {
@@ -47,6 +57,7 @@ export class ProjectStatusService {
             if (!updated) {
                 throw new CustomError(PROJECT_STATUS_MESSAGES.UPDATE_FAILED, 500);
             }
+            await safeCacheDelPattern(`cache:project-statuses:*:${tenantUid}:*`);
             return toProjectStatusSafe(updated);
         } catch (error) {
             logger.error("ProjectStatusService.updateProjectStatus error", { error });
@@ -64,6 +75,7 @@ export class ProjectStatusService {
         if (!success) {
             throw new CustomError(PROJECT_STATUS_MESSAGES.DELETE_FAILED, 500);
         }
+        await safeCacheDelPattern(`cache:project-statuses:*:${tenantUid}:*`);
     }
 
     async restoreProjectStatus(tenantUid: string, uid: string, updatedBy: string): Promise<void> {
@@ -71,5 +83,6 @@ export class ProjectStatusService {
         if (!success) {
             throw new CustomError(PROJECT_STATUS_MESSAGES.RESTORE_FAILED, 404);
         }
+        await safeCacheDelPattern(`cache:project-statuses:*:${tenantUid}:*`);
     }
 }

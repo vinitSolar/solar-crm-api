@@ -1,8 +1,11 @@
 import { Pool } from "pg";
 
-const isSsl = process.env.DB_SSL === "true" 
-    || (Boolean(process.env.DB_HOST) && process.env.DB_HOST !== "localhost" && process.env.DB_HOST !== "127.0.0.1")
-    || Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("localhost"));
+const isSsl = process.env.DB_SSL !== undefined
+    ? process.env.DB_SSL === "true"
+    : (
+        (Boolean(process.env.DB_HOST) && process.env.DB_HOST !== "localhost" && process.env.DB_HOST !== "127.0.0.1" && process.env.DB_HOST !== "host.docker.internal")
+        || Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("localhost") && !process.env.DATABASE_URL.includes("host.docker.internal"))
+    );
 
 const pool = new Pool(
     process.env.DATABASE_URL
@@ -13,6 +16,8 @@ const pool = new Pool(
             max: 20,
             idleTimeoutMillis: 30000,
             connectionTimeoutMillis: 10000,
+            keepAlive: true,
+            keepAliveInitialDelayMillis: 10000,
         }
         : {
             host: process.env.DB_HOST,
@@ -24,6 +29,8 @@ const pool = new Pool(
             max: 20,
             idleTimeoutMillis: 30000,
             connectionTimeoutMillis: 10000,
+            keepAlive: true,
+            keepAliveInitialDelayMillis: 10000,
         }
 );
 

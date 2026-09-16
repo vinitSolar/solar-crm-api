@@ -13,6 +13,7 @@ import { quotationGeneratedTemplate } from "../templates/quotation-generated/tem
 import { paymentReceivedTemplate } from "../templates/payment-received/template.js";
 import { passwordResetTemplate } from "../templates/password-reset/template.js";
 import { franchiseCredentialsTemplate } from "../templates/franchise-credentials/template.js";
+import { quotationFailedTemplate } from "../templates/quotation-failed/template.js";
 import type { ITemplateConfig } from "../interfaces/notification.interfaces.js";
 
 /**
@@ -25,6 +26,12 @@ export function getTemplateConfig(template: NOTIFICATION_TEMPLATE): ITemplateCon
                 subject: quotationGeneratedTemplate.subject,
                 htmlPath: quotationGeneratedTemplate.getHtmlPath(),
                 requiredKeys: quotationGeneratedTemplate.requiredKeys
+            };
+        case NOTIFICATION_TEMPLATE.QUOTATION_FAILED:
+            return {
+                subject: quotationFailedTemplate.subject,
+                htmlPath: quotationFailedTemplate.getHtmlPath(),
+                requiredKeys: quotationFailedTemplate.requiredKeys
             };
         case NOTIFICATION_TEMPLATE.PAYMENT_RECEIVED:
             return {

@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "../../logger/index.js";
+import { seedInstallationMilestones } from "./seed_installation_milestones.js";
 
 export async function seedTenantDefaults(client: PoolClient, tenantUid: string, createdBy: string = "SYSTEM") {
     logger.info(`🌱 Seeding tenant defaults for tenant: ${tenantUid}...`);
@@ -127,6 +128,9 @@ export async function seedTenantDefaults(client: PoolClient, tenantUid: string, 
             );
         }
     }
+
+    // 9. Seed Installation Milestones
+    await seedInstallationMilestones(client, tenantUid, createdBy);
 
     logger.info(`✅ Seeded tenant defaults for tenant: ${tenantUid} successfully!`);
 }

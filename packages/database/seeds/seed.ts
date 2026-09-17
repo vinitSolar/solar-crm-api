@@ -5,6 +5,7 @@ import { logger } from "../../logger/index.js";
 import { seedProductSpecifications } from "./seed_product_specifications.js";
 import { seedTenantDefaults } from "./seed_tenant_defaults.js";
 import { seedDefaultRoles } from "./seed_default_roles.js";
+import { seedInstallationMilestones } from "./seed_installation_milestones.js";
 import { seedProducts } from "./seed_products.js";
 import { seedSubsidyRules } from "./seed_subsidy_rules.js";
 
@@ -258,6 +259,9 @@ export async function seed(pool: Pool) {
 
         // Seed default defined roles and auto menu permissions for Head Office
         await seedDefaultRoles(client, tenantUid, 0, "SYSTEM");
+
+        // Seed default installation milestones for Head Office
+        await seedInstallationMilestones(client, tenantUid, "SYSTEM");
 
         await client.query("COMMIT");
 

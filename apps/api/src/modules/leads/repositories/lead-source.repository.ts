@@ -2,6 +2,13 @@ import type { Pool, PoolClient } from "pg";
 import type { ILeadSource, ICreateLeadSource, IUpdateLeadSource } from "../interfaces/lead.interface.js";
 import { v4 as uuidv4 } from "uuid";
 
+function normalizeColor(color?: string | null): string | null {
+    if (!color) return null;
+    const trimmed = color.trim();
+    if (!trimmed) return null;
+    return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+}
+
 const LEAD_SOURCE_COLUMNS = `
     id, uid, tenant_uid AS "tenantUid", name, color, sort_order AS "sortOrder", 
     is_default AS "isDefault", is_active AS "isActive", is_deleted AS "isDeleted",
@@ -47,7 +54,7 @@ export class LeadSourceRepository {
             RETURNING ${LEAD_SOURCE_COLUMNS}
         `;
         const values = [
-            uid, tenantUid, data.name, data.color ? data.color.trim() : null, sortOrder, 
+            uid, tenantUid, data.name, normalizeColor(data.color), sortOrder, 
             data.isDefault ?? 0, createdBy
         ];
 
@@ -66,7 +73,7 @@ export class LeadSourceRepository {
         let query = `
             SELECT ${LEAD_SOURCE_COLUMNS} FROM lead_sources 
             WHERE tenant_uid::varchar = $1 
-              AND LOWER(TRIM(color)) = LOWER(TRIM($2))
+              AND LOWER(REPLACE(TRIM(color), '#', '')) = LOWER(REPLACE(TRIM($2), '#', ''))
               AND is_deleted = 0
         `;
         const values: any[] = [tenantUid, color];
@@ -127,7 +134,7 @@ export class LeadSourceRepository {
         let index = 1;
 
         if (data.name !== undefined) { updates.push(`name = $${index++}`); values.push(data.name); }
-        if (data.color !== undefined) { updates.push(`color = $${index++}`); values.push(data.color ? data.color.trim() : null); }
+        if (data.color !== undefined) { updates.push(`color = $${index++}`); values.push(normalizeColor(data.color)); }
         if (data.sortOrder !== undefined) { updates.push(`sort_order = $${index++}::int`); values.push(data.sortOrder); }
         if (data.isDefault !== undefined) { updates.push(`is_default = $${index++}::smallint`); values.push(data.isDefault); }
         if (data.isActive !== undefined) { updates.push(`is_active = $${index++}::smallint`); values.push(data.isActive); }

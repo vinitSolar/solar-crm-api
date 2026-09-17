@@ -48,9 +48,11 @@ export class LeadController {
         try {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const query = req.body;
 
-            const leads = await this.service.getLeadsPaginated(tenantUid, query);
+            const leads = await this.service.getLeadsPaginated(tenantUid, userUid, roleUid, query);
             res.status(200).json({
                 success: true,
                 message: LEAD_MESSAGES.FETCHED_SUCCESSFULLY,
@@ -66,9 +68,11 @@ export class LeadController {
         try {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const status = req.query.status as "active" | "deleted" | "all" | undefined;
 
-            const leads = await this.service.getAllLeads(tenantUid, status);
+            const leads = await this.service.getAllLeads(tenantUid, userUid, roleUid, status);
             res.status(200).json({
                 success: true,
                 message: LEAD_MESSAGES.FETCHED_SUCCESSFULLY,

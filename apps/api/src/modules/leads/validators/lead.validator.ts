@@ -114,6 +114,7 @@ export const paginationSchema = z.object({
         limit: z.number().int().min(1).max(100).optional(),
         search: z.string().optional(),
         status: z.enum(["active", "deleted", "all"]).optional(),
+        assignedTo: z.string().uuid("Invalid user UID format").optional(),
     }),
 });
 

@@ -3,6 +3,7 @@ import type { LeadSourceRepository } from "../repositories/lead-source.repositor
 import type { LeadStatusRepository } from "../repositories/lead-status.repository.js";
 import type { UserRepository } from "../../users/repositories/user.repository.js";
 import type { NoteService } from "../../notes/services/note.service.js";
+import type { RoleRepository } from "../../roles/repositories/role.repository.js";
 import type { ICreateLead, IUpdateLead, ILeadSafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/lead.interface.js";
 import { toLeadSafe } from "../dto/lead.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
@@ -16,19 +17,22 @@ export class LeadService {
     private readonly statusRepository: LeadStatusRepository;
     private readonly userRepository: UserRepository;
     private readonly noteService: NoteService;
+    private readonly roleRepository: RoleRepository;
 
     constructor(
         repository: LeadRepository,
         sourceRepository: LeadSourceRepository,
         statusRepository: LeadStatusRepository,
         userRepository: UserRepository,
-        noteService: NoteService
+        noteService: NoteService,
+        roleRepository: RoleRepository
     ) {
         this.repository = repository;
         this.sourceRepository = sourceRepository;
         this.statusRepository = statusRepository;
         this.userRepository = userRepository;
         this.noteService = noteService;
+        this.roleRepository = roleRepository;
     }
 
     async createLead(tenantUid: string, data: ICreateLead, createdBy: string): Promise<ILeadSafe> {
@@ -107,11 +111,23 @@ export class LeadService {
         return toLeadSafe(lead);
     }
 
-    async getLeadsPaginated(tenantUid: string, query: IPaginationQuery): Promise<IPaginatedResponse<ILeadSafe>> {
+    async getLeadsPaginated(
+        tenantUid: string,
+        userUid: string,
+        roleUid: string,
+        query: IPaginationQuery
+    ): Promise<IPaginatedResponse<ILeadSafe>> {
         const page = query.page && query.page > 0 ? query.page : 1;
         const limit = query.limit && query.limit > 0 ? query.limit : 10;
-        
-        const result = await this.repository.getPaginated(tenantUid, page, limit, query.search, query.status);
+
+        const role = await this.roleRepository.getRoleByUid(roleUid, tenantUid);
+        const showAllLeads = role?.show_all_leads === 1;
+
+        // If user does not have show_all_leads = 1, restrict strictly to their assigned leads.
+        // If user has show_all_leads = 1, allow viewing all leads or filtering by query.assignedTo.
+        const assignedTo = showAllLeads ? query.assignedTo : userUid;
+
+        const result = await this.repository.getPaginated(tenantUid, page, limit, query.search, query.status, assignedTo);
 
         return {
             data: result.rows.map(toLeadSafe),
@@ -124,8 +140,17 @@ export class LeadService {
         };
     }
 
-    async getAllLeads(tenantUid: string, status: "active" | "deleted" | "all" = "active"): Promise<ILeadSafe[]> {
-        const leads = await this.repository.getAll(tenantUid, status);
+    async getAllLeads(
+        tenantUid: string,
+        userUid: string,
+        roleUid: string,
+        status: "active" | "deleted" | "all" = "active"
+    ): Promise<ILeadSafe[]> {
+        const role = await this.roleRepository.getRoleByUid(roleUid, tenantUid);
+        const showAllLeads = role?.show_all_leads === 1;
+        const assignedTo = showAllLeads ? undefined : userUid;
+
+        const leads = await this.repository.getAll(tenantUid, status, assignedTo);
         return leads.map(toLeadSafe);
     }
 

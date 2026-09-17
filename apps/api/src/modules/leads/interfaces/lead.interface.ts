@@ -179,6 +179,7 @@ export interface IPaginationQuery {
     limit?: number;
     search?: string;
     status?: "active" | "deleted" | "all";
+    assignedTo?: string;
 }
 
 export interface IPaginatedResponse<T> {

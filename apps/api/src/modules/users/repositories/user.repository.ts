@@ -12,7 +12,14 @@ export class UserRepository {
     async getPaginatedUsers(tenantUid: string, query: IPaginationQuery): Promise<{ users: IUser[]; total: number }> {
         const offset = (query.page - 1) * query.limit;
         const params: any[] = [tenantUid];
-        const conditions: string[] = [`u.tenant_uid = $1`, `u.is_owner = 0`];
+        const conditions: string[] = [
+            `u.tenant_uid = $1`,
+            `COALESCE(r.name, '') != 'Master'`,
+            `(
+                (SELECT type FROM tenants WHERE uid = $1 AND is_deleted = 0 LIMIT 1) = 0 
+                OR (COALESCE(r.name, '') != 'Franchise Owner(Admin)' AND u.is_owner = 0)
+            )`
+        ];
 
         if (query.status === "active") {
             conditions.push("u.is_deleted = 0");
@@ -68,9 +75,24 @@ export class UserRepository {
         return { users: result.rows, total };
     }
 
-    async getAllUsers(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<IUser[]> {
+    async getAllUsers(
+        tenantUid: string,
+        status?: "active" | "deleted" | "all",
+        canSiteSurvey?: number,
+        canInstallation?: number,
+        canSale?: number,
+        excludeSpecialRoles: boolean = false
+    ): Promise<IUser[]> {
         const params: any[] = [tenantUid];
         const conditions: string[] = [`u.tenant_uid = $1`];
+
+        if (excludeSpecialRoles) {
+            conditions.push(`COALESCE(r.name, '') != 'Master'`);
+            conditions.push(`(
+                (SELECT type FROM tenants WHERE uid = $1 AND is_deleted = 0 LIMIT 1) = 0 
+                OR (COALESCE(r.name, '') != 'Franchise Owner(Admin)' AND u.is_owner = 0)
+            )`);
+        }
 
         if (status === "active" || !status) {
             conditions.push("u.is_deleted = 0");

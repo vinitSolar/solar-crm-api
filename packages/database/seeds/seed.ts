@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { logger } from "../../logger/index.js";
 import { seedProductSpecifications } from "./seed_product_specifications.js";
 import { seedTenantDefaults } from "./seed_tenant_defaults.js";
+import { seedDefaultRoles } from "./seed_default_roles.js";
 import { seedProducts } from "./seed_products.js";
 import { seedSubsidyRules } from "./seed_subsidy_rules.js";
 
@@ -169,8 +170,8 @@ export async function seed(pool: Pool) {
 
             // 3. Role: Master
             await client.query(
-                `INSERT INTO roles (uid, tenant_uid, name, description, is_system, is_active, is_deleted, created_by)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                `INSERT INTO roles (uid, tenant_uid, name, description, is_system, is_active, is_deleted, show_all_leads, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                  ON CONFLICT (uid) DO NOTHING`,
                 [
                     roleUid,
@@ -180,6 +181,7 @@ export async function seed(pool: Pool) {
                     1,
                     1,
                     0,
+                    1,
                     "SYSTEM",
                 ]
             );
@@ -253,6 +255,9 @@ export async function seed(pool: Pool) {
 
         // Seed default settings/document types for Head Office tenant
         await seedTenantDefaults(client, tenantUid);
+
+        // Seed default defined roles and auto menu permissions for Head Office
+        await seedDefaultRoles(client, tenantUid, 0, "SYSTEM");
 
         await client.query("COMMIT");
 

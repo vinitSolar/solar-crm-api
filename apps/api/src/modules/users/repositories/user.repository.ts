@@ -72,11 +72,6 @@ export class UserRepository {
         const params: any[] = [tenantUid];
         const conditions: string[] = [`u.tenant_uid = $1`];
 
-        const hasCapabilityFilter = canSiteSurvey === 1 || canInstallation === 1 || canSale === 1;
-        if (!hasCapabilityFilter) {
-            conditions.push("u.is_owner = 0");
-        }
-
         if (status === "active" || !status) {
             conditions.push("u.is_deleted = 0");
         } else if (status === "deleted") {

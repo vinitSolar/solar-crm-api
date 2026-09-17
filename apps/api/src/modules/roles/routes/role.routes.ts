@@ -319,6 +319,8 @@ function createRoleRouter(): Router {
      *     responses:
      *       200:
      *         description: Role deleted successfully
+     *       400:
+     *         description: Cannot delete system role or role with active users assigned
      *       401:
      *         description: Unauthorized
      *       404:

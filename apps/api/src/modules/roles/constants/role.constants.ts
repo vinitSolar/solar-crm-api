@@ -10,6 +10,8 @@ export const ROLE_MESSAGES = {
     ALREADY_EXISTS: "Role with this name already exists",
     SYSTEM_ROLE_UPDATE_ERROR: "System roles cannot be modified",
     SYSTEM_ROLE_DELETE_ERROR: "System roles cannot be deleted",
+    CANNOT_DELETE_ACTIVE_USERS_ASSIGNED: "Cannot delete role because active users are assigned to it",
+    ACTIVE_USERS_ASSIGNED_DELETE_ERROR: "Cannot delete role because active users are assigned to it",
     UPDATE_FAILED: "Failed to update role",
     DELETE_FAILED: "Failed to delete role",
     RESTORE_FAILED: "Failed to restore role or role not found in deleted state",

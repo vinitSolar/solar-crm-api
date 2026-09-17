@@ -239,6 +239,22 @@ export class RoleRepository {
     }
 
     /**
+     * Count active users assigned to a specific role
+     */
+    async countActiveUsers(roleUid: string, tenantUid: string): Promise<number> {
+        logger.debug("RoleRepository.countActiveUsers", { roleUid, tenantUid });
+
+        const query = `
+            SELECT COUNT(*)
+            FROM users
+            WHERE role_uid = $1 AND tenant_uid = $2 AND is_active = 1 AND is_deleted = 0
+        `;
+
+        const result = await this.pool.query(query, [roleUid, tenantUid]);
+        return parseInt(result.rows[0].count, 10);
+    }
+
+    /**
      * Soft delete a role
      */
     async deleteRole(uid: string, tenantUid: string, deletedBy: string | null): Promise<boolean> {

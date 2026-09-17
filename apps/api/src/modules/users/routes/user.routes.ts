@@ -138,8 +138,8 @@ function createUserRouter(): Router {
      */
     router.post(
         "/list",
-        requirePermission("USERS", "can_view"),
         authenticate,
+        requirePermission("USERS", "can_view"),
         validateUserRequest(getPaginatedUsersSchema),
         userController.getUsers,
     );
@@ -180,16 +180,16 @@ function createUserRouter(): Router {
      */
     router.get(
         "/all",
-        requirePermission("USERS", "can_view"),
         authenticate,
+        requirePermission("USERS", "can_view"),
         validateUserRequest(getAllUsersSchema),
         userController.getAllUsers,
     );
 
     router.post(
         "/all",
-        requirePermission("USERS", "can_view"),
         authenticate,
+        requirePermission("USERS", "can_view"),
         validateUserRequest(getAllUsersSchema),
         userController.getAllUsers,
     );
@@ -230,16 +230,16 @@ function createUserRouter(): Router {
      */
     router.get(
         "/dropdown",
-        requirePermission("USERS", "can_view"),
         authenticate,
+        requirePermission("USERS", "can_view"),
         validateUserRequest(getAllUsersSchema),
         userController.getUsersForDropdown,
     );
 
     router.post(
         "/dropdown",
-        requirePermission("USERS", "can_view"),
         authenticate,
+        requirePermission("USERS", "can_view"),
         validateUserRequest(getAllUsersSchema),
         userController.getUsersForDropdown,
     );
@@ -341,8 +341,8 @@ function createUserRouter(): Router {
      */
     router.get(
         "/:uid",
-        requirePermission("USERS", "can_view"),
         authenticate,
+        requirePermission("USERS", "can_view"),
         validateUserRequest(getUserSchema),
         userController.getUserByUid,
     );
@@ -383,8 +383,8 @@ function createUserRouter(): Router {
      */
     router.post(
         "/",
-        requirePermission("USERS", "can_create"),
         authenticate,
+        requirePermission("USERS", "can_create"),
         validateUserRequest(createUserSchema),
         userController.createUser,
     );
@@ -437,8 +437,8 @@ function createUserRouter(): Router {
      */
     router.put(
         "/:uid",
-        requirePermission("USERS", "can_edit"),
         authenticate,
+        requirePermission("USERS", "can_edit"),
         validateUserRequest(updateUserSchema),
         userController.updateUser,
     );
@@ -469,8 +469,8 @@ function createUserRouter(): Router {
      */
     router.delete(
         "/:uid",
-        requirePermission("USERS", "can_delete"),
         authenticate,
+        requirePermission("USERS", "can_delete"),
         validateUserRequest(deleteUserSchema),
         userController.deleteUser,
     );
@@ -501,8 +501,8 @@ function createUserRouter(): Router {
      */
     router.put(
         "/:uid/restore",
-        requirePermission("USERS", "can_edit"),
         authenticate,
+        requirePermission("USERS", "can_edit"),
         validateUserRequest(restoreUserSchema),
         userController.restoreUser,
     );

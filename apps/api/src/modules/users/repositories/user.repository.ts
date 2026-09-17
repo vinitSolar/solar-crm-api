@@ -70,7 +70,12 @@ export class UserRepository {
 
     async getAllUsers(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<IUser[]> {
         const params: any[] = [tenantUid];
-        const conditions: string[] = [`u.tenant_uid = $1`, `u.is_owner = 0`];
+        const conditions: string[] = [`u.tenant_uid = $1`];
+
+        const hasCapabilityFilter = canSiteSurvey === 1 || canInstallation === 1 || canSale === 1;
+        if (!hasCapabilityFilter) {
+            conditions.push("u.is_owner = 0");
+        }
 
         if (status === "active" || !status) {
             conditions.push("u.is_deleted = 0");

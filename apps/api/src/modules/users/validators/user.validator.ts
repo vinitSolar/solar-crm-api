@@ -12,8 +12,8 @@ export const getPaginatedUsersSchema = z.object({
         can_site_survey: z.number().int().min(0).max(1).optional(),
         canInstallation: z.number().int().min(0).max(1).optional(),
         can_installation: z.number().int().min(0).max(1).optional(),
-        canSale: z.number().int().min(0).max(1).optional().default(0),
-        can_sale: z.number().int().min(0).max(1).optional().default(0),
+        canSale: z.number().int().min(0).max(1).optional(),
+        can_sale: z.number().int().min(0).max(1).optional(),
     })
 });
 
@@ -68,8 +68,8 @@ export const getAllUsersSchema = z.object({
         can_site_survey: z.number().int().min(0).max(1).optional(),
         canInstallation: z.number().int().min(0).max(1).optional(),
         can_installation: z.number().int().min(0).max(1).optional(),
-        canSale: z.number().int().min(0).max(1).optional().default(0),
-        can_sale: z.number().int().min(0).max(1).optional().default(0),
+        canSale: z.number().int().min(0).max(1).optional(),
+        can_sale: z.number().int().min(0).max(1).optional(),
     }).optional(),
     query: z.object({
         status: z.enum(["active", "deleted", "all"]).optional(),
@@ -77,8 +77,8 @@ export const getAllUsersSchema = z.object({
         can_site_survey: z.coerce.number().int().min(0).max(1).optional(),
         canInstallation: z.coerce.number().int().min(0).max(1).optional(),
         can_installation: z.coerce.number().int().min(0).max(1).optional(),
-        canSale: z.coerce.number().int().min(0).max(1).optional().default(0),
-        can_sale: z.coerce.number().int().min(0).max(1).optional().default(0),
+        canSale: z.coerce.number().int().min(0).max(1).optional(),
+        can_sale: z.coerce.number().int().min(0).max(1).optional(),
     }).optional(),
 });
 

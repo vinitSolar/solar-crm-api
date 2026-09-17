@@ -37,8 +37,10 @@ export class UserController {
             if (canInstallationRaw !== undefined) {
                 query.canInstallation = Number(canInstallationRaw);
             }
-            const canSaleRaw = req.body.canSale ?? req.body.can_sale ?? 0;
-            query.canSale = Number(canSaleRaw);
+            const canSaleRaw = req.body.canSale ?? req.body.can_sale;
+            if (canSaleRaw !== undefined) {
+                query.canSale = Number(canSaleRaw);
+            }
 
             const paginatedResponse = await this.userService.getUsersByTenant(authReq.tenantUid, query);
 
@@ -62,8 +64,8 @@ export class UserController {
             const canSiteSurvey = canSiteSurveyRaw !== undefined ? Number(canSiteSurveyRaw) : undefined;
             const canInstallationRaw = raw.canInstallation ?? raw.can_installation;
             const canInstallation = canInstallationRaw !== undefined ? Number(canInstallationRaw) : undefined;
-            const canSaleRaw = raw.canSale ?? raw.can_sale ?? 0;
-            const canSale = Number(canSaleRaw);
+            const canSaleRaw = raw.canSale ?? raw.can_sale;
+            const canSale = canSaleRaw !== undefined ? Number(canSaleRaw) : undefined;
             logger.info("UserController.getAllUsers", { tenantUid: authReq.tenantUid, status });
 
             const users = await this.userService.getAllUsersByTenant(authReq.tenantUid, status, canSiteSurvey, canInstallation, canSale);
@@ -87,8 +89,8 @@ export class UserController {
             const canSiteSurvey = canSiteSurveyRaw !== undefined ? Number(canSiteSurveyRaw) : undefined;
             const canInstallationRaw = raw.canInstallation ?? raw.can_installation;
             const canInstallation = canInstallationRaw !== undefined ? Number(canInstallationRaw) : undefined;
-            const canSaleRaw = raw.canSale ?? raw.can_sale ?? 0;
-            const canSale = Number(canSaleRaw);
+            const canSaleRaw = raw.canSale ?? raw.can_sale;
+            const canSale = canSaleRaw !== undefined ? Number(canSaleRaw) : undefined;
             logger.info("UserController.getUsersForDropdown", { tenantUid: authReq.tenantUid, status });
 
             const users = await this.userService.getUsersForDropdown(authReq.tenantUid, authReq.user.uid, status, canSiteSurvey, canInstallation, canSale);

@@ -57,9 +57,9 @@ export class QuotationPdfGenerator {
             });
             const page = await browser.newPage();
             
-            // Set HTML content and wait for fonts/images to resolve
+            // Set HTML content and wait for fonts to resolve (all images/fonts are embedded base64 data URIs)
             await page.setContent(html, { waitUntil: "load" });
-            await page.waitForNetworkIdle();
+            await page.evaluateHandle("document.fonts.ready");
             
             // Render A4 PDF with full bleed (margins: 0) to allow cover page and custom designed headers/footers
             const pdfBuffer = await page.pdf({

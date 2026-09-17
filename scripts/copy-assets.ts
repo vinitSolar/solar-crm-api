@@ -34,3 +34,12 @@ if (fs.existsSync(publicSrc)) {
     fs.cpSync(publicSrc, publicDest, { recursive: true, force: true });
     console.log("✅ Successfully copied public static assets to dist/apps/api/public");
 }
+
+// 4. Copy quotation module assets (fonts and images for PDF generation)
+const quotationAssetsSrc = path.resolve(process.cwd(), "apps/api/src/modules/quotations/assets");
+const quotationAssetsDest = path.resolve(process.cwd(), "dist/apps/api/src/modules/quotations/assets");
+
+if (fs.existsSync(quotationAssetsSrc)) {
+    fs.cpSync(quotationAssetsSrc, quotationAssetsDest, { recursive: true, force: true });
+    console.log("✅ Successfully copied quotation assets to dist/apps/api/src/modules/quotations/assets");
+}

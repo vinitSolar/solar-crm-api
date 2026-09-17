@@ -24,7 +24,9 @@ function loadAssetBase64(fileName: string): string {
   const candidates = [
     path.resolve(__dirname, '../assets/Images', fileName),
     path.resolve(__dirname, '../../../../apps/api/src/modules/quotations/assets/Images', fileName),
+    path.resolve(__dirname, '../../../../dist/apps/api/src/modules/quotations/assets/Images', fileName),
     path.join(process.cwd(), 'apps/api/src/modules/quotations/assets/Images', fileName),
+    path.join(process.cwd(), 'dist/apps/api/src/modules/quotations/assets/Images', fileName),
     path.join(process.cwd(), 'src/modules/quotations/assets/Images', fileName)
   ];
 
@@ -53,7 +55,9 @@ function loadFontBase64(fileName: string): string {
   const candidates = [
     path.resolve(__dirname, '../assets/Fonts', fileName),
     path.resolve(__dirname, '../../../../apps/api/src/modules/quotations/assets/Fonts', fileName),
+    path.resolve(__dirname, '../../../../dist/apps/api/src/modules/quotations/assets/Fonts', fileName),
     path.join(process.cwd(), 'apps/api/src/modules/quotations/assets/Fonts', fileName),
+    path.join(process.cwd(), 'dist/apps/api/src/modules/quotations/assets/Fonts', fileName),
     path.join(process.cwd(), 'src/modules/quotations/assets/Fonts', fileName)
   ];
 

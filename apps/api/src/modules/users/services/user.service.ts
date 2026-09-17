@@ -29,12 +29,12 @@ export class UserService {
     }
 
     async getAllUsersByTenant(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<UserDTO[]> {
-        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale);
+        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale, true);
         return users.map(toUserDTO);
     }
 
     async getUsersForDropdown(tenantUid: string, currentUserUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<UserDTO[]> {
-        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale);
+        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale, false);
         const dtos = users.map(toUserDTO);
         
         const hasCapabilityFilter = canSiteSurvey === 1 || canInstallation === 1 || canSale === 1;

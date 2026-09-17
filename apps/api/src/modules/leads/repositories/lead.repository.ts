@@ -121,13 +121,19 @@ export class LeadRepository {
         page: number,
         limit: number,
         search?: string,
-        status: "active" | "deleted" | "all" = "active"
+        status: "active" | "deleted" | "all" = "active",
+        assignedTo?: string
     ): Promise<{ rows: ILead[]; total: number }> {
         const params: any[] = [tenantUid];
         let whereClause = "tenant_uid = $1";
 
         if (status === "active") whereClause += " AND is_deleted = 0";
         else if (status === "deleted") whereClause += " AND is_deleted = 1";
+
+        if (assignedTo) {
+            params.push(assignedTo);
+            whereClause += ` AND assigned_to = $${params.length}`;
+        }
 
         if (search) {
             params.push(`%${search}%`);
@@ -142,7 +148,14 @@ export class LeadRepository {
         }
 
         const countResult = await this.pool.query(
-            `SELECT COUNT(*) FROM leads l WHERE ${whereClause.replace(/tenant_uid/g, 'l.tenant_uid').replace(/is_deleted/g, 'l.is_deleted').replace(/first_name/g, 'l.first_name').replace(/last_name/g, 'l.last_name').replace(/mobile_number/g, 'l.mobile_number').replace(/email/g, 'l.email')}`,
+            `SELECT COUNT(*) FROM leads l WHERE ${whereClause
+                .replace(/tenant_uid/g, 'l.tenant_uid')
+                .replace(/is_deleted/g, 'l.is_deleted')
+                .replace(/assigned_to/g, 'l.assigned_to')
+                .replace(/first_name/g, 'l.first_name')
+                .replace(/last_name/g, 'l.last_name')
+                .replace(/mobile_number/g, 'l.mobile_number')
+                .replace(/email/g, 'l.email')}`,
             params
         );
         const total = parseInt(countResult.rows[0].count, 10);
@@ -157,7 +170,14 @@ export class LeadRepository {
              LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid 
              LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
              LEFT JOIN users u ON l.assigned_to = u.uid
-             WHERE ${whereClause.replace(/tenant_uid/g, 'l.tenant_uid').replace(/is_deleted/g, 'l.is_deleted').replace(/first_name/g, 'l.first_name').replace(/last_name/g, 'l.last_name').replace(/mobile_number/g, 'l.mobile_number').replace(/email/g, 'l.email')} 
+             WHERE ${whereClause
+                .replace(/tenant_uid/g, 'l.tenant_uid')
+                .replace(/is_deleted/g, 'l.is_deleted')
+                .replace(/assigned_to/g, 'l.assigned_to')
+                .replace(/first_name/g, 'l.first_name')
+                .replace(/last_name/g, 'l.last_name')
+                .replace(/mobile_number/g, 'l.mobile_number')
+                .replace(/email/g, 'l.email')} 
              ORDER BY l.created_at DESC 
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
             params
@@ -168,13 +188,19 @@ export class LeadRepository {
 
     async getAll(
         tenantUid: string,
-        status: "active" | "deleted" | "all" = "active"
+        status: "active" | "deleted" | "all" = "active",
+        assignedTo?: string
     ): Promise<ILead[]> {
         const params: any[] = [tenantUid];
         let whereClause = "l.tenant_uid = $1";
 
         if (status === "active") whereClause += " AND l.is_deleted = 0";
         else if (status === "deleted") whereClause += " AND l.is_deleted = 1";
+
+        if (assignedTo) {
+            params.push(assignedTo);
+            whereClause += ` AND l.assigned_to = $${params.length}`;
+        }
 
         const result = await this.pool.query(
             `SELECT ${LEAD_JOIN_COLUMNS}, ${LEAD_RELATIONS_COLUMNS} 

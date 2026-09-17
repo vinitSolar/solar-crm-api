@@ -4,6 +4,7 @@ export interface IFranchiseRoleDef {
     canSale: number;
     canSiteSurvey: number;
     canInstallation: number;
+    showAllLeads?: number;
 }
 
 export interface IPermissionAction {
@@ -21,6 +22,7 @@ export const DEFAULT_FRANCHISE_ROLES: IFranchiseRoleDef[] = [
         canSale: 1,
         canSiteSurvey: 1,
         canInstallation: 1,
+        showAllLeads: 1,
     },
     {
         name: "Sales Executive",
@@ -28,6 +30,7 @@ export const DEFAULT_FRANCHISE_ROLES: IFranchiseRoleDef[] = [
         canSale: 1,
         canSiteSurvey: 0,
         canInstallation: 0,
+        showAllLeads: 0,
     },
     {
         name: "Survey Engineer",
@@ -35,6 +38,7 @@ export const DEFAULT_FRANCHISE_ROLES: IFranchiseRoleDef[] = [
         canSale: 0,
         canSiteSurvey: 1,
         canInstallation: 0,
+        showAllLeads: 0,
     },
     {
         name: "Backoffice",
@@ -42,6 +46,7 @@ export const DEFAULT_FRANCHISE_ROLES: IFranchiseRoleDef[] = [
         canSale: 0,
         canSiteSurvey: 0,
         canInstallation: 0,
+        showAllLeads: 0,
     },
     {
         name: "Warehouse / Procurement",
@@ -49,6 +54,7 @@ export const DEFAULT_FRANCHISE_ROLES: IFranchiseRoleDef[] = [
         canSale: 0,
         canSiteSurvey: 0,
         canInstallation: 0,
+        showAllLeads: 0,
     },
     {
         name: "Installer",
@@ -56,6 +62,7 @@ export const DEFAULT_FRANCHISE_ROLES: IFranchiseRoleDef[] = [
         canSale: 0,
         canSiteSurvey: 0,
         canInstallation: 1,
+        showAllLeads: 0,
     },
 ];
 

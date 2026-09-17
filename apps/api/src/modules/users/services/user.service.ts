@@ -37,6 +37,8 @@ export class UserService {
         const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale);
         const dtos = users.map(toUserDTO);
         
+        const hasCapabilityFilter = canSiteSurvey === 1 || canInstallation === 1 || canSale === 1;
+
         const currentUserIndex = dtos.findIndex(u => u.uid === currentUserUid);
         if (currentUserIndex !== -1) {
             // We know the index exists, so splice will return at least one element.
@@ -45,7 +47,7 @@ export class UserService {
             currentUser.firstName = "My Self";
             currentUser.lastName = "";
             dtos.unshift(currentUser);
-        } else {
+        } else if (!hasCapabilityFilter) {
             const currentUser = await this.userRepository.getUserByUid(currentUserUid, tenantUid);
             if (currentUser) {
                 const currentUserDto = toUserDTO(currentUser);

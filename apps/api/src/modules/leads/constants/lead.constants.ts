@@ -24,6 +24,7 @@ export const LEAD_SOURCE_MESSAGES = {
     DELETE_FAILED: "Failed to delete lead source",
     RESTORE_FAILED: "Failed to restore lead source",
     FETCHED_SUCCESSFULLY: "Lead sources fetched successfully",
+    COLOR_ALREADY_EXISTS: "Lead source with this color already exists",
 };
 
 export const LEAD_STATUS_MESSAGES = {
@@ -37,4 +38,5 @@ export const LEAD_STATUS_MESSAGES = {
     DELETE_FAILED: "Failed to delete lead status",
     RESTORE_FAILED: "Failed to restore lead status",
     FETCHED_SUCCESSFULLY: "Lead statuses fetched successfully",
+    COLOR_ALREADY_EXISTS: "Lead status with this color already exists",
 };

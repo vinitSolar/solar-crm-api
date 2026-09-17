@@ -47,7 +47,7 @@ export class ProjectStatusRepository {
             RETURNING ${PROJECT_STATUS_COLUMNS}
         `;
         const values = [
-            uid, tenantUid, data.name, data.color ?? null, sortOrder, 
+            uid, tenantUid, data.name, data.color ? data.color.trim() : null, sortOrder, 
             data.isDefault ?? 0, data.isClosed ?? 0, data.description ?? null, createdBy
         ];
 
@@ -56,10 +56,45 @@ export class ProjectStatusRepository {
         return result.rows[0] as IProjectStatus;
     }
 
+    async getByColor(
+        tenantUid: string, 
+        color: string, 
+        excludeUid?: string,
+        client?: PoolClient
+    ): Promise<IProjectStatus | null> {
+        const executor = client || this.pool;
+        let query = `
+            SELECT ${PROJECT_STATUS_COLUMNS} FROM project_statuses 
+            WHERE tenant_uid = $1 
+              AND LOWER(TRIM(color)) = LOWER(TRIM($2))
+              AND is_deleted = 0
+        `;
+        const values: any[] = [tenantUid, color];
+
+        if (excludeUid) {
+            query += ` AND uid != $3`;
+            values.push(excludeUid);
+        }
+
+        query += ` LIMIT 1`;
+
+        const result = await executor.query(query, values);
+        return result.rows.length > 0 ? (result.rows[0] as IProjectStatus) : null;
+    }
+
     async getByUid(tenantUid: string, uid: string): Promise<IProjectStatus | null> {
         const result = await this.pool.query(
             `SELECT ${PROJECT_STATUS_COLUMNS} FROM project_statuses 
              WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0`,
+            [uid, tenantUid]
+        );
+        return result.rows.length > 0 ? (result.rows[0] as IProjectStatus) : null;
+    }
+
+    async getByUidWithDeleted(tenantUid: string, uid: string): Promise<IProjectStatus | null> {
+        const result = await this.pool.query(
+            `SELECT ${PROJECT_STATUS_COLUMNS} FROM project_statuses 
+             WHERE uid = $1 AND tenant_uid = $2`,
             [uid, tenantUid]
         );
         return result.rows.length > 0 ? (result.rows[0] as IProjectStatus) : null;
@@ -102,7 +137,7 @@ export class ProjectStatusRepository {
         let index = 1;
 
         if (data.name !== undefined) { updates.push(`name = $${index++}`); values.push(data.name); }
-        if (data.color !== undefined) { updates.push(`color = $${index++}`); values.push(data.color); }
+        if (data.color !== undefined) { updates.push(`color = $${index++}`); values.push(data.color ? data.color.trim() : null); }
         if (data.sortOrder !== undefined) { updates.push(`sort_order = $${index++}`); values.push(data.sortOrder); }
         if (data.isDefault !== undefined) { updates.push(`is_default = $${index++}`); values.push(data.isDefault); }
         if (data.isClosed !== undefined) { updates.push(`is_closed = $${index++}`); values.push(data.isClosed); }

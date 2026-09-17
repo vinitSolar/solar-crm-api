@@ -14,10 +14,21 @@ export class LeadStatusService {
 
     async createLeadStatus(tenantUid: string, data: ICreateLeadStatus, createdBy: string): Promise<ILeadStatusSafe> {
         logger.info("LeadStatusService.createLeadStatus", { tenantUid });
+
+        if (data.color && data.color.trim()) {
+            const existing = await this.repository.getByColor(tenantUid, data.color.trim());
+            if (existing) {
+                throw new CustomError(LEAD_STATUS_MESSAGES.COLOR_ALREADY_EXISTS, 400);
+            }
+        }
+
         try {
             const leadStatus = await this.repository.create(tenantUid, data, createdBy);
             return toLeadStatusSafe(leadStatus);
         } catch (error) {
+            if (error instanceof CustomError) {
+                throw error;
+            }
             logger.error("LeadStatusService.createLeadStatus error", { error });
             throw new CustomError(LEAD_STATUS_MESSAGES.CREATION_FAILED, 500);
         }
@@ -42,6 +53,13 @@ export class LeadStatusService {
             throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 404);
         }
 
+        if (data.color !== undefined && data.color !== null && data.color.trim()) {
+            const existingWithColor = await this.repository.getByColor(tenantUid, data.color.trim(), uid);
+            if (existingWithColor) {
+                throw new CustomError(LEAD_STATUS_MESSAGES.COLOR_ALREADY_EXISTS, 400);
+            }
+        }
+
         try {
             const updated = await this.repository.update(tenantUid, uid, data, updatedBy);
             if (!updated) {
@@ -49,6 +67,9 @@ export class LeadStatusService {
             }
             return toLeadStatusSafe(updated);
         } catch (error) {
+            if (error instanceof CustomError) {
+                throw error;
+            }
             logger.error("LeadStatusService.updateLeadStatus error", { error });
             throw new CustomError(LEAD_STATUS_MESSAGES.UPDATE_FAILED, 500);
         }
@@ -67,6 +88,18 @@ export class LeadStatusService {
     }
 
     async restoreLeadStatus(tenantUid: string, uid: string, updatedBy: string): Promise<void> {
+        const existing = await this.repository.getByUidWithDeleted(tenantUid, uid);
+        if (!existing) {
+            throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 404);
+        }
+
+        if (existing.color && existing.color.trim()) {
+            const existingWithColor = await this.repository.getByColor(tenantUid, existing.color.trim(), uid);
+            if (existingWithColor) {
+                throw new CustomError(LEAD_STATUS_MESSAGES.COLOR_ALREADY_EXISTS, 400);
+            }
+        }
+
         const success = await this.repository.restore(tenantUid, uid, updatedBy);
         if (!success) {
             throw new CustomError(LEAD_STATUS_MESSAGES.RESTORE_FAILED, 404);

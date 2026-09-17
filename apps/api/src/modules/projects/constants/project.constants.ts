@@ -25,4 +25,5 @@ export const PROJECT_STATUS_MESSAGES = {
     DELETE_FAILED: "Failed to delete project status",
     RESTORE_FAILED: "Failed to restore project status",
     FETCHED_SUCCESSFULLY: "Project statuses fetched successfully",
+    COLOR_ALREADY_EXISTS: "Project status with this color already exists",
 };

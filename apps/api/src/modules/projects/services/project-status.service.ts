@@ -15,11 +15,22 @@ export class ProjectStatusService {
 
     async createProjectStatus(tenantUid: string, data: ICreateProjectStatus, createdBy: string): Promise<IProjectStatusSafe> {
         logger.info("ProjectStatusService.createProjectStatus", { tenantUid });
+
+        if (data.color && data.color.trim()) {
+            const existing = await this.repository.getByColor(tenantUid, data.color.trim());
+            if (existing) {
+                throw new CustomError(PROJECT_STATUS_MESSAGES.COLOR_ALREADY_EXISTS, 400);
+            }
+        }
+
         try {
             const projectStatus = await this.repository.create(tenantUid, data, createdBy);
             await safeCacheDelPattern(`cache:project-statuses:*:${tenantUid}:*`);
             return toProjectStatusSafe(projectStatus);
         } catch (error) {
+            if (error instanceof CustomError) {
+                throw error;
+            }
             logger.error("ProjectStatusService.createProjectStatus error", { error });
             throw new CustomError(PROJECT_STATUS_MESSAGES.CREATION_FAILED, 500);
         }
@@ -52,6 +63,13 @@ export class ProjectStatusService {
             throw new CustomError(PROJECT_STATUS_MESSAGES.NOT_FOUND, 404);
         }
 
+        if (data.color !== undefined && data.color !== null && data.color.trim()) {
+            const existingWithColor = await this.repository.getByColor(tenantUid, data.color.trim(), uid);
+            if (existingWithColor) {
+                throw new CustomError(PROJECT_STATUS_MESSAGES.COLOR_ALREADY_EXISTS, 400);
+            }
+        }
+
         try {
             const updated = await this.repository.update(tenantUid, uid, data, updatedBy);
             if (!updated) {
@@ -60,6 +78,9 @@ export class ProjectStatusService {
             await safeCacheDelPattern(`cache:project-statuses:*:${tenantUid}:*`);
             return toProjectStatusSafe(updated);
         } catch (error) {
+            if (error instanceof CustomError) {
+                throw error;
+            }
             logger.error("ProjectStatusService.updateProjectStatus error", { error });
             throw new CustomError(PROJECT_STATUS_MESSAGES.UPDATE_FAILED, 500);
         }
@@ -79,6 +100,18 @@ export class ProjectStatusService {
     }
 
     async restoreProjectStatus(tenantUid: string, uid: string, updatedBy: string): Promise<void> {
+        const existing = await this.repository.getByUidWithDeleted(tenantUid, uid);
+        if (!existing) {
+            throw new CustomError(PROJECT_STATUS_MESSAGES.NOT_FOUND, 404);
+        }
+
+        if (existing.color && existing.color.trim()) {
+            const existingWithColor = await this.repository.getByColor(tenantUid, existing.color.trim(), uid);
+            if (existingWithColor) {
+                throw new CustomError(PROJECT_STATUS_MESSAGES.COLOR_ALREADY_EXISTS, 400);
+            }
+        }
+
         const success = await this.repository.restore(tenantUid, uid, updatedBy);
         if (!success) {
             throw new CustomError(PROJECT_STATUS_MESSAGES.RESTORE_FAILED, 404);

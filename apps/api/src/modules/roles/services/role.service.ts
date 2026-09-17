@@ -4,6 +4,7 @@ import type { ICreateRoleRequest, IUpdateRoleRequest, IRoleSafe } from "../inter
 import { toRoleSafe } from "../dto/role.dto.js";
 import { ROLE_MESSAGES } from "../constants/role.constants.js";
 import { logger } from "@packages/logger/index.js";
+import { CustomError } from "../../../middlewares/error.middleware.js";
 
 export class RoleService {
     private readonly roleRepository: RoleRepository;
@@ -42,7 +43,7 @@ export class RoleService {
         const role = await this.roleRepository.getRoleByUid(uid, tenantUid);
 
         if (!role) {
-            throw new Error(ROLE_MESSAGES.NOT_FOUND);
+            throw new CustomError(ROLE_MESSAGES.NOT_FOUND, 404);
         }
 
         return toRoleSafe(role);
@@ -53,7 +54,7 @@ export class RoleService {
 
         const existingRole = await this.roleRepository.getRoleByName(data.name, tenantUid);
         if (existingRole) {
-            throw new Error(ROLE_MESSAGES.ALREADY_EXISTS);
+            throw new CustomError(ROLE_MESSAGES.ALREADY_EXISTS, 400);
         }
 
         // If it's the first role created for the tenant, grant canSiteSurvey, canInstallation, and canSale
@@ -76,26 +77,26 @@ export class RoleService {
         // Check if role exists
         const existingRole = await this.roleRepository.getRoleByUid(uid, tenantUid);
         if (!existingRole) {
-            throw new Error(ROLE_MESSAGES.NOT_FOUND);
+            throw new CustomError(ROLE_MESSAGES.NOT_FOUND, 404);
         }
 
         // System roles cannot be updated
         if (existingRole.is_system === 1) {
-            throw new Error(ROLE_MESSAGES.SYSTEM_ROLE_UPDATE_ERROR);
+            throw new CustomError(ROLE_MESSAGES.SYSTEM_ROLE_UPDATE_ERROR, 400);
         }
 
         // Check for name uniqueness if name is being updated
         if (data.name && data.name !== existingRole.name) {
             const roleWithName = await this.roleRepository.getRoleByName(data.name, tenantUid);
             if (roleWithName) {
-                throw new Error(ROLE_MESSAGES.ALREADY_EXISTS);
+                throw new CustomError(ROLE_MESSAGES.ALREADY_EXISTS, 400);
             }
         }
 
         const updatedRole = await this.roleRepository.updateRole(uid, tenantUid, data, updatedBy);
 
         if (!updatedRole) {
-            throw new Error(ROLE_MESSAGES.UPDATE_FAILED);
+            throw new CustomError(ROLE_MESSAGES.UPDATE_FAILED, 500);
         }
 
         return toRoleSafe(updatedRole);
@@ -107,18 +108,25 @@ export class RoleService {
         // Check if role exists
         const existingRole = await this.roleRepository.getRoleByUid(uid, tenantUid);
         if (!existingRole) {
-            throw new Error(ROLE_MESSAGES.NOT_FOUND);
+            throw new CustomError(ROLE_MESSAGES.NOT_FOUND, 404);
         }
 
         // System roles cannot be deleted
         if (existingRole.is_system === 1) {
-            throw new Error(ROLE_MESSAGES.SYSTEM_ROLE_DELETE_ERROR);
+            throw new CustomError(ROLE_MESSAGES.SYSTEM_ROLE_DELETE_ERROR, 400);
+        }
+
+        // Do not allow deleting role if active users are currently assigned to it
+        const activeUsersCount = await this.roleRepository.countActiveUsers(uid, tenantUid);
+        if (activeUsersCount > 0) {
+            logger.warn("RoleService.deleteRole: Active users assigned to role", { uid, tenantUid, activeUsersCount });
+            throw new CustomError(ROLE_MESSAGES.CANNOT_DELETE_ACTIVE_USERS_ASSIGNED, 400);
         }
 
         const success = await this.roleRepository.deleteRole(uid, tenantUid, deletedBy);
 
         if (!success) {
-            throw new Error(ROLE_MESSAGES.DELETE_FAILED);
+            throw new CustomError(ROLE_MESSAGES.DELETE_FAILED, 500);
         }
     }
 
@@ -128,7 +136,7 @@ export class RoleService {
         const success = await this.roleRepository.restoreRole(uid, tenantUid, restoredBy);
 
         if (!success) {
-            throw new Error(ROLE_MESSAGES.RESTORE_FAILED);
+            throw new CustomError(ROLE_MESSAGES.RESTORE_FAILED, 404);
         }
     }
 }

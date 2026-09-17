@@ -148,7 +148,31 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
         });
     }
 
-    // 2. If sync parameter was explicitly requested, await generation directly
+    // 2. If PDF generation is already in progress for this quotation
+    if (QuotationService.isGeneratingPdf(uid)) {
+        if (isSync) {
+            const { pdfUrl, pdfPath } = await quotationService.generatePdf(tenantUid, uid, createdBy);
+            return res.status(200).json({
+                success: true,
+                message: "Quotation PDF generated successfully.",
+                data: {
+                    status: "ready",
+                    pdfUrl,
+                    pdfPath
+                }
+            });
+        }
+        return res.status(202).json({
+            success: true,
+            message: "Quotation PDF generation already in progress.",
+            data: {
+                status: "processing",
+                quotationUid: uid
+            }
+        });
+    }
+
+    // 3. If sync parameter was explicitly requested, await generation directly
     if (isSync) {
         const { pdfUrl, pdfPath } = await quotationService.generatePdf(tenantUid, uid, createdBy);
         return res.status(200).json({
@@ -162,7 +186,7 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
         });
     }
 
-    // 3. Trigger PDF generation in background (non-blocking for fast API response)
+    // 4. Trigger PDF generation in background (non-blocking for fast API response)
     setImmediate(async () => {
         try {
             await quotationService.generatePdf(tenantUid, uid, createdBy);

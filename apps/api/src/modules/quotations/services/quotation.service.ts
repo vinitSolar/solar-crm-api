@@ -36,6 +36,13 @@ function getDefaultLogoBase64(): string {
         return cachedDefaultLogoBase64;
     }
     const pathsToTry = [
+        path.join(process.cwd(), "apps/api/public/assets/sunselect-logo.svg"),
+        path.join(process.cwd(), "dist/apps/api/public/assets/sunselect-logo.svg"),
+        path.join(process.cwd(), "apps/api/public/assets/email/sunselect-logo.svg"),
+        path.join(process.cwd(), "dist/apps/api/public/assets/email/sunselect-logo.svg"),
+        path.join(__dirname, "../../../../public/assets/sunselect-logo.svg"),
+        path.join(__dirname, "../../../../public/assets/email/sunselect-logo.svg"),
+        path.join(__dirname, "../assets/Images/Logo---Sunselect---White.png"),
         path.join(process.cwd(), "apps/api/public/uploads/sunselect-logo.svg"),
         path.join(__dirname, "../../../../public/uploads/sunselect-logo.svg"),
         path.join(__dirname, "../../../../../apps/api/public/uploads/sunselect-logo.svg"),
@@ -45,7 +52,9 @@ function getDefaultLogoBase64(): string {
         if (fs.existsSync(p)) {
             try {
                 const fileBuffer = fs.readFileSync(p);
-                cachedDefaultLogoBase64 = `data:image/svg+xml;base64,${fileBuffer.toString("base64")}`;
+                const isSvg = p.endsWith(".svg");
+                const mime = isSvg ? "image/svg+xml" : "image/png";
+                cachedDefaultLogoBase64 = `data:${mime};base64,${fileBuffer.toString("base64")}`;
                 return cachedDefaultLogoBase64;
             } catch (err) {
                 logger.error(`Failed to read default logo from path: ${p}`, err);
@@ -53,10 +62,17 @@ function getDefaultLogoBase64(): string {
         }
     }
     logger.warn("Default logo file not found in any of the search paths.");
-    return "";
+    cachedDefaultLogoBase64 = "";
+    return cachedDefaultLogoBase64;
 }
 
 export class QuotationService {
+    private static readonly inFlightPdfs = new Map<string, Promise<{ pdfUrl: string; pdfPath: string }>>();
+
+    public static isGeneratingPdf(quotationUid: string): boolean {
+        return QuotationService.inFlightPdfs.has(quotationUid);
+    }
+
     private readonly repository: QuotationRepository;
     private readonly scopeOfWorkRepo: QuotationScopeOfWorkRepository;
     private readonly termsConditionRepo: QuotationTermsConditionRepository;
@@ -746,137 +762,152 @@ export class QuotationService {
      * @returns Object containing public PDF storage URL and path key
      */
     async generatePdf(tenantUid: string, uid: string, createdBy: string): Promise<{ pdfUrl: string; pdfPath: string }> {
-        // 1. Fetch complete quotation details from snapshotted tables
-        const quotation = await this.repository.findByUid(tenantUid, uid);
-        if (!quotation) {
-            throw new CustomError(QUOTATION_VALIDATION_MESSAGES.RECORD_NOT_FOUND, 404);
+        const inFlight = QuotationService.inFlightPdfs.get(uid);
+        if (inFlight) {
+            logger.info(`PDF generation already in-flight for Quote UID: ${uid}. Reusing active task.`);
+            return inFlight;
         }
 
-        const [items, scopeOfWork, termsConditions] = await Promise.all([
-            this.repository.findItemsByQuotationUid(quotation.uid),
-            this.repository.findScopeOfWorkByQuotationUid(quotation.uid),
-            this.repository.findTermsConditionsByQuotationUid(quotation.uid)
-        ]);
-
-        // 2. Fetch Lead details for customer info
-        const customer = await this.repository.getLeadDetails(tenantUid, quotation.leadUid);
-        if (!customer) {
-            throw new CustomError("Lead details not found for this quotation", 404);
-        }
-
-        // 3. Fetch Franchise details
-        const franchise = await this.repository.getFranchiseDetails(tenantUid);
-        if (!franchise) {
-            throw new CustomError("Franchise details not found", 404);
-        }
-
-        // 4. Calculate Subtotal, GST and Grand Total
-        let packageGst = null;
-        let packageName = null;
-        let packageDescription = null;
-        if (quotation.packageUid) {
-            const packageRes = await pool.query(`SELECT name, gst, description FROM packages WHERE uid = $1`, [quotation.packageUid]);
-            if (packageRes.rows.length > 0) {
-                packageGst = packageRes.rows[0].gst ? Number(packageRes.rows[0].gst) : null;
-                packageName = packageRes.rows[0].name;
-                packageDescription = packageRes.rows[0].description;
+        const task = (async () => {
+            // 1. Fetch complete quotation details from snapshotted tables
+            const quotation = await this.repository.findByUid(tenantUid, uid);
+            if (!quotation) {
+                throw new CustomError(QUOTATION_VALIDATION_MESSAGES.RECORD_NOT_FOUND, 404);
             }
-        }
 
-        const mappedItems = items.map(item => {
-            const lineTotal = Number(item.lineTotal);
-            return {
-                productName: item.productName,
-                brandName: item.brandName,
-                unitName: item.unitName,
-                quantity: Number(item.quantity),
-                pricePerUnit: Number(item.pricePerUnit),
-                gstPercentage: Number(item.gstPercentage),
-                lineTotal: lineTotal,
-                description: item.description,
-                isExtra: (item as any).isExtra
-            };
-        });
+            const [items, scopeOfWork, termsConditions] = await Promise.all([
+                this.repository.findItemsByQuotationUid(quotation.uid),
+                this.repository.findScopeOfWorkByQuotationUid(quotation.uid),
+                this.repository.findTermsConditionsByQuotationUid(quotation.uid)
+            ]);
 
-        const showSubsidy = quotation.subsidyData && quotation.subsidyData.length > 0;
-        const systemSize = Number(quotation.systemSize);
+            // 2. Fetch Lead details for customer info
+            const customer = await this.repository.getLeadDetails(tenantUid, quotation.leadUid);
+            if (!customer) {
+                throw new CustomError("Lead details not found for this quotation", 404);
+            }
 
-        // Status text mapping
-        const statusMap: Record<number, string> = {
-            0: "Draft",
-            1: "Sent",
-            2: "Approved",
-            3: "Rejected",
-            4: "Converted"
-        };
-        const statusText = statusMap[quotation.status] || "Draft";
+            // 3. Fetch Franchise details
+            const franchise = await this.repository.getFranchiseDetails(tenantUid);
+            if (!franchise) {
+                throw new CustomError("Franchise details not found", 404);
+            }
 
-        // Date formatting helper
-        const formatDate = (date: Date) => {
-            return new Date(date).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric"
+            // 4. Calculate Subtotal, GST and Grand Total
+            let packageGst = null;
+            let packageName = null;
+            let packageDescription = null;
+            if (quotation.packageUid) {
+                const packageRes = await pool.query(`SELECT name, gst, description FROM packages WHERE uid = $1`, [quotation.packageUid]);
+                if (packageRes.rows.length > 0) {
+                    packageGst = packageRes.rows[0].gst ? Number(packageRes.rows[0].gst) : null;
+                    packageName = packageRes.rows[0].name;
+                    packageDescription = packageRes.rows[0].description;
+                }
+            }
+
+            const mappedItems = items.map(item => {
+                const lineTotal = Number(item.lineTotal);
+                return {
+                    productName: item.productName,
+                    brandName: item.brandName,
+                    unitName: item.unitName,
+                    quantity: Number(item.quantity),
+                    pricePerUnit: Number(item.pricePerUnit),
+                    gstPercentage: Number(item.gstPercentage),
+                    lineTotal: lineTotal,
+                    description: item.description,
+                    isExtra: (item as any).isExtra
+                };
             });
-        };
 
-        const bankDetailRepo = new BankDetailRepository(pool);
-        const bankDetails = await bankDetailRepo.getDefault(tenantUid);
+            const showSubsidy = quotation.subsidyData && quotation.subsidyData.length > 0;
+            const systemSize = Number(quotation.systemSize);
 
-        // Prepare PDF Data payload
-        const pdfData = {
-            franchise: {
-                ...franchise,
-                logo: franchise.logo || getDefaultLogoBase64()
-            },
-            bankDetails,
-            customer,
-            quotation: {
-                quotationNumber: quotation.quotationNumber,
-                validTill: formatDate(quotation.validTill),
-                systemSize,
-                statusText,
-                subtotal: quotation.subtotal,
-                gstAmount: quotation.gstAmount,
-                grandTotal: quotation.grandTotal,
-                discount: quotation.discount,
-                extra: quotation.extra ?? null,
-                packageGst,
-                packageName,
-                packageDescription,
-                notes: quotation.notes,
-                createdAt: formatDate(quotation.createdAt)
-            },
-            items: mappedItems,
-            scopeOfWork: scopeOfWork.map(s => ({ title: s.title, value: s.value })),
-            termsConditions: termsConditions.map(t => ({ title: t.title, description: t.description })),
-            subsidy: {
-                subsidyData: quotation.subsidyData as Array<{ uid: string; name: string; amount: number }>,
-                netCustomerCost: quotation.netCustomerCost,
-                showSubsidy
-            }
-        };
+            // Status text mapping
+            const statusMap: Record<number, string> = {
+                0: "Draft",
+                1: "Sent",
+                2: "Approved",
+                3: "Rejected",
+                4: "Converted"
+            };
+            const statusText = statusMap[quotation.status] || "Draft";
 
-        // 6. Generate PDF Buffer using Puppeteer
-        const startTime = performance.now();
-        const pdfBuffer = await QuotationPdfGenerator.generatePdfBuffer(pdfData);
-        const generationTime = performance.now() - startTime;
-        logger.info(`PDF Generation for Quote ${quotation.uid} completed in ${generationTime.toFixed(2)} ms`);
+            // Date formatting helper
+            const formatDate = (date: Date) => {
+                return new Date(date).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric"
+                });
+            };
 
-        // 7. Upload PDF to Storage
-        const uploadStartTime = performance.now();
-        const fileName = `${quotation.quotationNumber}.pdf`;
-        const mimeType = "application/pdf";
-        const uploadFolder = `franchises/${franchise.code || "HO"}_${tenantUid}/quotations`;
-        const { path: pdfPath } = await storageService.uploadFileWithPath(pdfBuffer, fileName, mimeType, uploadFolder);
-        const uploadTime = performance.now() - uploadStartTime;
-        logger.info(`PDF Upload for Quote ${quotation.uid} completed in ${uploadTime.toFixed(2)} ms`);
+            const bankDetailRepo = new BankDetailRepository(pool);
+            const bankDetails = await bankDetailRepo.getDefault(tenantUid);
 
-        // 8. Save PDF Path in Database
-        await this.repository.updatePdfInfo(quotation.uid, pdfPath, createdBy);
+            // Prepare PDF Data payload
+            const pdfData = {
+                franchise: {
+                    ...franchise,
+                    logo: franchise.logo || getDefaultLogoBase64()
+                },
+                bankDetails,
+                customer,
+                quotation: {
+                    quotationNumber: quotation.quotationNumber,
+                    validTill: formatDate(quotation.validTill),
+                    systemSize,
+                    statusText,
+                    subtotal: quotation.subtotal,
+                    gstAmount: quotation.gstAmount,
+                    grandTotal: quotation.grandTotal,
+                    discount: quotation.discount,
+                    extra: quotation.extra ?? null,
+                    packageGst,
+                    packageName,
+                    packageDescription,
+                    notes: quotation.notes,
+                    createdAt: formatDate(quotation.createdAt)
+                },
+                items: mappedItems,
+                scopeOfWork: scopeOfWork.map(s => ({ title: s.title, value: s.value })),
+                termsConditions: termsConditions.map(t => ({ title: t.title, description: t.description })),
+                subsidy: {
+                    subsidyData: quotation.subsidyData as Array<{ uid: string; name: string; amount: number }>,
+                    netCustomerCost: quotation.netCustomerCost,
+                    showSubsidy
+                }
+            };
 
-        const pdfUrl = storageService.getPublicUrl(pdfPath)!;
-        return { pdfUrl, pdfPath };
+            // 6. Generate PDF Buffer using Puppeteer
+            const startTime = performance.now();
+            const pdfBuffer = await QuotationPdfGenerator.generatePdfBuffer(pdfData);
+            const generationTime = performance.now() - startTime;
+            logger.info(`PDF Generation for Quote ${quotation.uid} completed in ${generationTime.toFixed(2)} ms`);
+
+            // 7. Upload PDF to Storage
+            const uploadStartTime = performance.now();
+            const fileName = `${quotation.quotationNumber}.pdf`;
+            const mimeType = "application/pdf";
+            const uploadFolder = `franchises/${franchise.code || "HO"}_${tenantUid}/quotations`;
+            const { path: pdfPath } = await storageService.uploadFileWithPath(pdfBuffer, fileName, mimeType, uploadFolder);
+            const uploadTime = performance.now() - uploadStartTime;
+            logger.info(`PDF Upload for Quote ${quotation.uid} completed in ${uploadTime.toFixed(2)} ms`);
+
+            // 8. Save PDF Path in Database
+            await this.repository.updatePdfInfo(quotation.uid, pdfPath, createdBy);
+
+            const pdfUrl = storageService.getPublicUrl(pdfPath)!;
+            return { pdfUrl, pdfPath };
+        })();
+
+        QuotationService.inFlightPdfs.set(uid, task);
+        try {
+            return await task;
+        } finally {
+            QuotationService.inFlightPdfs.delete(uid);
+        }
     }
 
     /**

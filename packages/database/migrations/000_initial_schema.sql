@@ -371,6 +371,7 @@ CREATE TABLE IF NOT EXISTS lead_statuses (
   sort_order INT DEFAULT 0,
   is_default SMALLINT DEFAULT 0,
   is_closed SMALLINT DEFAULT 0, -- 0 = Open, 1 = Closed
+  is_draft SMALLINT DEFAULT 0,
   is_active SMALLINT DEFAULT 1,
   is_deleted SMALLINT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

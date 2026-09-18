@@ -240,6 +240,8 @@ function createLeadRouter(): Router {
      *                 type: string
      *               remarks:
      *                 type: string
+     *               isDraft:
+     *                 type: boolean
      *     responses:
      *       201:
      *         description: Lead created successfully

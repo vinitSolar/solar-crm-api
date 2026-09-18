@@ -30,7 +30,7 @@ const LEAD_JOIN_COLUMNS = `
 
 const LEAD_RELATIONS_COLUMNS = `
     ls.name AS "statusName", ls.color AS "statusColor", ls.sort_order AS "statusSortOrder", 
-    ls.is_default AS "statusIsDefault", ls.is_closed AS "statusIsClosed", 
+    ls.is_default AS "statusIsDefault", ls.is_closed AS "statusIsClosed", ls.is_draft AS "statusIsDraft",
     ls.is_active AS "statusIsActive", ls.is_deleted AS "statusIsDeleted",
     lsrc.name AS "sourceName", lsrc.color AS "sourceColor", lsrc.sort_order AS "sourceSortOrder", 
     lsrc.is_default AS "sourceIsDefault", lsrc.is_active AS "sourceIsActive", lsrc.is_deleted AS "sourceIsDeleted",

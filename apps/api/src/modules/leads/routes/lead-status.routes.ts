@@ -100,6 +100,9 @@ function createLeadStatusRouter(): Router {
      *             required:
      *               - name
      *             properties:
+     *             required:
+     *               - name
+     *             properties:
      *               name:
      *                 type: string
      *               color:
@@ -109,6 +112,8 @@ function createLeadStatusRouter(): Router {
      *               isDefault:
      *                 type: integer
      *               isClosed:
+     *                 type: integer
+     *               isDraft:
      *                 type: integer
      *     responses:
      *       201:
@@ -157,6 +162,8 @@ function createLeadStatusRouter(): Router {
      *               isDefault:
      *                 type: integer
      *               isClosed:
+     *                 type: integer
+     *               isDraft:
      *                 type: integer
      *     responses:
      *       200:

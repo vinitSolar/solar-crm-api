@@ -217,13 +217,14 @@ export class FranchiseOnboardingService {
 
             // 6. Create default Lead Statuses
             const defaultLeadStatuses = [
-                { name: "New", color: "#3B82F6", sortOrder: 1, isDefault: 1, isClosed: 0 },
-                { name: "Contacted", color: "#F59E0B", sortOrder: 2, isDefault: 0, isClosed: 0 },
-                { name: "Follow Up", color: "#8B5CF6", sortOrder: 3, isDefault: 0, isClosed: 0 },
-                { name: "Quotation Sent", color: "#06B6D4", sortOrder: 4, isDefault: 0, isClosed: 0 },
-                { name: "Negotiation", color: "#F97316", sortOrder: 5, isDefault: 0, isClosed: 0 },
-                { name: "Won", color: "#10B981", sortOrder: 6, isDefault: 0, isClosed: 1 },
-                { name: "Lost", color: "#EF4444", sortOrder: 7, isDefault: 0, isClosed: 1 },
+                { name: "Draft", color: "#94A3B8", sortOrder: 0, isDefault: 0, isClosed: 0, isDraft: 1 },
+                { name: "New", color: "#3B82F6", sortOrder: 1, isDefault: 1, isClosed: 0, isDraft: 0 },
+                { name: "Contacted", color: "#F59E0B", sortOrder: 2, isDefault: 0, isClosed: 0, isDraft: 0 },
+                { name: "Follow Up", color: "#8B5CF6", sortOrder: 3, isDefault: 0, isClosed: 0, isDraft: 0 },
+                { name: "Quotation Sent", color: "#06B6D4", sortOrder: 4, isDefault: 0, isClosed: 0, isDraft: 0 },
+                { name: "Negotiation", color: "#F97316", sortOrder: 5, isDefault: 0, isClosed: 0, isDraft: 0 },
+                { name: "Won", color: "#10B981", sortOrder: 6, isDefault: 0, isClosed: 1, isDraft: 0 },
+                { name: "Lost", color: "#EF4444", sortOrder: 7, isDefault: 0, isClosed: 1, isDraft: 0 },
             ];
 
             for (const status of defaultLeadStatuses) {

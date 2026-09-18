@@ -3,6 +3,7 @@ import type { SiteSurveyRepository } from "../repositories/site-survey.repositor
 import type { LeadRepository } from "../../leads/repositories/lead.repository.js";
 // Assume UserRepository is available in users module
 import type { UserRepository } from "../../users/repositories/user.repository.js";
+import type { RoleRepository } from "../../roles/repositories/role.repository.js";
 import type { NoteService } from "../../notes/services/note.service.js";
 import type { ICreateSiteSurvey, IUpdateSiteSurvey, ISiteSurveySafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/site-survey.interface.js";
 import type { ISaveSiteSurveyDetails, IUpdateSiteSurveyDetails, ISiteSurveyDetailsSafe } from "../interfaces/site-survey-details.interface.js";
@@ -18,6 +19,7 @@ export class SiteSurveyService {
     private readonly detailsRepository: SiteSurveyDetailsRepository;
     private readonly leadRepository: LeadRepository;
     private readonly userRepository: UserRepository;
+    private readonly roleRepository: RoleRepository;
     private readonly noteService: NoteService;
 
     constructor(
@@ -25,12 +27,14 @@ export class SiteSurveyService {
         detailsRepository: SiteSurveyDetailsRepository,
         leadRepository: LeadRepository,
         userRepository: UserRepository,
+        roleRepository: RoleRepository,
         noteService: NoteService
     ) {
         this.repository = repository;
         this.detailsRepository = detailsRepository;
         this.leadRepository = leadRepository;
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
         this.noteService = noteService;
     }
 
@@ -80,6 +84,19 @@ export class SiteSurveyService {
     }
 
     /**
+     * Checks if a user can view all site surveys (via show_all_surveys = 1, isOwner = 1, or admin/owner role).
+     */
+    private async canUserViewAllSurveys(userUid: string, roleUid: string | undefined, tenantUid: string): Promise<boolean> {
+        if (roleUid) {
+            const role = await this.roleRepository.getRoleByUid(roleUid, tenantUid);
+            if (role?.show_all_surveys === 1) {
+                return true;
+            }
+        }
+        return this.isUserAdminOrOwner(userUid, tenantUid);
+    }
+
+    /**
      * Checks if a user is an Admin or Tenant Owner with full visibility across all site surveys.
      */
     private async isUserAdminOrOwner(userUid: string, tenantUid: string): Promise<boolean> {
@@ -108,21 +125,17 @@ export class SiteSurveyService {
         return false;
     }
 
-    async getSiteSurveyByUid(tenantUid: string, uid: string, currentUserUid?: string): Promise<ISiteSurveySafe> {
+    async getSiteSurveyByUid(tenantUid: string, uid: string, currentUserUid?: string, roleUid?: string): Promise<ISiteSurveySafe> {
         const survey = await this.repository.getByUid(tenantUid, uid);
         if (!survey) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
         }
 
         if (currentUserUid) {
-            const isAdminOrOwner = await this.isUserAdminOrOwner(currentUserUid, tenantUid);
-            if (!isAdminOrOwner) {
-                const isAssignedOrCreator =
-                    survey.assignedTo === currentUserUid ||
-                    survey.createdBy === currentUserUid ||
-                    survey.updatedBy === currentUserUid;
-
-                if (!isAssignedOrCreator) {
+            const showAllSurveys = await this.canUserViewAllSurveys(currentUserUid, roleUid, tenantUid);
+            if (!showAllSurveys) {
+                const isAssigned = survey.assignedTo === currentUserUid;
+                if (!isAssigned) {
                     throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
                 }
             }
@@ -136,19 +149,18 @@ export class SiteSurveyService {
 
     async getSiteSurveysPaginated(
         tenantUid: string,
-        query: IPaginationQuery,
-        currentUserUid?: string
+        userUid: string,
+        roleUid: string | undefined,
+        query: IPaginationQuery
     ): Promise<IPaginatedResponse<ISiteSurveySafe>> {
         const page = query.page && query.page > 0 ? query.page : 1;
         const limit = query.limit && query.limit > 0 ? query.limit : 10;
         
-        let scopedUserUid: string | undefined = undefined;
-        if (currentUserUid) {
-            const isAdminOrOwner = await this.isUserAdminOrOwner(currentUserUid, tenantUid);
-            if (!isAdminOrOwner) {
-                scopedUserUid = currentUserUid;
-            }
-        }
+        const showAllSurveys = await this.canUserViewAllSurveys(userUid, roleUid, tenantUid);
+
+        // If user does not have show_all_surveys = 1, restrict strictly to their assigned surveys.
+        // If user has show_all_surveys = 1, allow viewing all surveys or filtering by query.assignedTo.
+        const assignedTo = showAllSurveys ? query.assignedTo : userUid;
 
         const result = await this.repository.getPaginated(
             tenantUid, 
@@ -160,9 +172,8 @@ export class SiteSurveyService {
             query.scheduledDate,
             query.fromDate,
             query.toDate,
-            query.assignedTo,
-            query.leadUid,
-            scopedUserUid
+            assignedTo,
+            query.leadUid
         );
 
         return {
@@ -178,35 +189,27 @@ export class SiteSurveyService {
 
     async getAllSiteSurveys(
         tenantUid: string,
-        status: "active" | "deleted" | "all" = "active",
-        currentUserUid?: string
+        userUid: string,
+        roleUid: string | undefined,
+        status: "active" | "deleted" | "all" = "active"
     ): Promise<ISiteSurveySafe[]> {
-        let scopedUserUid: string | undefined = undefined;
-        if (currentUserUid) {
-            const isAdminOrOwner = await this.isUserAdminOrOwner(currentUserUid, tenantUid);
-            if (!isAdminOrOwner) {
-                scopedUserUid = currentUserUid;
-            }
-        }
+        const showAllSurveys = await this.canUserViewAllSurveys(userUid, roleUid, tenantUid);
+        const assignedTo = showAllSurveys ? undefined : userUid;
 
-        const surveys = await this.repository.getAll(tenantUid, status, scopedUserUid);
+        const surveys = await this.repository.getAll(tenantUid, status, assignedTo);
         return surveys.map(survey => toSiteSurveySafe(survey));
     }
 
-    async updateSiteSurvey(tenantUid: string, uid: string, data: IUpdateSiteSurvey, updatedBy: string): Promise<ISiteSurveySafe> {
+    async updateSiteSurvey(tenantUid: string, uid: string, data: IUpdateSiteSurvey, updatedBy: string, roleUid?: string): Promise<ISiteSurveySafe> {
         const existing = await this.repository.getByUid(tenantUid, uid);
         if (!existing) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
         }
 
-        const isAdminOrOwner = await this.isUserAdminOrOwner(updatedBy, tenantUid);
-        if (!isAdminOrOwner) {
-            const isAssignedOrCreator =
-                existing.assignedTo === updatedBy ||
-                existing.createdBy === updatedBy ||
-                existing.updatedBy === updatedBy;
-
-            if (!isAssignedOrCreator) {
+        const showAllSurveys = await this.canUserViewAllSurveys(updatedBy, roleUid, tenantUid);
+        if (!showAllSurveys) {
+            const isAssigned = existing.assignedTo === updatedBy;
+            if (!isAssigned) {
                 throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
             }
         }
@@ -256,20 +259,16 @@ export class SiteSurveyService {
         }
     }
 
-    async changeSiteSurveyStatus(tenantUid: string, uid: string, status: number, updatedBy: string): Promise<ISiteSurveySafe> {
+    async changeSiteSurveyStatus(tenantUid: string, uid: string, status: number, updatedBy: string, roleUid?: string): Promise<ISiteSurveySafe> {
         const existing = await this.repository.getByUid(tenantUid, uid);
         if (!existing) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
         }
 
-        const isAdminOrOwner = await this.isUserAdminOrOwner(updatedBy, tenantUid);
-        if (!isAdminOrOwner) {
-            const isAssignedOrCreator =
-                existing.assignedTo === updatedBy ||
-                existing.createdBy === updatedBy ||
-                existing.updatedBy === updatedBy;
-
-            if (!isAssignedOrCreator) {
+        const showAllSurveys = await this.canUserViewAllSurveys(updatedBy, roleUid, tenantUid);
+        if (!showAllSurveys) {
+            const isAssigned = existing.assignedTo === updatedBy;
+            if (!isAssigned) {
                 throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
             }
         }
@@ -288,20 +287,16 @@ export class SiteSurveyService {
         }
     }
 
-    async deleteSiteSurvey(tenantUid: string, uid: string, deletedBy: string): Promise<void> {
+    async deleteSiteSurvey(tenantUid: string, uid: string, deletedBy: string, roleUid?: string): Promise<void> {
         const existing = await this.repository.getByUid(tenantUid, uid);
         if (!existing) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
         }
 
-        const isAdminOrOwner = await this.isUserAdminOrOwner(deletedBy, tenantUid);
-        if (!isAdminOrOwner) {
-            const isAssignedOrCreator =
-                existing.assignedTo === deletedBy ||
-                existing.createdBy === deletedBy ||
-                existing.updatedBy === deletedBy;
-
-            if (!isAssignedOrCreator) {
+        const showAllSurveys = await this.canUserViewAllSurveys(deletedBy, roleUid, tenantUid);
+        if (!showAllSurveys) {
+            const isAssigned = existing.assignedTo === deletedBy;
+            if (!isAssigned) {
                 throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
             }
         }
@@ -312,20 +307,29 @@ export class SiteSurveyService {
         }
     }
 
-    async restoreSiteSurvey(tenantUid: string, uid: string, updatedBy: string): Promise<void> {
+    async restoreSiteSurvey(tenantUid: string, uid: string, updatedBy: string, roleUid?: string): Promise<void> {
+        const showAllSurveys = await this.canUserViewAllSurveys(updatedBy, roleUid, tenantUid);
+        if (!showAllSurveys) {
+            const existing = await this.repository.getByUid(tenantUid, uid);
+            if (!existing || existing.assignedTo !== updatedBy) {
+                throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
+            }
+        }
+
         const success = await this.repository.restore(tenantUid, uid, updatedBy);
         if (!success) {
             throw new CustomError(SITE_SURVEY_MESSAGES.RESTORE_FAILED, 500);
         }
     }
 
-    async saveSurveyDetails(tenantUid: string, uid: string, data: ISaveSiteSurveyDetails, userUid: string): Promise<ISiteSurveySafe> {
+    async saveSurveyDetails(tenantUid: string, uid: string, data: ISaveSiteSurveyDetails, userUid: string, roleUid?: string): Promise<ISiteSurveySafe> {
         const survey = await this.repository.getByUid(tenantUid, uid);
         if (!survey) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
         }
 
-        if (survey.assignedTo !== userUid) {
+        const showAllSurveys = await this.canUserViewAllSurveys(userUid, roleUid, tenantUid);
+        if (!showAllSurveys && survey.assignedTo !== userUid) {
             throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
         }
 
@@ -364,17 +368,18 @@ export class SiteSurveyService {
         }
     }
 
-    async updateSurveyDetails(tenantUid: string, uid: string, data: IUpdateSiteSurveyDetails, userUid: string): Promise<ISiteSurveySafe> {
+    async updateSurveyDetails(tenantUid: string, uid: string, data: IUpdateSiteSurveyDetails, userUid: string, roleUid?: string): Promise<ISiteSurveySafe> {
         const survey = await this.repository.getByUid(tenantUid, uid);
         if (!survey) {
             throw new CustomError(SITE_SURVEY_MESSAGES.NOT_FOUND, 404);
         }
 
-        if (survey.assignedTo !== userUid) {
+        const showAllSurveys = await this.canUserViewAllSurveys(userUid, roleUid, tenantUid);
+        if (!showAllSurveys && survey.assignedTo !== userUid) {
             throw new CustomError(SITE_SURVEY_MESSAGES.UNAUTHORIZED_USER, 403);
         }
 
-        if (survey.status === 1) {
+        if (!showAllSurveys && survey.status === 1) {
             // Once completed, regular users cannot update. Assume admins might reopen it by setting status back to 0 or 3.
             throw new CustomError(SITE_SURVEY_MESSAGES.SURVEY_COMPLETED, 400);
         }

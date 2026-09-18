@@ -63,8 +63,8 @@ export async function seedDefaultRoles(
         const roleUid = uuidv4();
         await client.query(
             `INSERT INTO roles (
-                uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, is_system, is_active, is_deleted, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 1, 0, $9)`,
+                uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, is_system, is_active, is_deleted, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, 1, 0, $10)`,
             [
                 roleUid,
                 tenantUid,
@@ -74,6 +74,7 @@ export async function seedDefaultRoles(
                 roleDef.canInstallation ?? 0,
                 roleDef.canSale ?? 0,
                 roleDef.showAllLeads ?? 0,
+                roleDef.showAllSurveys ?? 0,
                 createdBy,
             ]
         );

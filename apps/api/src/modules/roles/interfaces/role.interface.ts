@@ -8,6 +8,7 @@ export interface IRole {
     can_installation: number;
     can_sale: number;
     show_all_leads: number;
+    show_all_surveys: number;
     is_system: number;
     is_active: number;
     is_deleted: number;
@@ -26,6 +27,7 @@ export interface IRoleSafe {
     canInstallation: number;
     canSale: number;
     showAllLeads: number;
+    showAllSurveys: number;
     isSystem: number;
     isActive: number;
     isDeleted: number;
@@ -39,6 +41,7 @@ export interface ICreateRoleRequest {
     canInstallation?: number;
     canSale?: number;
     showAllLeads?: number;
+    showAllSurveys?: number;
 }
 
 export interface IUpdateRoleRequest {
@@ -48,6 +51,7 @@ export interface IUpdateRoleRequest {
     canInstallation?: number;
     canSale?: number;
     showAllLeads?: number;
+    showAllSurveys?: number;
     isActive?: number;
 }
 

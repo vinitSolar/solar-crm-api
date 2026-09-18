@@ -9,6 +9,7 @@ export const toRoleSafe = (role: IRole): IRoleSafe => {
         canInstallation: role.can_installation,
         canSale: role.can_sale,
         showAllLeads: role.show_all_leads,
+        showAllSurveys: role.show_all_surveys,
         isSystem: role.is_system,
         isActive: role.is_active,
         isDeleted: role.is_deleted,

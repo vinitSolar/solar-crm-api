@@ -32,9 +32,10 @@ export class SiteSurveyController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const uid = req.params.uid as string;
 
-            const survey = await this.service.getSiteSurveyByUid(tenantUid, uid, userUid);
+            const survey = await this.service.getSiteSurveyByUid(tenantUid, uid, userUid, roleUid);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.FETCHED_SUCCESSFULLY,
@@ -50,9 +51,10 @@ export class SiteSurveyController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const query = req.body;
 
-            const result = await this.service.getSiteSurveysPaginated(tenantUid, query, userUid);
+            const result = await this.service.getSiteSurveysPaginated(tenantUid, userUid, roleUid, query);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.FETCHED_SUCCESSFULLY,
@@ -69,9 +71,10 @@ export class SiteSurveyController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const status = req.query.status as "active" | "deleted" | "all" | undefined;
 
-            const surveys = await this.service.getAllSiteSurveys(tenantUid, status, userUid);
+            const surveys = await this.service.getAllSiteSurveys(tenantUid, userUid, roleUid, status);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.FETCHED_SUCCESSFULLY,
@@ -87,9 +90,10 @@ export class SiteSurveyController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const uid = req.params.uid as string;
 
-            const survey = await this.service.updateSiteSurvey(tenantUid, uid, req.body, userUid);
+            const survey = await this.service.updateSiteSurvey(tenantUid, uid, req.body, userUid, roleUid);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.UPDATED,
@@ -105,10 +109,11 @@ export class SiteSurveyController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const uid = req.params.uid as string;
             const { status } = req.body;
 
-            const survey = await this.service.changeSiteSurveyStatus(tenantUid, uid, status, userUid);
+            const survey = await this.service.changeSiteSurveyStatus(tenantUid, uid, status, userUid, roleUid);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.UPDATED,
@@ -124,9 +129,10 @@ export class SiteSurveyController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const uid = req.params.uid as string;
 
-            await this.service.deleteSiteSurvey(tenantUid, uid, userUid);
+            await this.service.deleteSiteSurvey(tenantUid, uid, userUid, roleUid);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.DELETED,
@@ -142,9 +148,10 @@ export class SiteSurveyController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const uid = req.params.uid as string;
 
-            await this.service.restoreSiteSurvey(tenantUid, uid, userUid);
+            await this.service.restoreSiteSurvey(tenantUid, uid, userUid, roleUid);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.RESTORED,
@@ -160,9 +167,10 @@ export class SiteSurveyController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const uid = req.params.uid as string;
 
-            const survey = await this.service.saveSurveyDetails(tenantUid, uid, req.body, userUid);
+            const survey = await this.service.saveSurveyDetails(tenantUid, uid, req.body, userUid, roleUid);
             res.status(201).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.DETAILS_SAVED,
@@ -178,9 +186,10 @@ export class SiteSurveyController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
             const uid = req.params.uid as string;
 
-            const survey = await this.service.updateSurveyDetails(tenantUid, uid, req.body, userUid);
+            const survey = await this.service.updateSurveyDetails(tenantUid, uid, req.body, userUid, roleUid);
             res.status(200).json({
                 success: true,
                 message: SITE_SURVEY_MESSAGES.DETAILS_UPDATED,

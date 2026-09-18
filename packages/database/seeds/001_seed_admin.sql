@@ -33,7 +33,7 @@ ON CONFLICT (code) DO NOTHING;
 -- =============================================
 -- 2. Role: Master (System Role)
 -- =============================================
-INSERT INTO roles (uid, tenant_uid, name, description, is_system, is_active, is_deleted, show_all_leads, created_by)
+INSERT INTO roles (uid, tenant_uid, name, description, is_system, is_active, is_deleted, show_all_leads, show_all_surveys, created_by)
 VALUES (
     gen_random_uuid()::VARCHAR,
     (SELECT uid FROM tenants WHERE code = 'HO'),
@@ -43,6 +43,7 @@ VALUES (
     1,              -- Active
     0,              -- Not Deleted
     1,              -- Show All Leads (1 = Yes)
+    1,              -- Show All Surveys (1 = Yes)
     'SYSTEM'
 )
 ON CONFLICT (uid) DO NOTHING;

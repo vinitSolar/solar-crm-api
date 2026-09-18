@@ -30,6 +30,17 @@ export class WhatsAppProvider {
     }
 
     /**
+     * Normalize phone number to include country code (defaults to 91 if 10 digits)
+     */
+    private normalizePhoneNumber(phone: string): string {
+        let clean = phone.replace(/[^0-9]/g, "");
+        if (clean.length === 10) {
+            clean = `91${clean}`;
+        }
+        return clean;
+    }
+
+    /**
      * Send a text message via Meta WhatsApp Cloud API
      */
     async sendTextMessage(
@@ -41,7 +52,7 @@ export class WhatsAppProvider {
             throw new Error(WHATSAPP_MESSAGES.NOT_CONFIGURED);
         }
 
-        const cleanPhone = to.replace(/[^0-9]/g, "");
+        const cleanPhone = this.normalizePhoneNumber(to);
 
         const url = this.getBaseUrl();
         const payload = {
@@ -89,7 +100,7 @@ export class WhatsAppProvider {
             throw new Error(WHATSAPP_MESSAGES.NOT_CONFIGURED);
         }
 
-        const cleanPhone = to.replace(/[^0-9]/g, "");
+        const cleanPhone = this.normalizePhoneNumber(to);
 
         const url = this.getBaseUrl();
 
@@ -150,7 +161,7 @@ export class WhatsAppProvider {
             throw new Error(WHATSAPP_MESSAGES.NOT_CONFIGURED);
         }
 
-        const cleanPhone = to.replace(/[^0-9]/g, "");
+        const cleanPhone = this.normalizePhoneNumber(to);
         const url = this.getBaseUrl();
         const payload = {
             messaging_product: "whatsapp",

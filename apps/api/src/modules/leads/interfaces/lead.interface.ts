@@ -24,6 +24,7 @@ export interface ILeadStatus {
     sortOrder: number;
     isDefault: number;
     isClosed: number;
+    isDraft: number;
     isActive: number;
     isDeleted: number;
     createdAt: Date;
@@ -63,6 +64,7 @@ export interface ILead {
     statusSortOrder?: number | undefined;
     statusIsDefault?: number | undefined;
     statusIsClosed?: number | undefined;
+    statusIsDraft?: number | undefined;
     statusIsActive?: number | undefined;
     statusIsDeleted?: number | undefined;
     assignedTo: string | null;
@@ -95,10 +97,12 @@ export interface ICreateLeadStatus {
     sortOrder?: number;
     isDefault?: number;
     isClosed?: number;
+    isDraft?: number;
 }
 
 export interface IUpdateLeadStatus extends Partial<ICreateLeadStatus> {
     isActive?: number;
+    isDraft?: number;
 }
 
 export interface ICreateLead {
@@ -119,6 +123,8 @@ export interface ICreateLead {
     statusUid?: string;
     assignedTo?: string;
     remarks?: string;
+    isDraft?: boolean | number;
+    is_draft?: boolean | number;
 }
 
 export interface IUpdateLead extends Partial<ICreateLead> {}
@@ -170,6 +176,7 @@ export interface ILeadStatusSafe {
     sortOrder: number;
     isDefault: number;
     isClosed: number;
+    isDraft: number;
     isActive: number;
     isDeleted: number;
 }

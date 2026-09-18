@@ -31,6 +31,7 @@ export const createLeadStatusSchema = z.object({
         sortOrder: z.number().int().optional(),
         isDefault: z.number().int().optional(),
         isClosed: z.number().int().optional(),
+        isDraft: z.union([z.number().int(), z.boolean()]).optional().transform((v) => typeof v === "boolean" ? (v ? 1 : 0) : v),
         isActive: z.number().int().min(0).max(1).optional(),
     }),
 });
@@ -45,6 +46,7 @@ export const updateLeadStatusSchema = z.object({
         sortOrder: z.number().int().optional(),
         isDefault: z.number().int().optional(),
         isClosed: z.number().int().optional(),
+        isDraft: z.union([z.number().int(), z.boolean()]).optional().transform((v) => typeof v === "boolean" ? (v ? 1 : 0) : v),
         isActive: z.number().int().min(0).max(1).optional(),
     }).strict(),
 });
@@ -64,8 +66,11 @@ export const createLeadSchema = z.object({
         systemSize: z.number({ message: "System size is required" }).min(0, "System size must be a positive number"),
         followUpDate: z.string().optional(), // accept ISO string
         leadSourceUid: z.string({ message: "Lead source is required" }).uuid("Invalid lead source UID format").optional(),
+        statusUid: z.string().uuid("Invalid lead status UID format").optional(),
         assignedTo: z.string().uuid("Invalid user UID format").optional().nullable().or(z.literal("")),
         remarks: z.string().optional(),
+        isDraft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     }),
 });
 
@@ -127,11 +132,14 @@ export const getAllSchema = z.object({
 export const validateLeadRequest = (schema: z.ZodSchema) => {
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
-            await schema.parseAsync({
+            const parsed = await schema.parseAsync({
                 body: req.body,
                 query: req.query,
                 params: req.params,
-            });
+            }) as any;
+            if (parsed && typeof parsed === "object" && parsed.body !== undefined) {
+                req.body = parsed.body;
+            }
             next();
         } catch (error) {
             if (error instanceof z.ZodError) {

@@ -11,7 +11,7 @@ function normalizeColor(color?: string | null): string | null {
 
 const LEAD_STATUS_COLUMNS = `
     id, uid, tenant_uid AS "tenantUid", name, color, sort_order AS "sortOrder", 
-    is_default AS "isDefault", is_closed AS "isClosed", is_active AS "isActive", 
+    is_default AS "isDefault", is_closed AS "isClosed", is_draft AS "isDraft", is_active AS "isActive", 
     is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt",
     created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
 `;
@@ -49,13 +49,13 @@ export class LeadStatusRepository {
         }
 
         const query = `
-            INSERT INTO lead_statuses (uid, tenant_uid, name, color, sort_order, is_default, is_closed, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO lead_statuses (uid, tenant_uid, name, color, sort_order, is_default, is_closed, is_draft, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING ${LEAD_STATUS_COLUMNS}
         `;
         const values = [
             uid, tenantUid, data.name, normalizeColor(data.color), sortOrder, 
-            data.isDefault ?? 0, data.isClosed ?? 0, createdBy
+            data.isDefault ?? 0, data.isClosed ?? 0, data.isDraft ?? 0, createdBy
         ];
 
         const result = await executor.query(query, values);
@@ -131,6 +131,36 @@ export class LeadStatusRepository {
         return result.rows.length > 0 ? (result.rows[0] as ILeadStatus) : null;
     }
 
+    async getDraft(tenantUid: string): Promise<ILeadStatus | null> {
+        let result = await this.pool.query(
+            `SELECT ${LEAD_STATUS_COLUMNS} FROM lead_statuses 
+             WHERE tenant_uid = $1 AND is_deleted = 0 AND is_draft = 1
+             ORDER BY created_at ASC LIMIT 1`,
+            [tenantUid]
+        );
+        if (result.rows.length === 0) {
+            result = await this.pool.query(
+                `SELECT ${LEAD_STATUS_COLUMNS} FROM lead_statuses 
+                 WHERE tenant_uid = $1 AND is_deleted = 0 AND LOWER(name) = 'draft'
+                 ORDER BY created_at ASC LIMIT 1`,
+                [tenantUid]
+            );
+        }
+        if (result.rows.length > 0) {
+            return result.rows[0] as ILeadStatus;
+        }
+
+        // Auto-create Draft status if missing for this tenant
+        return this.create(tenantUid, {
+            name: "Draft",
+            color: "#94A3B8",
+            sortOrder: 0,
+            isDefault: 0,
+            isClosed: 0,
+            isDraft: 1,
+        }, "SYSTEM");
+    }
+
     async update(tenantUid: string, uid: string, data: IUpdateLeadStatus, updatedBy: string): Promise<ILeadStatus | null> {
         if (data.isDefault === 1) {
             await this.pool.query(
@@ -148,6 +178,7 @@ export class LeadStatusRepository {
         if (data.sortOrder !== undefined) { updates.push(`sort_order = $${index++}`); values.push(data.sortOrder); }
         if (data.isDefault !== undefined) { updates.push(`is_default = $${index++}`); values.push(data.isDefault); }
         if (data.isClosed !== undefined) { updates.push(`is_closed = $${index++}`); values.push(data.isClosed); }
+        if (data.isDraft !== undefined) { updates.push(`is_draft = $${index++}`); values.push(data.isDraft); }
         if (data.isActive !== undefined) { updates.push(`is_active = $${index++}`); values.push(data.isActive); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);

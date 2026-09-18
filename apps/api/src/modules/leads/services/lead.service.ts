@@ -59,12 +59,38 @@ export class LeadService {
             }
         }
 
-        const defaultStatus = await this.statusRepository.getDefault(tenantUid);
-        if (!defaultStatus) {
-            throw new CustomError("No default lead status found", 400);
+        const isDraft = Boolean(
+            data.isDraft === true ||
+            data.isDraft === 1 ||
+            (data as any).isDraft === "true" ||
+            (data as any).isDraft === "1" ||
+            (data as any).is_draft === true ||
+            (data as any).is_draft === 1 ||
+            (data as any).is_draft === "true" ||
+            (data as any).is_draft === "1"
+        );
+
+        let finalStatusUid: string;
+
+        if (isDraft) {
+            const draftStatus = await this.statusRepository.getDraft(tenantUid);
+            if (!draftStatus) {
+                throw new CustomError("No draft lead status found", 400);
+            }
+            finalStatusUid = draftStatus.uid;
+        } else if (data.statusUid) {
+            const existingStatus = await this.statusRepository.getByUid(tenantUid, data.statusUid);
+            if (!existingStatus) {
+                throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 400);
+            }
+            finalStatusUid = existingStatus.uid;
+        } else {
+            const defaultStatus = await this.statusRepository.getDefault(tenantUid);
+            if (!defaultStatus) {
+                throw new CustomError("No default lead status found", 400);
+            }
+            finalStatusUid = defaultStatus.uid;
         }
-        
-        const finalStatusUid = defaultStatus.uid;
 
         try {
             const lastLeadNumber = await this.repository.getLastLeadNumber();
@@ -85,16 +111,18 @@ export class LeadService {
             }
 
             // Real-time Push Notification to assigned mobile user (Android / iOS)
-            if (data.assignedTo) {
+            if (data.assignedTo && !isDraft) {
                 this.sendLeadAssignedPushNotification(tenantUid, lead, data.assignedTo, createdBy).catch(err => {
                     logger.error("Failed to trigger lead assignment push notification:", err);
                 });
             }
 
             // WhatsApp Notification to the created lead customer
-            this.sendLeadCreatedWhatsAppNotification(tenantUid, lead, createdBy).catch(err => {
-                logger.error("Failed to trigger lead creation WhatsApp notification:", err);
-            });
+            if (!isDraft) {
+                this.sendLeadCreatedWhatsAppNotification(tenantUid, lead, createdBy).catch(err => {
+                    logger.error("Failed to trigger lead creation WhatsApp notification:", err);
+                });
+            }
             
             return toLeadSafe(lead);
         } catch (error) {

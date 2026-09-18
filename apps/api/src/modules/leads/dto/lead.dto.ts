@@ -50,6 +50,7 @@ export function toLeadSafe(lead: ILead): ILeadSafe {
             sortOrder: lead.statusSortOrder || 0,
             isDefault: lead.statusIsDefault || 0,
             isClosed: lead.statusIsClosed || 0,
+            isDraft: lead.statusIsDraft || 0,
             isActive: lead.statusIsActive || 0,
             isDeleted: lead.statusIsDeleted || 0,
         } : null,
@@ -76,6 +77,7 @@ export function toLeadStatusSafe(status: ILeadStatus): ILeadStatusSafe {
         sortOrder: status.sortOrder,
         isDefault: status.isDefault,
         isClosed: status.isClosed,
+        isDraft: status.isDraft || 0,
         isActive: status.isActive,
         isDeleted: status.isDeleted,
     };

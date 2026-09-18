@@ -241,6 +241,18 @@ export class LeadService {
                 });
             }
 
+            // WhatsApp Notification to customer for lead update (if not a draft)
+            if (!updated.statusIsDraft) {
+                this.sendLeadUpdatedWhatsAppNotification(
+                    tenantUid,
+                    updated,
+                    { statusName: newStatusName, isStatusChanged },
+                    updatedBy
+                ).catch(err => {
+                    logger.error("Failed to trigger lead update WhatsApp notification:", err);
+                });
+            }
+
             return toLeadSafe(updated);
         } catch (error) {
             logger.error("LeadService.updateLead error", { error });
@@ -267,6 +279,18 @@ export class LeadService {
             if (updated.assignedTo) {
                 this.sendLeadStatusChangedPushNotification(tenantUid, updated, leadStatus.name, updated.assignedTo, updatedBy).catch(err => {
                     logger.error("Failed to trigger lead status change push notification:", err);
+                });
+            }
+
+            // WhatsApp Notification to customer for status change (if not a draft)
+            if (!updated.statusIsDraft) {
+                this.sendLeadUpdatedWhatsAppNotification(
+                    tenantUid,
+                    updated,
+                    { statusName: leadStatus.name, isStatusChanged: true },
+                    updatedBy
+                ).catch(err => {
+                    logger.error("Failed to trigger lead status change WhatsApp notification:", err);
                 });
             }
 
@@ -388,6 +412,48 @@ export class LeadService {
             });
         } catch (err) {
             logger.error("Error dispatching lead created WhatsApp notification:", err);
+        }
+    }
+
+    /**
+     * Helper to dispatch WhatsApp notification to customer when lead details or status are updated
+     */
+    private async sendLeadUpdatedWhatsAppNotification(
+        tenantUid: string,
+        lead: any,
+        updateDetails?: { statusName?: string | undefined; isStatusChanged?: boolean | undefined },
+        updatedBy?: string
+    ): Promise<void> {
+        try {
+            if (!lead.mobileNumber) return;
+
+            const customerName = `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer";
+            const leadNum = lead.leadNumber || "your lead";
+
+            let messageText: string;
+            if (updateDetails?.isStatusChanged && updateDetails.statusName) {
+                messageText = `Hello ${customerName}! Your lead (${leadNum}) status has been updated to "${updateDetails.statusName}" with SunSelect Solar. Thank you!`;
+            } else {
+                messageText = `Hello ${customerName}! Your lead (${leadNum}) details have been updated successfully with SunSelect Solar. Thank you!`;
+            }
+
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.WHATSAPP,
+                template: NOTIFICATION_TEMPLATE.LEAD_UPDATED_WHATSAPP,
+                recipient: lead.mobileNumber,
+                module: "lead",
+                referenceUid: lead.uid,
+                tenantUid,
+                createdBy: updatedBy || "SYSTEM",
+                variables: {
+                    customer_name: customerName,
+                    lead_number: leadNum,
+                    status_name: updateDetails?.statusName || lead.statusName || "",
+                    text: messageText
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching lead updated WhatsApp notification:", err);
         }
     }
 }

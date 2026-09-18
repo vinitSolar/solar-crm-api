@@ -20,7 +20,7 @@ export class RoleRepository {
         logger.debug("RoleRepository.getRolesByTenant", { tenantUid, page, limit, search, status });
 
         let query = `
-            SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
+            SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
             FROM roles
             WHERE tenant_uid = $1
             AND name != 'Master'
@@ -79,7 +79,7 @@ export class RoleRepository {
         logger.debug("RoleRepository.getAllRolesByTenant", { tenantUid, status });
 
         let query = `
-            SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
+            SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
             FROM roles
             WHERE tenant_uid = $1
             AND name != 'Master'
@@ -108,7 +108,7 @@ export class RoleRepository {
         logger.debug("RoleRepository.getRoleByUid", { uid, tenantUid });
 
         const query = `
-            SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
+            SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
             FROM roles
             WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0
         `;
@@ -129,7 +129,7 @@ export class RoleRepository {
         logger.debug("RoleRepository.getRoleByName", { name, tenantUid });
 
         const query = `
-            SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
+            SELECT id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
             FROM roles
             WHERE name = $1 AND tenant_uid = $2 AND is_deleted = 0
         `;
@@ -150,9 +150,9 @@ export class RoleRepository {
         logger.debug("RoleRepository.createRole", { uid, tenantUid, data });
 
         const query = `
-            INSERT INTO roles (uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
+            INSERT INTO roles (uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
         `;
 
         const result = await this.pool.query(query, [
@@ -164,6 +164,7 @@ export class RoleRepository {
             data.canInstallation ?? 0,
             data.canSale ?? 0,
             data.showAllLeads ?? 0,
+            data.showAllSurveys ?? 0,
             createdBy
         ]);
 
@@ -210,6 +211,11 @@ export class RoleRepository {
             values.push(data.showAllLeads);
         }
 
+        if (data.showAllSurveys !== undefined) {
+            updates.push(`show_all_surveys = $${index++}`);
+            values.push(data.showAllSurveys);
+        }
+
         if (data.isActive !== undefined) {
             updates.push(`is_active = $${index++}`);
             values.push(data.isActive);
@@ -224,7 +230,7 @@ export class RoleRepository {
             UPDATE roles
             SET ${updates.join(", ")}
             WHERE uid = $${index++} AND tenant_uid = $${index++} AND is_deleted = 0
-            RETURNING id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
+            RETURNING id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
         `;
 
         values.push(uid, tenantUid);

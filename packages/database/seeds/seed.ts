@@ -171,8 +171,8 @@ export async function seed(pool: Pool) {
 
             // 3. Role: Master
             await client.query(
-                `INSERT INTO roles (uid, tenant_uid, name, description, is_system, is_active, is_deleted, show_all_leads, created_by)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                `INSERT INTO roles (uid, tenant_uid, name, description, is_system, is_active, is_deleted, show_all_leads, show_all_surveys, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                  ON CONFLICT (uid) DO NOTHING`,
                 [
                     roleUid,
@@ -182,6 +182,7 @@ export async function seed(pool: Pool) {
                     1,
                     1,
                     0,
+                    1,
                     1,
                     "SYSTEM",
                 ]

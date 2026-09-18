@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS roles (
   is_active SMALLINT DEFAULT 1, -- 0 = Inactive, 1 = Active
   is_deleted SMALLINT DEFAULT 0, -- 0 = No, 1 = Yes
   show_all_leads SMALLINT DEFAULT 0, -- 0 = Only Assigned, 1 = Show All Tenant Leads
+  show_all_surveys SMALLINT DEFAULT 0, -- 0 = Only Assigned, 1 = Show All Tenant Surveys
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_by VARCHAR(255),

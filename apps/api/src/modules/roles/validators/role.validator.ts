@@ -18,6 +18,7 @@ export const createRoleSchema = z.object({
         canInstallation: z.number().int().min(0).max(1).optional(),
         canSale: z.number().int().min(0).max(1).optional(),
         showAllLeads: z.number().int().min(0).max(1).optional(),
+        showAllSurveys: z.number().int().min(0).max(1).optional(),
     })
 });
 
@@ -32,6 +33,7 @@ export const updateRoleSchema = z.object({
         canInstallation: z.number().int().min(0).max(1).optional(),
         canSale: z.number().int().min(0).max(1).optional(),
         showAllLeads: z.number().int().min(0).max(1).optional(),
+        showAllSurveys: z.number().int().min(0).max(1).optional(),
         isActive: z.number().int().min(0).max(1).optional(),
     }).refine(data => Object.keys(data).length > 0, {
         message: ROLE_MESSAGES.UPDATE_NO_FIELDS,

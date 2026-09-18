@@ -227,7 +227,7 @@ export class SiteSurveyRepository {
     async getAll(
         tenantUid: string,
         status: "active" | "deleted" | "all" = "active",
-        scopedUserUid?: string
+        assignedTo?: string
     ): Promise<ISiteSurvey[]> {
         let whereClause = "ss.tenant_uid = $1";
         const params: any[] = [tenantUid];
@@ -235,10 +235,9 @@ export class SiteSurveyRepository {
         if (status === "active") whereClause += " AND ss.is_deleted = 0";
         else if (status === "deleted") whereClause += " AND ss.is_deleted = 1";
 
-        if (scopedUserUid) {
-            params.push(scopedUserUid);
-            const userIndex = params.length;
-            whereClause += ` AND (ss.assigned_to = $${userIndex} OR ss.created_by = $${userIndex} OR ss.updated_by = $${userIndex})`;
+        if (assignedTo) {
+            params.push(assignedTo);
+            whereClause += ` AND ss.assigned_to = $${params.length}`;
         }
 
         const query = `

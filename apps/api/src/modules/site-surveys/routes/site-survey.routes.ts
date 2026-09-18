@@ -5,6 +5,7 @@ import { SiteSurveyRepository } from "../repositories/site-survey.repository.js"
 import { SiteSurveyDetailsRepository } from "../repositories/site-survey-details.repository.js";
 import { LeadRepository } from "../../leads/repositories/lead.repository.js";
 import { UserRepository } from "../../users/repositories/user.repository.js";
+import { RoleRepository } from "../../roles/repositories/role.repository.js";
 import {
     createSiteSurveySchema,
     updateSiteSurveySchema,
@@ -30,10 +31,11 @@ function createSiteSurveyRouter(): Router {
     const detailsRepository = new SiteSurveyDetailsRepository(pool);
     const leadRepository = new LeadRepository(pool);
     const userRepository = new UserRepository(pool);
+    const roleRepository = new RoleRepository(pool);
     const noteRepository = new NoteRepository(pool);
     const noteService = new NoteService(noteRepository);
     
-    const service = new SiteSurveyService(repository, detailsRepository, leadRepository, userRepository, noteService);
+    const service = new SiteSurveyService(repository, detailsRepository, leadRepository, userRepository, roleRepository, noteService);
     const controller = new SiteSurveyController(service);
 
     router.use(authenticate);

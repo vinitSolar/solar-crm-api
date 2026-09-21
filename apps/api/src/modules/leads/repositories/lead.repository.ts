@@ -70,10 +70,10 @@ export class LeadRepository {
             RETURNING ${LEAD_COLUMNS}
         `;
         const values = [
-            uid, tenantUid, data.leadNumber, data.firstName, data.lastName ?? null, data.mobileNumber, 
+            uid, tenantUid, data.leadNumber, data.firstName, data.lastName ?? null, data.mobileNumber ?? null, 
             data.alternateNumber ?? null, data.email ?? null, data.address ?? null, 
-            data.landmark ?? null, data.state, data.city, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
-            data.systemSize, data.followUpDate || null, data.leadSourceUid ?? null, 
+            data.landmark ?? null, data.state ?? null, data.city ?? null, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
+            data.systemSize ?? null, data.followUpDate || null, data.leadSourceUid ?? null, 
             data.statusUid, data.assignedTo ?? null, createdBy
         ];
 

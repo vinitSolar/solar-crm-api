@@ -51,14 +51,25 @@ export const updateLeadStatusSchema = z.object({
     }).strict(),
 });
 
-/** Helper to check if isDraft flag is truthy from various input types */
-function isDraftTrue(data: Record<string, unknown>): boolean {
-    const val = data.isDraft ?? data.is_draft;
-    return val === true || val === 1 || val === "true" || val === "1";
+/** Helper to check if isDraft flag is truthy from various input types and query params */
+function isDraftTrue(body: Record<string, unknown>, query?: Record<string, unknown>): boolean {
+    const val = body.isDraft ?? body.is_draft ?? body.draft ?? query?.isDraft ?? query?.is_draft ?? query?.draft;
+    if (val === true || val === 1 || val === "true" || val === "1") {
+        return true;
+    }
+    if (typeof val === "string" && val.trim().toLowerCase() === "draft") {
+        return true;
+    }
+    const statusVal = body.status ?? body.statusName ?? query?.status;
+    if (typeof statusVal === "string" && statusVal.trim().toLowerCase() === "draft") {
+        return true;
+    }
+    return false;
 }
 
 /** Base shape for lead body — all fields optional at the Zod level; required-ness enforced via superRefine */
 const leadBodyBase = {
+    name: z.string().optional(),
     firstName: z.string().min(2, "First name must be at least 2 characters").optional(),
     lastName: z.string().min(1, "Last name is required").optional(),
     mobileNumber: z.string().min(10, "Mobile number must be at least 10 characters").optional(),
@@ -74,8 +85,11 @@ const leadBodyBase = {
     followUpDate: z.string().optional(),
     leadSourceUid: z.string().uuid("Invalid lead source UID format").optional(),
     statusUid: z.string().uuid("Invalid lead status UID format").optional(),
+    status: z.string().optional(),
+    statusName: z.string().optional(),
     assignedTo: z.string().uuid("Invalid user UID format").optional().nullable().or(z.literal("")),
     remarks: z.string().optional(),
+    draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     isDraft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
 };
@@ -92,47 +106,75 @@ const CREATE_REQUIRED_FIELDS: { key: string; label: string }[] = [
     { key: "systemSize", label: "System size is required" },
 ];
 
-/** Fields that are required when isDraft is true (only name) */
-const DRAFT_REQUIRED_FIELDS: { key: string; label: string }[] = [
-    { key: "firstName", label: "First name is required" },
-];
-
 export const createLeadSchema = z.object({
-    body: z.object(leadBodyBase).superRefine((data, ctx) => {
-        const requiredFields = isDraftTrue(data) ? DRAFT_REQUIRED_FIELDS : CREATE_REQUIRED_FIELDS;
-        for (const { key, label } of requiredFields) {
-            const value = (data as Record<string, unknown>)[key];
+    body: z.object(leadBodyBase),
+    query: z.object({
+        isDraft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        status: z.string().optional(),
+    }).optional(),
+}).superRefine((data, ctx) => {
+    const isDraft = isDraftTrue(data.body as Record<string, unknown>, data.query as Record<string, unknown> | undefined);
+    const bodyRecord = data.body as Record<string, unknown>;
+    const effectiveName = bodyRecord.firstName || bodyRecord.name;
+
+    if (isDraft) {
+        if (!effectiveName || (typeof effectiveName === "string" && effectiveName.trim().length < 2)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "First name is required (min 2 characters)",
+                path: ["body", "firstName"],
+            });
+        }
+    } else {
+        if (!effectiveName || (typeof effectiveName === "string" && effectiveName.trim().length < 2)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "First name is required",
+                path: ["body", "firstName"],
+            });
+        }
+        for (const { key, label } of CREATE_REQUIRED_FIELDS) {
+            if (key === "firstName") continue;
+            const value = bodyRecord[key];
             if (value === undefined || value === null || value === "") {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     message: label,
-                    path: [key],
+                    path: ["body", key],
                 });
             }
         }
-    }),
+    }
 });
 
 export const updateLeadSchema = z.object({
     params: z.object({
         uid: z.string().uuid("Invalid UID format"),
     }),
-    body: z.object(leadBodyBase).superRefine((data, ctx) => {
-        // For updates: if isDraft is explicitly true, only firstName is required
-        if (isDraftTrue(data)) {
-            for (const { key, label } of DRAFT_REQUIRED_FIELDS) {
-                const value = (data as Record<string, unknown>)[key];
-                if (value === undefined || value === null || value === "") {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        message: label,
-                        path: [key],
-                    });
-                }
-            }
+    body: z.object(leadBodyBase),
+    query: z.object({
+        isDraft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        status: z.string().optional(),
+    }).optional(),
+}).superRefine((data, ctx) => {
+    const isDraft = isDraftTrue(data.body as Record<string, unknown>, data.query as Record<string, unknown> | undefined);
+    const bodyRecord = data.body as Record<string, unknown>;
+    const effectiveName = bodyRecord.firstName || bodyRecord.name;
+
+    // For updates: if isDraft is true, only name is required
+    if (isDraft) {
+        if (!effectiveName || (typeof effectiveName === "string" && effectiveName.trim().length < 2)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "First name is required (min 2 characters)",
+                path: ["body", "firstName"],
+            });
         }
-        // When isDraft is false/absent in updates, all fields remain optional (partial update)
-    }),
+    }
 });
 
 export const changeLeadStatusSchema = z.object({
@@ -175,6 +217,14 @@ export const validateLeadRequest = (schema: z.ZodSchema) => {
                 params: req.params,
             }) as any;
             if (parsed && typeof parsed === "object" && parsed.body !== undefined) {
+                // Normalize name -> firstName if firstName missing
+                if (!parsed.body.firstName && parsed.body.name) {
+                    parsed.body.firstName = parsed.body.name;
+                }
+                // Normalize isDraft flag if detected from query or status
+                if (isDraftTrue(parsed.body, req.query as Record<string, unknown>)) {
+                    parsed.body.isDraft = true;
+                }
                 req.body = parsed.body;
             }
             next();

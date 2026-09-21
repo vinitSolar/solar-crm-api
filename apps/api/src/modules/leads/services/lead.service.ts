@@ -59,15 +59,26 @@ export class LeadService {
             }
         }
 
+        // Fallback for name -> firstName if only name was supplied
+        if (!data.firstName && (data as any).name) {
+            data.firstName = (data as any).name;
+        }
+
         const isDraft = Boolean(
             data.isDraft === true ||
             data.isDraft === 1 ||
             (data as any).isDraft === "true" ||
             (data as any).isDraft === "1" ||
+            (data as any).isDraft === "draft" ||
             (data as any).is_draft === true ||
             (data as any).is_draft === 1 ||
             (data as any).is_draft === "true" ||
-            (data as any).is_draft === "1"
+            (data as any).is_draft === "1" ||
+            (data as any).draft === true ||
+            (data as any).draft === 1 ||
+            (data as any).draft === "true" ||
+            ((data as any).status && String((data as any).status).trim().toLowerCase() === "draft") ||
+            ((data as any).statusName && String((data as any).statusName).trim().toLowerCase() === "draft")
         );
 
         let finalStatusUid: string;
@@ -193,16 +204,27 @@ export class LeadService {
             if (!leadSource) throw new CustomError(LEAD_SOURCE_MESSAGES.NOT_FOUND, 400);
         }
 
+        // Fallback for name -> firstName if only name was supplied
+        if (!data.firstName && (data as any).name) {
+            data.firstName = (data as any).name;
+        }
+
         // Auto-assign draft status when isDraft flag is set
         const isDraft = Boolean(
             data.isDraft === true ||
             data.isDraft === 1 ||
             (data as any).isDraft === "true" ||
             (data as any).isDraft === "1" ||
+            (data as any).isDraft === "draft" ||
             (data as any).is_draft === true ||
             (data as any).is_draft === 1 ||
             (data as any).is_draft === "true" ||
-            (data as any).is_draft === "1"
+            (data as any).is_draft === "1" ||
+            (data as any).draft === true ||
+            (data as any).draft === 1 ||
+            (data as any).draft === "true" ||
+            ((data as any).status && String((data as any).status).trim().toLowerCase() === "draft") ||
+            ((data as any).statusName && String((data as any).statusName).trim().toLowerCase() === "draft")
         );
 
         if (isDraft) {

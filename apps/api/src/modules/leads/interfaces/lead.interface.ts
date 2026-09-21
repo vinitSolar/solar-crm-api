@@ -45,6 +45,7 @@ export interface ILead {
     alternateNumber: string | null;
     email: string | null;
     address: string | null;
+    landmark: string | null;
     state: string;
     city: string;
     pinCode: string | null;
@@ -113,6 +114,7 @@ export interface ICreateLead {
     alternateNumber?: string;
     email?: string;
     address: string;
+    landmark?: string;
     state: string;
     city: string;
     pinCode: string;
@@ -138,6 +140,7 @@ export interface ILeadSafe {
     alternateNumber: string | null;
     email: string | null;
     address: string | null;
+    landmark: string | null;
     state: string;
     city: string;
     pinCode: string | null;

@@ -150,6 +150,22 @@ class PushProvider {
                 };
             }
 
+            case NOTIFICATION_TEMPLATE.LEAD_UPDATED: {
+                const leadNumber = v.lead_number || "Lead";
+                const customerName = v.customer_name || "Customer";
+                const city = v.city ? ` in ${v.city}` : "";
+                return {
+                    title: "Lead Updated",
+                    body: `Lead ${leadNumber} - ${customerName}${city} has been updated.`,
+                    data: {
+                        module: moduleName,
+                        referenceUid,
+                        leadNumber,
+                        customerName
+                    }
+                };
+            }
+
             case NOTIFICATION_TEMPLATE.LEAD_NOTE_ADDED: {
                 const leadNumber = v.lead_number || "Lead";
                 const authorName = v.author_name || "Team Member";

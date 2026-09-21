@@ -240,6 +240,8 @@ function createLeadRouter(): Router {
      *                 type: string
      *               remarks:
      *                 type: string
+     *               landmark:
+     *                 type: string
      *               isDraft:
      *                 type: boolean
      *     responses:
@@ -324,6 +326,8 @@ function createLeadRouter(): Router {
      *               assignedTo:
      *                 type: string
      *               remarks:
+     *                 type: string
+     *               landmark:
      *                 type: string
      *     responses:
      *       200:

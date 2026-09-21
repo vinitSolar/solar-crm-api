@@ -241,6 +241,13 @@ export class LeadService {
                 });
             }
 
+            // FCM Push Notification to assigned user for lead update (if not a draft)
+            if (updated.assignedTo && !updated.statusIsDraft && !isReassigned && !isStatusChanged) {
+                this.sendLeadUpdatedPushNotification(tenantUid, updated, updated.assignedTo, updatedBy).catch(err => {
+                    logger.error("Failed to trigger lead update push notification:", err);
+                });
+            }
+
             // WhatsApp Notification to customer for lead update (if not a draft)
             if (!updated.statusIsDraft) {
                 this.sendLeadUpdatedWhatsAppNotification(
@@ -379,6 +386,36 @@ export class LeadService {
             });
         } catch (err) {
             logger.error("Error dispatching lead status changed push notification:", err);
+        }
+    }
+
+    /**
+     * Helper to dispatch real-time FCM Push Notification when lead details are updated
+     */
+    private async sendLeadUpdatedPushNotification(
+        tenantUid: string,
+        lead: any,
+        recipientUserUid: string,
+        updatedBy?: string
+    ): Promise<void> {
+        try {
+            await notificationService.send({
+                channel: NOTIFICATION_CHANNEL.PUSH,
+                template: NOTIFICATION_TEMPLATE.LEAD_UPDATED,
+                recipient: recipientUserUid,
+                module: "lead",
+                referenceUid: lead.uid,
+                tenantUid,
+                createdBy: updatedBy || "SYSTEM",
+                variables: {
+                    lead_number: lead.leadNumber || "Lead",
+                    customer_name: `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Customer",
+                    city: lead.city || "",
+                    lead_uid: lead.uid,
+                }
+            });
+        } catch (err) {
+            logger.error("Error dispatching lead updated push notification:", err);
         }
     }
 

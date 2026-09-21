@@ -51,53 +51,130 @@ export const updateLeadStatusSchema = z.object({
     }).strict(),
 });
 
+/** Helper to check if isDraft flag is truthy from various input types and query params */
+function isDraftTrue(body: Record<string, unknown>, query?: Record<string, unknown>): boolean {
+    const val = body.isDraft ?? body.is_draft ?? body.draft ?? query?.isDraft ?? query?.is_draft ?? query?.draft;
+    if (val === true || val === 1 || val === "true" || val === "1") {
+        return true;
+    }
+    if (typeof val === "string" && val.trim().toLowerCase() === "draft") {
+        return true;
+    }
+    const statusVal = body.status ?? body.statusName ?? query?.status;
+    if (typeof statusVal === "string" && statusVal.trim().toLowerCase() === "draft") {
+        return true;
+    }
+    return false;
+}
+
+/** Base shape for lead body — all fields optional at the Zod level; required-ness enforced via superRefine */
+const leadBodyBase = {
+    name: z.string().optional(),
+    firstName: z.string().min(2, "First name must be at least 2 characters").optional(),
+    lastName: z.string().min(1, "Last name is required").optional(),
+    mobileNumber: z.string().min(10, "Mobile number must be at least 10 characters").optional(),
+    alternateNumber: z.string().optional(),
+    email: z.string().email("Invalid email format").optional().or(z.literal("")),
+    address: z.string().min(1, "Address is required").optional(),
+    landmark: z.string().optional(),
+    state: z.string().min(2, "State is required").optional(),
+    city: z.string().min(2, "City is required").optional(),
+    pinCode: z.string().min(1, "Pin code is required").optional(),
+    monthlyBillAmount: z.number().optional(),
+    systemSize: z.number().min(0, "System size must be a positive number").optional(),
+    followUpDate: z.string().optional(),
+    leadSourceUid: z.string().uuid("Invalid lead source UID format").optional(),
+    statusUid: z.string().uuid("Invalid lead status UID format").optional(),
+    status: z.string().optional(),
+    statusName: z.string().optional(),
+    assignedTo: z.string().uuid("Invalid user UID format").optional().nullable().or(z.literal("")),
+    remarks: z.string().optional(),
+    draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+    isDraft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+    is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+};
+
+/** Fields that are required when isDraft is false (normal lead creation) */
+const CREATE_REQUIRED_FIELDS: { key: string; label: string }[] = [
+    { key: "firstName", label: "First name is required" },
+    { key: "lastName", label: "Last name is required" },
+    { key: "mobileNumber", label: "Mobile number is required" },
+    { key: "address", label: "Address is required" },
+    { key: "state", label: "State is required" },
+    { key: "city", label: "City is required" },
+    { key: "pinCode", label: "Pin code is required" },
+    { key: "systemSize", label: "System size is required" },
+];
+
 export const createLeadSchema = z.object({
-    body: z.object({
-        firstName: z.string({ message: "First name is required" }).min(2, "First name must be at least 2 characters"),
-        lastName: z.string({ message: "Last name is required" }).min(1, "Last name is required"),
-        mobileNumber: z.string({ message: "Mobile number is required" }).min(10, "Mobile number must be at least 10 characters"),
-        alternateNumber: z.string().optional(),
-        email: z.string().email("Invalid email format").optional().or(z.literal("")),
-        address: z.string({ message: "Address is required" }).min(1, "Address is required"),
-        landmark: z.string().optional(),
-        state: z.string({ message: "State is required" }).min(2, "State is required"),
-        city: z.string({ message: "City is required" }).min(2, "City is required"),
-        pinCode: z.string({ message: "Pin code is required" }).min(1, "Pin code is required"),
-        monthlyBillAmount: z.number().optional(),
-        systemSize: z.number({ message: "System size is required" }).min(0, "System size must be a positive number"),
-        followUpDate: z.string().optional(), // accept ISO string
-        leadSourceUid: z.string({ message: "Lead source is required" }).uuid("Invalid lead source UID format").optional(),
-        statusUid: z.string().uuid("Invalid lead status UID format").optional(),
-        assignedTo: z.string().uuid("Invalid user UID format").optional().nullable().or(z.literal("")),
-        remarks: z.string().optional(),
+    body: z.object(leadBodyBase),
+    query: z.object({
         isDraft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
         is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
-    }),
+        draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        status: z.string().optional(),
+    }).optional(),
+}).superRefine((data, ctx) => {
+    const isDraft = isDraftTrue(data.body as Record<string, unknown>, data.query as Record<string, unknown> | undefined);
+    const bodyRecord = data.body as Record<string, unknown>;
+    const effectiveName = bodyRecord.firstName || bodyRecord.name;
+
+    if (isDraft) {
+        if (!effectiveName || (typeof effectiveName === "string" && effectiveName.trim().length < 2)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "First name is required (min 2 characters)",
+                path: ["body", "firstName"],
+            });
+        }
+    } else {
+        if (!effectiveName || (typeof effectiveName === "string" && effectiveName.trim().length < 2)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "First name is required",
+                path: ["body", "firstName"],
+            });
+        }
+        for (const { key, label } of CREATE_REQUIRED_FIELDS) {
+            if (key === "firstName") continue;
+            const value = bodyRecord[key];
+            if (value === undefined || value === null || value === "") {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: label,
+                    path: ["body", key],
+                });
+            }
+        }
+    }
 });
 
 export const updateLeadSchema = z.object({
     params: z.object({
         uid: z.string().uuid("Invalid UID format"),
     }),
-    body: z.object({
-        firstName: z.string().min(2, "First name must be at least 2 characters").optional(),
-        lastName: z.string().optional(),
-        mobileNumber: z.string().min(10, "Mobile number must be at least 10 characters").optional(),
-        alternateNumber: z.string().optional(),
-        email: z.string().email("Invalid email format").optional().or(z.literal("")),
-        address: z.string().optional(),
-        landmark: z.string().optional(),
-        state: z.string().min(2, "State is required").optional(),
-        city: z.string().min(2, "City is required").optional(),
-        pinCode: z.string().optional(),
-        monthlyBillAmount: z.number().optional(),
-        systemSize: z.number().optional(),
-        followUpDate: z.string().optional(),
-        leadSourceUid: z.string().uuid("Invalid lead source UID format").optional(),
-        statusUid: z.string().uuid("Invalid lead status UID format").optional(),
-        assignedTo: z.string().uuid("Invalid user UID format").optional().nullable().or(z.literal("")),
-        remarks: z.string().optional(),
-    }).strict(),
+    body: z.object(leadBodyBase),
+    query: z.object({
+        isDraft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+        status: z.string().optional(),
+    }).optional(),
+}).superRefine((data, ctx) => {
+    const isDraft = isDraftTrue(data.body as Record<string, unknown>, data.query as Record<string, unknown> | undefined);
+    const bodyRecord = data.body as Record<string, unknown>;
+    const effectiveName = bodyRecord.firstName || bodyRecord.name;
+
+    // For updates: if isDraft is true, only name is required
+    if (isDraft) {
+        if (!effectiveName || (typeof effectiveName === "string" && effectiveName.trim().length < 2)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "First name is required (min 2 characters)",
+                path: ["body", "firstName"],
+            });
+        }
+    }
 });
 
 export const changeLeadStatusSchema = z.object({
@@ -140,6 +217,14 @@ export const validateLeadRequest = (schema: z.ZodSchema) => {
                 params: req.params,
             }) as any;
             if (parsed && typeof parsed === "object" && parsed.body !== undefined) {
+                // Normalize name -> firstName if firstName missing
+                if (!parsed.body.firstName && parsed.body.name) {
+                    parsed.body.firstName = parsed.body.name;
+                }
+                // Normalize isDraft flag if detected from query or status
+                if (isDraftTrue(parsed.body, req.query as Record<string, unknown>)) {
+                    parsed.body.isDraft = true;
+                }
                 req.body = parsed.body;
             }
             next();

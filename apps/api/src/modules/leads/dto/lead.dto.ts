@@ -17,6 +17,7 @@ export function toLeadSafe(lead: ILead): ILeadSafe {
         alternateNumber: lead.alternateNumber,
         email: lead.email,
         address: lead.address,
+        landmark: lead.landmark,
         state: lead.state,
         city: lead.city,
         pinCode: lead.pinCode,

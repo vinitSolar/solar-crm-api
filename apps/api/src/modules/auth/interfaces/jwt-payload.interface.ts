@@ -18,3 +18,12 @@ export interface IJwtRefreshPayload {
     userUid: string;
     tenantUid: string;
 }
+
+/**
+ * JWT reset password token payload.
+ * Issued after OTP verification to authorize password reset.
+ */
+export interface IJwtResetPasswordPayload {
+    email: string;
+    purpose: "password_reset";
+}

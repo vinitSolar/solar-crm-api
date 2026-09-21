@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import { env } from "@packages/config/index.js";
 import { logger } from "@packages/logger/index.js";
-import type { IJwtPayload, IJwtRefreshPayload } from "../interfaces/jwt-payload.interface.js";
+import type { IJwtPayload, IJwtRefreshPayload, IJwtResetPasswordPayload } from "../interfaces/jwt-payload.interface.js";
 
 /**
  * Converts a time duration string (e.g., "15m", "7d") to seconds.
@@ -100,3 +100,43 @@ export function verifyRefreshToken(token: string): IJwtRefreshPayload | null {
         return null;
     }
 }
+
+/**
+ * Generates a signed JWT reset password token valid for 15 minutes.
+ *
+ * @param email - The user's email address.
+ * @returns Signed JWT reset token string.
+ */
+export function generateResetPasswordToken(email: string): string {
+    logger.debug("Generating reset password token", { email });
+
+    const payload: IJwtResetPasswordPayload = {
+        email: email.toLowerCase().trim(),
+        purpose: "password_reset",
+    };
+
+    return jwt.sign(payload, env.JWT.SECRET, {
+        expiresIn: 900, // 15 minutes
+    });
+}
+
+/**
+ * Verifies and decodes a reset password token.
+ *
+ * @param token - The JWT reset token string to verify.
+ * @returns Decoded payload or null if invalid/expired.
+ */
+export function verifyResetPasswordToken(token: string): IJwtResetPasswordPayload | null {
+    try {
+        const decoded = jwt.verify(token, env.JWT.SECRET) as IJwtResetPasswordPayload;
+        if (decoded.purpose !== "password_reset" || !decoded.email) {
+            logger.warn("Reset password token purpose mismatch or missing email", { decoded });
+            return null;
+        }
+        return decoded;
+    } catch (error) {
+        logger.warn("Reset password token verification failed", { error });
+        return null;
+    }
+}
+

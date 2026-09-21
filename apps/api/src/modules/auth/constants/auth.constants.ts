@@ -23,7 +23,10 @@ export const AUTH_MESSAGES = {
     PASSWORD_CHANGED: "Password changed successfully",
     OLD_PASSWORD_INCORRECT: "Old password is incorrect",
     OTP_SENT: "OTP sent to your email successfully",
+    OTP_VERIFIED: "OTP verified successfully",
     OTP_INVALID: "Invalid or expired OTP",
+    RESET_TOKEN_INVALID: "Invalid or expired reset token",
+    RESET_VERIFICATION_REQUIRED: "OTP verification required before resetting password",
     PASSWORD_RESET_SUCCESS: "Password reset successfully",
 } as const;
 

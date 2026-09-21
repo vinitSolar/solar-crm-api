@@ -15,7 +15,7 @@ export { authenticate, authorize } from "./middleware/auth.middleware.js";
 
 // Interfaces
 export type { IAuthenticatedRequest, IUser, IUserSafe } from "./interfaces/auth.interface.js";
-export type { IJwtPayload, IJwtRefreshPayload } from "./interfaces/jwt-payload.interface.js";
+export type { IJwtPayload, IJwtRefreshPayload, IJwtResetPasswordPayload } from "./interfaces/jwt-payload.interface.js";
 
 // Classes (for DI or testing)
 export { AuthController } from "./controllers/auth.controller.js";

@@ -3,7 +3,7 @@ import { AuthController } from "../controllers/auth.controller.js";
 import { AuthService } from "../services/auth.service.js";
 import { AuthRepository } from "../repositories/auth.repository.js";
 import { OtpRepository } from "../repositories/otp.repository.js";
-import { validateRequest, loginSchema, refreshTokenSchema, logoutSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.validator.js";
+import { validateRequest, loginSchema, refreshTokenSchema, logoutSchema, changePasswordSchema, forgotPasswordSchema, verifyOtpSchema, resetPasswordSchema } from "../validators/auth.validator.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
 
@@ -423,24 +423,67 @@ function createAuthRouter(): Router {
 
     /**
      * @swagger
-     * /auth/reset-password:
+     * /auth/verify-otp:
      *   post:
      *     tags: [Authentication]
-     *     summary: Resets the user's password using an OTP
-     *     description: Validates the OTP and sets a new password.
+     *     summary: Verifies an OTP for password reset
+     *     description: Validates the OTP sent to user's email and returns a resetToken.
      *     requestBody:
      *       required: true
      *       content:
      *         application/json:
      *           schema:
      *             type: object
-     *             required: [email, otp, newPassword]
+     *             required: [email, otp]
      *             properties:
      *               email:
      *                 type: string
      *                 format: email
      *               otp:
      *                 type: string
+     *                 example: "117177"
+     *     responses:
+     *       200:
+     *         description: OTP verified successfully, returns resetToken
+     *       400:
+     *         description: Invalid or expired OTP
+     */
+    router.post(
+        "/verify-otp",
+        validateRequest(verifyOtpSchema),
+        authController.verifyOtp
+    );
+
+    router.post(
+        "/verify-reset-otp",
+        validateRequest(verifyOtpSchema),
+        authController.verifyOtp
+    );
+
+    /**
+     * @swagger
+     * /auth/reset-password:
+     *   post:
+     *     tags: [Authentication]
+     *     summary: Sets a new password for user
+     *     description: Sets a new password after verifying OTP (via resetToken or verified session) or using OTP directly.
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [email, newPassword]
+     *             properties:
+     *               email:
+     *                 type: string
+     *                 format: email
+     *               resetToken:
+     *                 type: string
+     *                 description: Token returned by /auth/verify-otp
+     *               otp:
+     *                 type: string
+     *                 description: Optional if verify-otp was called beforehand
      *               newPassword:
      *                 type: string
      *                 minLength: 6
@@ -448,7 +491,7 @@ function createAuthRouter(): Router {
      *       200:
      *         description: Password reset successfully
      *       400:
-     *         description: Invalid OTP or Validation failed
+     *         description: Verification required or validation failed
      *       404:
      *         description: User not found
      */

@@ -59,9 +59,9 @@ export const forgotPasswordSchema = z.object({
 });
 
 /**
- * Reset password request validation schema.
+ * Verify OTP request validation schema.
  */
-export const resetPasswordSchema = z.object({
+export const verifyOtpSchema = z.object({
     email: z
         .string({ error: "Email is required" })
         .email("Invalid email format")
@@ -71,10 +71,29 @@ export const resetPasswordSchema = z.object({
         .string({ error: "OTP is required" })
         .min(6, "OTP must be 6 characters")
         .max(6, "OTP must be 6 characters"),
+});
+
+/**
+ * Reset password request validation schema.
+ * Allows setting a new password either after verifying OTP or with a resetToken.
+ */
+export const resetPasswordSchema = z.object({
+    email: z
+        .string({ error: "Email is required" })
+        .email("Invalid email format")
+        .trim()
+        .toLowerCase(),
+    resetToken: z.string().trim().optional(),
+    otp: z
+        .string()
+        .min(6, "OTP must be 6 characters")
+        .max(6, "OTP must be 6 characters")
+        .optional(),
     newPassword: z
         .string({ error: "New password is required" })
         .min(6, "New password must be at least 6 characters"),
 });
+
 
 /**
  * Generic Zod validation middleware factory.

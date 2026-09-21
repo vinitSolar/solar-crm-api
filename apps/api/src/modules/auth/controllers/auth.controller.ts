@@ -205,9 +205,31 @@ export class AuthController {
     };
 
     /**
+     * POST /auth/verify-otp
+     *
+     * Verifies the OTP sent to user's email and returns a resetToken.
+     */
+    verifyOtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const { email, otp } = req.body;
+            logger.info("AuthController.verifyOtp", { email });
+
+            const result = await this.authService.verifyOtp(email, otp);
+
+            res.status(200).json({
+                success: true,
+                message: AUTH_MESSAGES.OTP_VERIFIED,
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    /**
      * POST /auth/reset-password
      *
-     * Resets the password using an OTP.
+     * Resets the user's password after OTP verification.
      */
     resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {

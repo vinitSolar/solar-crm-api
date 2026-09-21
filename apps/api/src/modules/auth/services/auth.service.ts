@@ -3,7 +3,7 @@ import type { LoginRequestDto, LoginResponseDto } from "../dto/login.dto.js";
 import type { RefreshTokenRequestDto, RefreshTokenResponseDto } from "../dto/refresh-token.dto.js";
 import type { LogoutRequestDto } from "../dto/logout.dto.js";
 import { comparePassword, hashPassword } from "../utils/bcrypt.js";
-import { verifyRefreshToken } from "../utils/jwt.js";
+import { verifyRefreshToken, generateResetPasswordToken, verifyResetPasswordToken } from "../utils/jwt.js";
 import { generateTokenPair, buildLoginResponse, buildRefreshResponse } from "../utils/token.js";
 import { AUTH_MESSAGES, USER_STATUS, OTP_EXPIRY_SECONDS } from "../constants/auth.constants.js";
 import { logger } from "@packages/logger/index.js";
@@ -358,54 +358,143 @@ export class AuthService {
     }
 
     /**
-     * Resets the user's password using the OTP.
-     * 
-     * @param data - The email, otp, and newPassword.
+     * Verifies the OTP for password reset.
+     * On success, deletes the OTP and returns a signed resetToken (valid for 15 minutes).
+     *
+     * @param email - User's email address.
+     * @param otp - 6-digit OTP string.
      */
-    async resetPassword(data: any): Promise<void> {
-        logger.info("AuthService.resetPassword attempt", { email: data.email });
+    async verifyOtp(email: string, otp: string): Promise<{ email: string; resetToken: string }> {
+        const normalizedEmail = email.toLowerCase().trim();
+        logger.info("AuthService.verifyOtp attempt", { email: normalizedEmail });
 
         let isValid = false;
 
-        // 1. Try Redis verification first if available
         if (isRedisAvailable()) {
             try {
-                const redisKey = `auth:otp:${data.email.toLowerCase()}`;
+                const redisKey = `auth:otp:${normalizedEmail}`;
                 const storedOtp = await redisClient.get(redisKey);
-                
-                if (storedOtp) {
-                    if (storedOtp === data.otp) {
-                        isValid = true;
-                        await redisClient.del(redisKey).catch(() => {}); // OTP is single-use
-                    }
+                if (storedOtp && storedOtp === otp) {
+                    isValid = true;
+                    await redisClient.del(redisKey).catch(() => {});
                 }
             } catch (redisError: any) {
-                logger.warn(`Redis get failed during OTP verification: ${redisError?.message || redisError}. Checking Postgres fallback.`, { email: data.email });
+                logger.warn(`Redis get failed during OTP verification: ${redisError?.message || redisError}. Checking Postgres fallback.`, { email: normalizedEmail });
             }
         }
 
-        // 2. If not verified via Redis (or if OTP was stored in DB fallback when Redis was down), check Postgres
         if (!isValid) {
-            isValid = await this.otpRepository.verifyOtp(data.email.toLowerCase(), data.otp);
+            isValid = await this.otpRepository.verifyOtp(normalizedEmail, otp);
         }
 
         if (!isValid) {
-            logger.warn("Reset password failed: Invalid or expired OTP", { email: data.email });
+            logger.warn("OTP verification failed: Invalid or expired OTP", { email: normalizedEmail });
             throw new CustomError(AUTH_MESSAGES.OTP_INVALID, 400);
         }
 
-        // Concurrently query database for user and compute bcrypt hash in parallel
+        const resetToken = generateResetPasswordToken(normalizedEmail);
+
+        if (isRedisAvailable()) {
+            try {
+                await redisClient.setex(`auth:reset-token:${normalizedEmail}`, 900, resetToken);
+                await redisClient.setex(`auth:reset-verified:${normalizedEmail}`, 900, "true");
+            } catch (redisErr: any) {
+                logger.warn("Failed to cache reset token in Redis", { error: redisErr?.message });
+            }
+        }
+
+        logger.info("OTP verified successfully and reset token generated", { email: normalizedEmail });
+        return { email: normalizedEmail, resetToken };
+    }
+
+    /**
+     * Resets the user's password using resetToken, verified session, or OTP.
+     *
+     * @param data - The email, newPassword, and optional resetToken or otp.
+     */
+    async resetPassword(data: { email: string; resetToken?: string; otp?: string; newPassword: string }): Promise<void> {
+        const normalizedEmail = data.email.toLowerCase().trim();
+        logger.info("AuthService.resetPassword attempt", { email: normalizedEmail });
+
+        let isAuthorized = false;
+
+        // 1. Validate resetToken if supplied
+        if (data.resetToken) {
+            const decoded = verifyResetPasswordToken(data.resetToken);
+            if (decoded && decoded.email === normalizedEmail) {
+                isAuthorized = true;
+            } else {
+                throw new CustomError(AUTH_MESSAGES.RESET_TOKEN_INVALID, 400);
+            }
+        }
+
+        // 2. Check if verified session exists in Redis
+        if (!isAuthorized && !data.otp && isRedisAvailable()) {
+            try {
+                const verifiedKey = `auth:reset-verified:${normalizedEmail}`;
+                const isVerified = await redisClient.get(verifiedKey);
+                if (isVerified === "true") {
+                    isAuthorized = true;
+                }
+            } catch (redisErr: any) {
+                logger.warn("Failed to check verified status in Redis", { error: redisErr?.message });
+            }
+        }
+
+        // 3. Legacy support: verify OTP directly if provided
+        if (!isAuthorized && data.otp) {
+            let isValidOtp = false;
+            if (isRedisAvailable()) {
+                try {
+                    const redisKey = `auth:otp:${normalizedEmail}`;
+                    const storedOtp = await redisClient.get(redisKey);
+                    if (storedOtp && storedOtp === data.otp) {
+                        isValidOtp = true;
+                        await redisClient.del(redisKey).catch(() => {});
+                    }
+                } catch (redisError: any) {
+                    logger.warn(`Redis get failed during OTP verification: ${redisError?.message || redisError}. Checking Postgres fallback.`, { email: normalizedEmail });
+                }
+            }
+            if (!isValidOtp) {
+                isValidOtp = await this.otpRepository.verifyOtp(normalizedEmail, data.otp);
+            }
+
+            if (isValidOtp) {
+                isAuthorized = true;
+            } else {
+                throw new CustomError(AUTH_MESSAGES.OTP_INVALID, 400);
+            }
+        }
+
+        if (!isAuthorized) {
+            logger.warn("Reset password failed: Verification required", { email: normalizedEmail });
+            throw new CustomError(AUTH_MESSAGES.RESET_VERIFICATION_REQUIRED, 400);
+        }
+
         const [user, hashedPassword] = await Promise.all([
-            this.authRepository.findByEmail(data.email),
+            this.authRepository.findByEmail(normalizedEmail),
             hashPassword(data.newPassword)
         ]);
 
         if (!user) {
-            logger.warn("Reset password failed: User not found", { email: data.email });
+            logger.warn("Reset password failed: User not found", { email: normalizedEmail });
             throw new CustomError(AUTH_MESSAGES.USER_NOT_FOUND, 404);
         }
 
         await this.authRepository.updatePassword(user.uid, hashedPassword);
+
+        if (isRedisAvailable()) {
+            try {
+                await redisClient.del(
+                    `auth:reset-token:${normalizedEmail}`,
+                    `auth:reset-verified:${normalizedEmail}`,
+                    `auth:otp:${normalizedEmail}`
+                );
+            } catch (redisErr: any) {
+                logger.warn("Failed to clean up reset keys in Redis", { error: redisErr?.message });
+            }
+        }
 
         logger.info("Password reset successfully", { userUid: user.uid });
     }

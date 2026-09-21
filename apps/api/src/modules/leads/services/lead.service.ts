@@ -193,6 +193,26 @@ export class LeadService {
             if (!leadSource) throw new CustomError(LEAD_SOURCE_MESSAGES.NOT_FOUND, 400);
         }
 
+        // Auto-assign draft status when isDraft flag is set
+        const isDraft = Boolean(
+            data.isDraft === true ||
+            data.isDraft === 1 ||
+            (data as any).isDraft === "true" ||
+            (data as any).isDraft === "1" ||
+            (data as any).is_draft === true ||
+            (data as any).is_draft === 1 ||
+            (data as any).is_draft === "true" ||
+            (data as any).is_draft === "1"
+        );
+
+        if (isDraft) {
+            const draftStatus = await this.statusRepository.getDraft(tenantUid);
+            if (!draftStatus) {
+                throw new CustomError("No draft lead status found", 400);
+            }
+            data.statusUid = draftStatus.uid;
+        }
+
         let newStatusName: string | undefined;
         if (data.statusUid) {
             const leadStatus = await this.statusRepository.getByUid(tenantUid, data.statusUid);

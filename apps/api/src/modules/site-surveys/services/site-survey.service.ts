@@ -396,9 +396,12 @@ export class SiteSurveyService {
             const details = await this.detailsRepository.update(tenantUid, uid, data, userUid);
             if (data.notes !== undefined) {
                 details.notes = data.notes || null;
+            } else {
+                details.notes = existingDetails.notes || null;
             }
             return toSiteSurveySafe(survey, toSiteSurveyDetailsSafe(details));
         } catch (error) {
+            if (error instanceof CustomError) throw error;
             logger.error("SiteSurveyService.updateSurveyDetails error", { error });
             throw new CustomError(SITE_SURVEY_MESSAGES.UPDATE_FAILED, 500);
         }

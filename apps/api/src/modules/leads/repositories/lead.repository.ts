@@ -6,7 +6,7 @@ const LEAD_COLUMNS = `
     id, uid, tenant_uid AS "tenantUid", lead_number AS "leadNumber",
     first_name AS "firstName", last_name AS "lastName", 
     mobile_number AS "mobileNumber", alternate_number AS "alternateNumber", 
-    email, address, landmark, state, city, pin_code AS "pinCode",
+    email, address, landmark, locality, state, city, pin_code AS "pinCode",
     monthly_bill_amount AS "monthlyBillAmount", system_size AS "systemSize", 
     follow_up_date AS "followUpDate", lead_source_uid AS "leadSourceUid", 
     status_uid AS "statusUid", assigned_to AS "assignedTo",
@@ -19,7 +19,7 @@ const LEAD_JOIN_COLUMNS = `
     l.id, l.uid, l.tenant_uid AS "tenantUid", l.lead_number AS "leadNumber",
     l.first_name AS "firstName", l.last_name AS "lastName", 
     l.mobile_number AS "mobileNumber", l.alternate_number AS "alternateNumber", 
-    l.email, l.address, l.landmark, l.state, l.city, l.pin_code AS "pinCode",
+    l.email, l.address, l.landmark, l.locality, l.state, l.city, l.pin_code AS "pinCode",
     l.monthly_bill_amount AS "monthlyBillAmount", l.system_size AS "systemSize", 
     l.follow_up_date AS "followUpDate", l.lead_source_uid AS "leadSourceUid", 
     l.status_uid AS "statusUid", l.assigned_to AS "assignedTo", n.note AS "remarks",
@@ -61,18 +61,18 @@ export class LeadRepository {
         const query = `
             INSERT INTO leads (
                 uid, tenant_uid, lead_number, first_name, last_name, mobile_number, alternate_number, email, 
-                address, landmark, state, city, pin_code, monthly_bill_amount, system_size, follow_up_date, 
+                address, landmark, locality, state, city, pin_code, monthly_bill_amount, system_size, follow_up_date, 
                 lead_source_uid, status_uid, assigned_to, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
             )
             RETURNING ${LEAD_COLUMNS}
         `;
         const values = [
             uid, tenantUid, data.leadNumber, data.firstName, data.lastName ?? null, data.mobileNumber ?? null, 
             data.alternateNumber ?? null, data.email ?? null, data.address ?? null, 
-            data.landmark ?? null, data.state ?? null, data.city ?? null, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
+            data.landmark ?? null, data.locality ?? null, data.state ?? null, data.city ?? null, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
             data.systemSize ?? null, data.followUpDate || null, data.leadSourceUid ?? null, 
             data.statusUid, data.assignedTo ?? null, createdBy
         ];
@@ -229,6 +229,7 @@ export class LeadRepository {
         if (data.email !== undefined) { updates.push(`email = $${index++}`); values.push(data.email); }
         if (data.address !== undefined) { updates.push(`address = $${index++}`); values.push(data.address); }
         if (data.landmark !== undefined) { updates.push(`landmark = $${index++}`); values.push(data.landmark); }
+        if (data.locality !== undefined) { updates.push(`locality = $${index++}`); values.push(data.locality); }
         if (data.state !== undefined) { updates.push(`state = $${index++}`); values.push(data.state); }
         if (data.city !== undefined) { updates.push(`city = $${index++}`); values.push(data.city); }
         if (data.pinCode !== undefined) { updates.push(`pin_code = $${index++}`); values.push(data.pinCode); }

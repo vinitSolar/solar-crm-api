@@ -46,6 +46,7 @@ export interface ILead {
     email: string | null;
     address: string | null;
     landmark: string | null;
+    locality: string | null;
     state: string;
     city: string;
     pinCode: string | null;
@@ -79,6 +80,20 @@ export interface ILead {
     updatedBy: string | null;
     deletedBy: string | null;
     finalSystemSize?: number | null;
+}
+
+export interface ILeadFilter {
+    status?: string;
+    statusUid?: string;
+    leadSourceUid?: string;
+    assignedTo?: string;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    state?: string;
+    city?: string;
+    isActive?: number;
+    isDraft?: number;
 }
 
 export interface ICreateLeadSource {
@@ -115,6 +130,7 @@ export interface ICreateLead {
     email?: string;
     address: string;
     landmark?: string;
+    locality?: string;
     state: string;
     city: string;
     pinCode: string;
@@ -141,6 +157,7 @@ export interface ILeadSafe {
     email: string | null;
     address: string | null;
     landmark: string | null;
+    locality: string | null;
     state: string;
     city: string;
     pinCode: string | null;

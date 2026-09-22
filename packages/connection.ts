@@ -1,4 +1,14 @@
-import { Pool } from "pg";
+import { Pool, types } from "pg";
+
+// Parse TIMESTAMP (OID 1114) without timezone directly as UTC Date
+types.setTypeParser(1114, (stringValue) => {
+    return stringValue ? new Date(`${stringValue.replace(" ", "T")}Z`) : null;
+});
+
+// Parse DATE (OID 1082) as a raw string to avoid timezone shifts
+types.setTypeParser(1082, (stringValue) => {
+    return stringValue || null;
+});
 
 const isSsl = process.env.DB_SSL !== undefined
     ? process.env.DB_SSL === "true"
@@ -33,5 +43,10 @@ const pool = new Pool(
             keepAliveInitialDelayMillis: 10000,
         }
 );
+
+// Ensure every PostgreSQL connection in the pool uses UTC timezone
+pool.on("connect", (client) => {
+    client.query("SET timezone = 'UTC'").catch(() => {});
+});
 
 export default pool;

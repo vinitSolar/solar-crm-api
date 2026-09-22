@@ -77,6 +77,7 @@ const leadBodyBase = {
     email: z.string().email("Invalid email format").optional().or(z.literal("")),
     address: z.string().min(1, "Address is required").optional(),
     landmark: z.string().optional(),
+    locality: z.string().optional(),
     state: z.string().min(2, "State is required").optional(),
     city: z.string().min(2, "City is required").optional(),
     pinCode: z.string().min(1, "Pin code is required").optional(),

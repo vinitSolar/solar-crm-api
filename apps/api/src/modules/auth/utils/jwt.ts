@@ -29,6 +29,7 @@ function parseExpiresIn(value: string): number {
  * Generates a signed JWT access token.
  *
  * @param payload - The claims to embed in the token.
+ * 
  * @returns Signed JWT string.
  */
 export function generateAccessToken(payload: IJwtPayload): string {

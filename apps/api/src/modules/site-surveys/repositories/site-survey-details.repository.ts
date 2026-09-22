@@ -121,12 +121,14 @@ export class SiteSurveyDetailsRepository {
         setFields.push(`updated_by = $${paramIndex++}`);
         values.push(updatedBy);
 
+        const surveyUidIndex = paramIndex++;
+        const tenantUidIndex = paramIndex++;
         values.push(siteSurveyUid, tenantUid);
 
         const query = `
             UPDATE site_survey_details
             SET ${setFields.join(", ")}
-            WHERE site_survey_uid = $${paramIndex - 2} AND tenant_uid = $${paramIndex - 1} AND is_deleted = 0
+            WHERE site_survey_uid = $${surveyUidIndex} AND tenant_uid = $${tenantUidIndex} AND is_deleted = 0
             RETURNING id, uid, tenant_uid AS "tenantUid", site_survey_uid AS "siteSurveyUid", roof_area_sqft AS "roofAreaSqft", shading, connection_type AS "connectionType", sanctioned_load_kw AS "sanctionedLoadKw", recommended_kw AS "recommendedKw", needs_structure_extension AS "needsStructureExtension", needs_optimizer AS "needsOptimizer", optimizer_count AS "optimizerCount", discom, latitude, longitude, is_active AS "isActive", is_deleted AS "isDeleted", created_at AS "createdAt", updated_at AS "updatedAt", created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
         `;
 

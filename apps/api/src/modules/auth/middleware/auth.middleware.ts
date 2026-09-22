@@ -1,11 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
-import type { IAuthenticatedRequest } from "../interfaces/auth.interface.js";
+import type { IAuthenticatedRequest, IUser } from "../interfaces/auth.interface.js";
 import { verifyAccessToken } from "../utils/jwt.js";
-import { AUTH_MESSAGES } from "../constants/auth.constants.js";
+import { AUTH_MESSAGES, AUTH_CACHE_TTL } from "../constants/auth.constants.js";
 import { logger } from "@packages/logger/index.js";
 import { AuthRepository } from "../repositories/auth.repository.js";
 import { sanitizeUser } from "../utils/token.js";
 import pool from "@packages/connection.js";
+import { safeCacheGet, safeCacheSet } from "@packages/redis/index.js";
+
+/** Singleton repository — avoids re-instantiation on every request */
+const authRepository = new AuthRepository(pool);
 
 /**
  * Authentication middleware.
@@ -14,6 +18,9 @@ import pool from "@packages/connection.js";
  * verifies it, and attaches the authenticated user context
  * (`user`, `tenantUid`, `roleUid`) to the request object.
  *
+ * Session and user lookups are cached in Redis (60 s TTL)
+ * to avoid 2 DB round-trips on every authenticated request.
+ *
  * Must be applied before any route that requires authentication.
  */
 export async function authenticate(
@@ -21,12 +28,6 @@ export async function authenticate(
     res: Response,
     next: NextFunction,
 ): Promise<void> {
-    // TODO: Implement authentication middleware
-    // - Extract Bearer token from Authorization header
-    // - Verify access token
-    // - Find user by UID from token payload
-    // - Attach user, tenantUid, roleUid to request
-    // - Call next() on success, respond 401 on failure
     try {
         const authHeader = req.headers.authorization;
 
@@ -49,10 +50,9 @@ export async function authenticate(
         }
 
         const staticAdminToken = process.env.JWT_STATIC_ADMIN_TOKEN || "sunselect_admin_static_token_never_expires";
-        let user;
+        let user: IUser | null;
 
         if (token === staticAdminToken) {
-            const authRepository = new AuthRepository(pool);
             user = await authRepository.findByEmail("admin@sunselect.com");
             if (!user) {
                 res.status(401).json({
@@ -72,28 +72,46 @@ export async function authenticate(
                 return;
             }
 
-            const authRepository = new AuthRepository(pool);
-            
-            // Fetch session to ensure it is still active (Immediate Invalidation)
-            const session = await authRepository.findSessionByUid(payload.sessionUid);
-            
-            if (!session) {
-                res.status(401).json({
-                    success: false,
-                    message: AUTH_MESSAGES.SESSION_INVALID,
-                });
-                return;
+            // --- Session validation (Redis-first, DB-fallback) ---
+            const sessionCacheKey = `cache:auth:session:${payload.sessionUid}`;
+            const cachedSession = await safeCacheGet<{ uid: string; userUid: string }>(sessionCacheKey);
+
+            if (cachedSession) {
+                // Session is valid from cache — skip DB
+            } else {
+                const session = await authRepository.findSessionByUid(payload.sessionUid);
+
+                if (!session) {
+                    res.status(401).json({
+                        success: false,
+                        message: AUTH_MESSAGES.SESSION_INVALID,
+                    });
+                    return;
+                }
+
+                // Cache the session for subsequent requests
+                safeCacheSet(sessionCacheKey, { uid: session.uid, userUid: session.user_uid }, AUTH_CACHE_TTL.SESSION).catch(() => {});
             }
 
-            // Fetch user from database to ensure they still exist and are active
-            user = await authRepository.findByUid(payload.userUid);
+            // --- User lookup (Redis-first, DB-fallback) ---
+            const userCacheKey = `cache:auth:user:${payload.userUid}`;
+            const cachedUser = await safeCacheGet<IUser>(userCacheKey);
 
-            if (!user) {
-                res.status(401).json({
-                    success: false,
-                    message: AUTH_MESSAGES.USER_NOT_FOUND,
-                });
-                return;
+            if (cachedUser) {
+                user = cachedUser;
+            } else {
+                user = await authRepository.findByUid(payload.userUid);
+
+                if (!user) {
+                    res.status(401).json({
+                        success: false,
+                        message: AUTH_MESSAGES.USER_NOT_FOUND,
+                    });
+                    return;
+                }
+
+                // Cache the user for subsequent requests
+                safeCacheSet(userCacheKey, user, AUTH_CACHE_TTL.USER).catch(() => {});
             }
         }
 
@@ -112,6 +130,7 @@ export async function authenticate(
         });
     }
 }
+
 
 /**
  * Authorization middleware factory.

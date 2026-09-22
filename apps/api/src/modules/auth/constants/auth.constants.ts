@@ -57,3 +57,15 @@ export const TOKEN_TYPES = {
  * Bcrypt configuration.
  */
 export const BCRYPT_SALT_ROUNDS = 12;
+
+/**
+ * Auth middleware cache TTLs (in seconds).
+ * Short TTLs ensure near-real-time invalidation while
+ * eliminating redundant DB queries for concurrent sessions.
+ */
+export const AUTH_CACHE_TTL = {
+    /** Session validation cache: 60 seconds */
+    SESSION: 60,
+    /** User lookup cache: 60 seconds */
+    USER: 60,
+} as const;

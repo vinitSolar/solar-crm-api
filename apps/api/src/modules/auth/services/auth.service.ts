@@ -10,7 +10,7 @@ import { logger } from "@packages/logger/index.js";
 import { env } from "@packages/config/env.js";
 import { v4 as uuidv4 } from "uuid";
 import { CustomError } from "../../../middlewares/error.middleware.js";
-import { redisClient } from "@packages/redis/index.js";
+import { redisClient, safeCacheDel } from "@packages/redis/index.js";
 import { notificationService } from "../../notification/services/notification.service.js";
 import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
 import { isRedisAvailable } from "../../notification/helpers/redis-health.helper.js";
@@ -179,10 +179,15 @@ export class AuthService {
         const sessionUid = uuidv4();
         const tokens = generateTokenPair(user, sessionUid);
 
-        // Step 5.5: Replace session in database
+        // Step 5.5: Replace session in database and invalidate old session cache
         const expiresAt = this.parseExpiryToDate(env.JWT.REFRESH_EXPIRES_IN);
         await this.authRepository.deleteSession(dto.refreshToken);
         await this.authRepository.createSession(sessionUid, user.uid, tokens.refreshToken, expiresAt);
+
+        // Invalidate old session cache so auth middleware doesn't serve stale data
+        if (session.uid) {
+            safeCacheDel(`cache:auth:session:${session.uid}`).catch(() => {});
+        }
 
         // Step 6: Build and return response
         logger.info("Token refresh successful", { userUid: user.uid });
@@ -220,8 +225,13 @@ export class AuthService {
             });
         }
 
-        // Step 3: Delete session from database
+        // Step 3: Delete session from database and invalidate cache
         await this.authRepository.deleteSession(refreshToken);
+
+        // Invalidate session cache so auth middleware rejects immediately
+        if (session?.uid) {
+            safeCacheDel(`cache:auth:session:${session.uid}`).catch(() => {});
+        }
         
         logger.info("Logout successful");
     }

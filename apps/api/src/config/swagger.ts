@@ -190,6 +190,8 @@ const swaggerOptions: Options = {
                         alternateNumber: { type: "string", nullable: true },
                         email: { type: "string", nullable: true },
                         address: { type: "string", nullable: true },
+                        landmark: { type: "string", nullable: true },
+                        locality: { type: "string", nullable: true },
                         state: { type: "string" },
                         city: { type: "string" },
                         pinCode: { type: "string", nullable: true },

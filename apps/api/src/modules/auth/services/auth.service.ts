@@ -302,22 +302,22 @@ export class AuthService {
     async forgotPassword(email: string): Promise<void> {
         logger.info("AuthService.forgotPassword attempt", { email });
 
-        const user = await this.authRepository.findByEmail(email);
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await this.authRepository.findByEmail(normalizedEmail);
         
-        // We always return success to prevent email enumeration, even if user doesn't exist
         if (!user) {
-            logger.warn("Forgot password requested for non-existent email", { email });
-            return;
+            logger.warn("Forgot password requested for non-existent email", { email: normalizedEmail });
+            throw new CustomError(AUTH_MESSAGES.USER_NOT_FOUND, 404);
         }
 
         if (user.is_active !== USER_STATUS.ACTIVE) {
-            logger.warn("Forgot password requested for inactive user", { email, userUid: user.uid });
-            return;
+            logger.warn("Forgot password requested for inactive user", { email: normalizedEmail, userUid: user.uid });
+            throw new CustomError(AUTH_MESSAGES.USER_INACTIVE, 400);
         }
 
         // Generate 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const redisKey = `auth:otp:${email.toLowerCase()}`;
+        const redisKey = `auth:otp:${normalizedEmail}`;
 
         // Store OTP in Redis or Fallback DB
         let storedInRedis = false;
@@ -331,9 +331,9 @@ export class AuthService {
         }
 
         if (!storedInRedis) {
-            logger.info("Using Postgres fallback for OTP generation", { email });
+            logger.info("Using Postgres fallback for OTP generation", { email: normalizedEmail });
             const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
-            await this.otpRepository.saveOtp(email.toLowerCase(), otp, expiresAt);
+            await this.otpRepository.saveOtp(normalizedEmail, otp, expiresAt);
         }
 
         // Dispatch email notification
@@ -343,7 +343,7 @@ export class AuthService {
             referenceUid: user.uid,
             channel: NOTIFICATION_CHANNEL.EMAIL,
             template: NOTIFICATION_TEMPLATE.PASSWORD_RESET,
-            recipient: email,
+            recipient: normalizedEmail,
             variables: {
                 firstName: user.first_name || "",
                 lastName: user.last_name || "",

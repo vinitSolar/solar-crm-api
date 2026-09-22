@@ -94,8 +94,8 @@ export class AuthRepository {
 
         const query = `
             UPDATE users
-            SET last_login = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
+            SET last_login = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+                updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
             WHERE uid = $1
         `;
 

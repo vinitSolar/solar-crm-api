@@ -411,9 +411,11 @@ function createAuthRouter(): Router {
      *                 format: email
      *     responses:
      *       200:
-     *         description: OTP sent successfully (or simulated success)
+     *         description: OTP sent successfully
      *       400:
-     *         description: Validation failed
+     *         description: User account is inactive or validation failed
+     *       404:
+     *         description: User not found
      */
     router.post(
         "/forgot-password",

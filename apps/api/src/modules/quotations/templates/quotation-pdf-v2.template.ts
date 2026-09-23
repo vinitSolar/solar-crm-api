@@ -1930,7 +1930,7 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
           ${quotation.extra && quotation.extra.value !== undefined && quotation.extra.value !== null && quotation.extra.value !== "" ? `
           <tr class="calc-row">
             <td colspan="4" class="calc-blank"></td>
-            <td colspan="3" class="calc-label">${quotation.extra.description ? `Extra (${quotation.extra.description})` : 'Extra Charges'}</td>
+            <td colspan="3" class="calc-label">${quotation.extra.title ? (quotation.extra.description ? `${quotation.extra.title} (${quotation.extra.description})` : quotation.extra.title) : (quotation.extra.description ? `Extra (${quotation.extra.description})` : 'Extra Charges')}${quotation.extra.isGstApplied && quotation.extra.gstPercentage ? ` (${quotation.extra.gstPercentage}% GST)` : ''}</td>
             <td class="calc-value">${!isNaN(Number(quotation.extra.value)) ? formatINR(Number(quotation.extra.value)) : quotation.extra.value}</td>
           </tr>
           ` : ''}

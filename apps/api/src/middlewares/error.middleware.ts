@@ -31,16 +31,10 @@ export const globalErrorHandler = (
     res: Response,
     next: NextFunction
 ): void => {
-    if (err instanceof CustomError) {
-        logger.warn(`Business Rule Exception: ${err.message}`, {
-            path: req.path,
-            method: req.method,
-            statusCode: err.statusCode
-        });
-    } else {
-        logger.error(`Unhandled Exception: ${err.message}`, {
+    if (!(err instanceof CustomError)) {
+        logger.error(`❌ [SERVER ERROR] ${req.method} ${req.originalUrl || req.path} - ${err.message}`, {
             stack: err.stack,
-            path: req.path,
+            path: req.originalUrl || req.path,
             method: req.method,
         });
     }

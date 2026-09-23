@@ -40,6 +40,16 @@ export class DeviceTokenRepository {
         data: IRegisterDeviceTokenInput,
         createdBy: string
     ): Promise<IUserDeviceToken> {
+        // Automatically deactivate previous tokens for this user on the same device model
+        if (data.deviceName) {
+            await this.pool.query(
+                `UPDATE user_device_tokens 
+                 SET is_active = 0, updated_at = CURRENT_TIMESTAMP 
+                 WHERE user_uid = $1 AND device_name = $2 AND device_token != $3 AND is_active = 1`,
+                [userUid, data.deviceName, data.deviceToken.trim()]
+            );
+        }
+
         const uid = uuidv4();
         const query = `
             INSERT INTO user_device_tokens (

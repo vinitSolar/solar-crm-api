@@ -363,17 +363,37 @@ class PushProvider {
                 title,
                 body,
             },
-            data,
+            data: {
+                ...data,
+                title,
+                body,
+                click_action: "FLUTTER_NOTIFICATION_CLICK",
+            },
             android: {
                 priority: "high",
                 notification: {
+                    title,
+                    body,
                     sound: "default",
                     channelId: "crm_high_priority_notifications",
+                    clickAction: "FLUTTER_NOTIFICATION_CLICK",
+                    priority: "high",
+                    defaultSound: true,
+                    defaultVibrateTimings: true,
+                    visibility: "public",
                 }
             },
             apns: {
+                headers: {
+                    "apns-priority": "10",
+                    "apns-push-type": "alert",
+                },
                 payload: {
                     aps: {
+                        alert: {
+                            title,
+                            body,
+                        },
                         sound: "default",
                         badge: 1,
                         contentAvailable: true,

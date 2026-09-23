@@ -1,4 +1,4 @@
-import express, { type Application } from "express";
+import express, { type Application, type Request, type Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
@@ -35,6 +35,12 @@ app.use(
     })
 );
 app.use(express.urlencoded({ extended: true }));
+
+/**
+ * API Error Logger (logs all status >= 400 failures to terminal)
+ */
+import { apiErrorLogger } from "./middlewares/api-logger.middleware.js";
+app.use(apiErrorLogger);
 
 /**
  * Serve Static Files
@@ -75,6 +81,16 @@ app.get("/health", (_, res) => {
     res.status(200).json({
         success: true,
         message: `${env.APP.NAME} API is running`,
+    });
+});
+
+/**
+ * 404 Not Found Handler for unmatched routes
+ */
+app.use((req: Request, res: Response) => {
+    res.status(404).json({
+        success: false,
+        message: `Route not found: ${req.method} ${req.originalUrl}`,
     });
 });
 

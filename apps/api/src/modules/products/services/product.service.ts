@@ -545,6 +545,24 @@ export class ProductService {
             throw new CustomError(PRODUCT_MESSAGES.NOT_FOUND, 404);
         }
 
+        // Check if product is referenced in any active packages
+        const activePackagesResult = await pool.query(`
+            SELECT DISTINCT pkg.name 
+            FROM package_products pp
+            JOIN packages pkg ON pkg.uid = pp.package_uid
+            WHERE pp.product_uid::text = $1 
+              AND pp.is_deleted = false 
+              AND pkg.is_deleted = false
+        `, [uid]);
+
+        if (activePackagesResult.rows.length > 0) {
+            const packageNames = activePackagesResult.rows.map((r: any) => `"${r.name}"`).join(", ");
+            throw new CustomError(
+                `Cannot delete product "${product.name}" because it is currently used in active package(s): ${packageNames}. Please remove it from the package(s) first.`,
+                400
+            );
+        }
+
         await this.repository.softDelete(uid, userUid);
         safeCacheDel("cache:products:dropdown").catch(() => {});
     }

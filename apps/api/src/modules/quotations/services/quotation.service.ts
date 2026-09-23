@@ -1,4 +1,5 @@
 import pool from "@packages/connection.js";
+import type { PoolClient } from "pg";
 import crypto from "crypto";
 import { QuotationRepository } from "../repositories/quotation.repository.js";
 import { QuotationScopeOfWorkRepository } from "../../quotation-scope-of-work/repositories/quotation-scope-of-work.repository.js";
@@ -171,17 +172,17 @@ export class QuotationService {
             let packageProducts = data.packageProducts || [];
             if (data.packageUid && packageProducts.length === 0) {
                 const pkgQuery = `
-                    SELECT pp.product_uid, pp.quantity, pp.remarks, p.name, p.price, p.gst_percentage
+                    SELECT pp.product_uid, pp.quantity, pp.remarks, p.name, p.price_per_unit, p.gst_percentage
                     FROM package_products pp
-                    JOIN products p ON p.uid = pp.product_uid
-                    WHERE pp.package_uid = $1 AND pp.is_deleted = 0
+                    JOIN products p ON p.uid::text = pp.product_uid::text
+                    WHERE pp.package_uid = $1 AND pp.is_deleted = false AND p.is_deleted = 0
                 `;
                 const pkgResult = await client.query(pkgQuery, [data.packageUid]);
                 packageProducts = pkgResult.rows.map(r => ({
                     productUid: r.product_uid,
                     quantity: Number(r.quantity),
                     productName: r.name,
-                    pricePerUnit: Number(r.price),
+                    pricePerUnit: Number(r.price_per_unit),
                     gstPercentage: Number(r.gst_percentage),
                     description: r.remarks
                 }));
@@ -217,7 +218,8 @@ export class QuotationService {
                 }
 
                 if (!productName || pricePerUnit === undefined || gstPercentage === undefined) {
-                    throw new CustomError(`Product details missing for ${itemInput.productUid}`, 400);
+                    const errorMsg = await this.checkMissingProductDetails(client, itemInput.productUid);
+                    throw new CustomError(errorMsg, 400);
                 }
 
                 const lineTotal = Math.round(itemInput.quantity * pricePerUnit * 100) / 100;
@@ -464,7 +466,8 @@ export class QuotationService {
                     }
 
                     if (!productName || pricePerUnit === undefined || gstPercentage === undefined) {
-                        throw new CustomError(`Product details missing for ${itemInput.productUid}`, 400);
+                        const errorMsg = await this.checkMissingProductDetails(client, itemInput.productUid);
+                        throw new CustomError(errorMsg, 400);
                     }
 
                     const lineTotal = Math.round(itemInput.quantity * pricePerUnit * 100) / 100;
@@ -1069,5 +1072,18 @@ export class QuotationService {
         } catch (error) {
             logger.error(`Failed in sendQuotationFailedNotification for Quote ${quotationUid}:`, error);
         }
+    }
+
+    private async checkMissingProductDetails(client: PoolClient, productUid: string): Promise<string> {
+        const query = `SELECT name, is_deleted FROM products WHERE uid::text = $1 LIMIT 1`;
+        const result = await client.query(query, [productUid]);
+        if (result.rows.length === 0) {
+            return `Product ${productUid} was not found in the product catalog.`;
+        }
+        const row = result.rows[0];
+        if (row.is_deleted === 1 || row.is_deleted === true) {
+            return `Product "${row.name}" (${productUid}) has been deleted from the catalog. Please update the package or quotation items.`;
+        }
+        return `Product details (price or GST) are missing for "${row.name}" (${productUid}).`;
     }
 }

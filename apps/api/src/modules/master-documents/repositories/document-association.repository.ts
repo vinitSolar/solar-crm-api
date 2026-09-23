@@ -81,7 +81,8 @@ export class DocumentAssociationRepository {
             FROM document_associations da
             JOIN master_documents md ON md.uid = da.master_document_uid
             LEFT JOIN master_document_types mdt ON mdt.uid = md.document_type_uid
-            WHERE da.tenant_uid = $1 AND da.module = $2 AND da.context_uid = $3
+            WHERE (da.tenant_uid = $1 OR da.tenant_uid IS NULL OR da.module = 'product')
+              AND da.module = $2 AND da.context_uid = $3
               AND da.is_deleted = 0 AND md.is_deleted = 0
             ORDER BY mdt.sort_order ASC, md.created_at DESC
         `;
@@ -98,7 +99,7 @@ export class DocumentAssociationRepository {
     const query = `
             SELECT ${ASSOC_COLUMNS}
             FROM document_associations da
-            WHERE da.master_document_uid = $1 AND da.tenant_uid = $2 AND da.is_deleted = 0
+            WHERE da.master_document_uid = $1 AND (da.tenant_uid = $2 OR da.tenant_uid IS NULL OR da.module = 'product') AND da.is_deleted = 0
         `;
     const result = await executor.query(query, [masterDocumentUid, tenantUid]);
     return result.rows as IDocumentAssociation[];
@@ -115,7 +116,7 @@ export class DocumentAssociationRepository {
     const query = `
             SELECT ${ASSOC_COLUMNS}
             FROM document_associations da
-            WHERE da.master_document_uid = $1 AND da.tenant_uid = $2 
+            WHERE da.master_document_uid = $1 AND (da.tenant_uid = $2 OR da.tenant_uid IS NULL OR da.module = 'product')
               AND da.module = $3 AND da.context_uid = $4
               AND da.is_deleted = 0
         `;
@@ -140,7 +141,7 @@ export class DocumentAssociationRepository {
     const query = `
             UPDATE document_associations
             SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $3, updated_at = CURRENT_TIMESTAMP
-            WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0
+            WHERE uid = $1 AND (tenant_uid = $2 OR tenant_uid IS NULL OR module = 'product') AND is_deleted = 0
         `;
     const result = await executor.query(query, [uid, tenantUid, deletedBy]);
     return (result.rowCount ?? 0) > 0;
@@ -156,7 +157,7 @@ export class DocumentAssociationRepository {
     const query = `
             UPDATE document_associations
             SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $3, updated_at = CURRENT_TIMESTAMP
-            WHERE master_document_uid = $1 AND tenant_uid = $2 AND is_deleted = 0
+            WHERE master_document_uid = $1 AND (tenant_uid = $2 OR tenant_uid IS NULL OR module = 'product') AND is_deleted = 0
         `;
     await executor.query(query, [masterDocumentUid, tenantUid, deletedBy]);
   }

@@ -88,7 +88,7 @@ export class MasterDocumentRepository {
             SELECT ${DOC_COLUMNS_WITH_TYPE}
             FROM master_documents md
             LEFT JOIN master_document_types mdt ON mdt.uid = md.document_type_uid
-            WHERE md.uid = $1 AND md.tenant_uid = $2 AND md.is_deleted = 0
+            WHERE md.uid = $1 AND (md.tenant_uid = $2 OR md.tenant_uid IS NULL OR md.entity_type = 'product') AND md.is_deleted = 0
         `;
     const result = await executor.query(query, [uid, tenantUid]);
     return result.rows.length > 0 ? (result.rows[0] as IMasterDocument) : null;
@@ -105,7 +105,8 @@ export class MasterDocumentRepository {
             SELECT ${DOC_COLUMNS_WITH_TYPE}
             FROM master_documents md
             LEFT JOIN master_document_types mdt ON mdt.uid = md.document_type_uid
-            WHERE md.tenant_uid = $1 AND md.entity_type = $2 AND md.entity_uid = $3
+            WHERE (md.tenant_uid = $1 OR md.tenant_uid IS NULL OR md.entity_type = 'product') 
+              AND md.entity_type = $2 AND md.entity_uid = $3
               AND md.is_deleted = 0 AND md.is_latest = 1
             ORDER BY md.created_at DESC
         `;
@@ -129,7 +130,8 @@ export class MasterDocumentRepository {
             SELECT ${DOC_COLUMNS_WITH_TYPE}
             FROM master_documents md
             LEFT JOIN master_document_types mdt ON mdt.uid = md.document_type_uid
-            WHERE md.tenant_uid = $1 AND md.entity_type = $2 AND md.entity_uid = $3
+            WHERE (md.tenant_uid = $1 OR md.tenant_uid IS NULL OR md.entity_type = 'product') 
+              AND md.entity_type = $2 AND md.entity_uid = $3
               AND md.document_type_uid = $4
               AND md.is_deleted = 0 AND md.is_latest = 1
         `;
@@ -152,7 +154,7 @@ export class MasterDocumentRepository {
     const query = `
             UPDATE master_documents
             SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $3, updated_at = CURRENT_TIMESTAMP
-            WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0
+            WHERE uid = $1 AND (tenant_uid = $2 OR tenant_uid IS NULL OR entity_type = 'product') AND is_deleted = 0
         `;
     const result = await executor.query(query, [uid, tenantUid, deletedBy]);
     return (result.rowCount ?? 0) > 0;
@@ -165,7 +167,7 @@ export class MasterDocumentRepository {
   ): Promise<void> {
     const executor = client || this.pool;
     await executor.query(
-      `UPDATE master_documents SET is_latest = 0, updated_at = CURRENT_TIMESTAMP WHERE uid = $1 AND tenant_uid = $2`,
+      `UPDATE master_documents SET is_latest = 0, updated_at = CURRENT_TIMESTAMP WHERE uid = $1 AND (tenant_uid = $2 OR tenant_uid IS NULL OR entity_type = 'product')`,
       [uid, tenantUid],
     );
   }

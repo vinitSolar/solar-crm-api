@@ -25,7 +25,7 @@ export const createProductSchema = z.object({
         value: z.string(),
     }))).optional(),
     documentTypeUids: z.preprocess((val) => {
-        if (val === undefined || val === null || val === "") return [];
+        if (val === undefined || val === null || val === "" || val === "null" || val === "undefined") return [];
         if (Array.isArray(val)) return val.map(String);
         if (typeof val === "string") {
             try {
@@ -53,7 +53,7 @@ export const updateProductSchema = z.object({
     description: z.string().optional().nullable(),
     modelNumber: z.string().max(255).optional().nullable(),
     specifications: z.preprocess((val) => {
-        if (val === undefined || val === null || val === "") return undefined;
+        if (val === undefined || val === null || val === "" || val === "null" || val === "undefined") return undefined;
         if (typeof val === "string") {
             try { return JSON.parse(val); } catch { return undefined; }
         }
@@ -63,7 +63,7 @@ export const updateProductSchema = z.object({
         value: z.string(),
     }))).optional(),
     existingImages: z.preprocess((val) => {
-        if (val === undefined || val === null || val === "") return [];
+        if (val === undefined || val === null || val === "" || val === "null" || val === "undefined") return [];
         if (Array.isArray(val)) return val.map(String);
         if (typeof val === "string") {
             try {
@@ -77,7 +77,7 @@ export const updateProductSchema = z.object({
     }, z.array(z.string())).optional(),
     isActive: z.coerce.number().min(0).max(1).optional(),
     deleteDocumentUids: z.preprocess((val) => {
-        if (val === undefined || val === null || val === "") return [];
+        if (val === undefined || val === null || val === "" || val === "null" || val === "undefined") return [];
         if (Array.isArray(val)) return val.map(String);
         if (typeof val === "string") {
             try {
@@ -90,7 +90,7 @@ export const updateProductSchema = z.object({
         return [];
     }, z.array(z.string().uuid("Invalid Document UID"))).optional(),
     documentTypeUids: z.preprocess((val) => {
-        if (val === undefined || val === null || val === "") return [];
+        if (val === undefined || val === null || val === "" || val === "null" || val === "undefined") return [];
         if (Array.isArray(val)) return val.map(String);
         if (typeof val === "string") {
             try {

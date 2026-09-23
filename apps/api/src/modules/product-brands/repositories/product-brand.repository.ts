@@ -143,12 +143,43 @@ export class ProductBrandRepository {
         return result.rowCount !== null && result.rowCount > 0;
     }
 
-    async softDelete(uid: string, deletedBy: string): Promise<IProductBrand | null> {
+    async hasActivePackages(uid: string): Promise<boolean> {
         const result = await this.pool.query(
-            `UPDATE product_brands SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1 WHERE uid = $2 RETURNING *`,
-            [deletedBy, uid]
+            `SELECT 1
+             FROM packages p
+             JOIN package_products pp ON pp.package_uid::text = p.uid::text
+             JOIN products pr ON pr.uid::text = pp.product_uid::text
+             WHERE pr.brand_uid::text = $1::text
+               AND p.is_deleted = false
+               AND p.is_active = true
+               AND pp.is_deleted = false
+             LIMIT 1`,
+            [uid]
         );
-        return result.rows[0] || null;
+        return result.rowCount !== null && result.rowCount > 0;
+    }
+
+    async softDelete(uid: string, deletedBy: string): Promise<IProductBrand | null> {
+        const isPool = typeof (this.pool as any).totalCount !== "undefined";
+        const client = isPool ? await this.pool.connect() : this.pool;
+        try {
+            if (isPool) await client.query("BEGIN");
+            const result = await client.query(
+                `UPDATE product_brands SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1 WHERE uid::text = $2::text RETURNING *`,
+                [deletedBy, uid]
+            );
+            await client.query(
+                `UPDATE products SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1 WHERE brand_uid::text = $2::text AND is_deleted = 0`,
+                [deletedBy, uid]
+            );
+            if (isPool) await client.query("COMMIT");
+            return result.rows[0] || null;
+        } catch (error) {
+            if (isPool) await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            if (isPool) (client as any).release();
+        }
     }
 
     async restore(uid: string, updatedBy: string): Promise<IProductBrand | null> {

@@ -399,12 +399,38 @@ export class PackageRepository {
     }
 
     async softDelete(uid: string, tenantUid: string, userUid: string): Promise<void> {
-        const query = `
-            UPDATE packages 
-            SET is_deleted = true, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1, is_active = false
-            WHERE uid = $2 AND tenant_uid = $3
-        `;
-        await this.pool.query(query, [userUid, uid, tenantUid]);
+        const isPool = typeof (this.pool as any).totalCount !== "undefined";
+        const client = isPool ? await this.pool.connect() : this.pool;
+        try {
+            if (isPool) await client.query("BEGIN");
+            const query = `
+                UPDATE packages 
+                SET is_deleted = true, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1, is_active = false
+                WHERE uid = $2 AND tenant_uid = $3
+            `;
+            await client.query(query, [userUid, uid, tenantUid]);
+
+            await client.query(
+                `UPDATE package_products
+                 SET is_deleted = true, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1
+                 WHERE package_uid = $2 AND is_deleted = false`,
+                [userUid, uid]
+            );
+
+            await client.query(
+                `UPDATE package_scope_of_work_items
+                 SET is_deleted = true, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1
+                 WHERE package_uid = $2 AND is_deleted = false`,
+                [userUid, uid]
+            );
+
+            if (isPool) await client.query("COMMIT");
+        } catch (error) {
+            if (isPool) await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            if (isPool) (client as any).release();
+        }
     }
 
     async restore(uid: string, tenantUid: string, userUid: string): Promise<void> {

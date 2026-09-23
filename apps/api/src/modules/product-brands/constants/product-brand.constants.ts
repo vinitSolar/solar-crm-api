@@ -7,5 +7,6 @@ export const PRODUCT_BRAND_MESSAGES = {
     FETCHED: "Product brands fetched successfully",
     NAME_EXISTS: "Product brand name already exists",
     UPLOAD_FAILED: "Failed to upload logo",
-    CANNOT_DELETE_IN_USE: "Cannot delete brand because it is being used by active products",
+    CANNOT_DELETE_IN_USE: "Cannot delete brand because it is being used by active packages",
+    CANNOT_DELETE_ACTIVE_PACKAGE: "Cannot delete brand because it is being used by active packages",
 };

@@ -122,13 +122,14 @@ export class ProductBrandService {
             throw new CustomError(PRODUCT_BRAND_MESSAGES.NOT_FOUND, 404);
         }
 
-        const isUsed = await this.repository.isUsedByProducts(uid);
-        if (isUsed) {
-            throw new CustomError(PRODUCT_BRAND_MESSAGES.CANNOT_DELETE_IN_USE, 400);
+        const hasActivePackages = await this.repository.hasActivePackages(uid);
+        if (hasActivePackages) {
+            throw new CustomError(PRODUCT_BRAND_MESSAGES.CANNOT_DELETE_ACTIVE_PACKAGE, 400);
         }
 
         await this.repository.softDelete(uid, userUid);
         await safeCacheDelPattern("cache:product-brands:*");
+        await safeCacheDelPattern("cache:products:*");
     }
 
     async restoreBrand(uid: string, userUid: string): Promise<void> {

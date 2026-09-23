@@ -144,9 +144,9 @@ export async function seedProducts(pool: Pool, tenantUid?: string) {
 
 
         for (const prod of PRODUCTS) {
-            // Check if product already exists
+            // Check if product already exists (including soft-deleted)
             const existingRes = await client.query(
-                "SELECT uid FROM products WHERE product_code = $1 AND is_deleted = 0",
+                "SELECT uid FROM products WHERE product_code = $1",
                 [prod.productCode]
             );
 
@@ -171,18 +171,20 @@ export async function seedProducts(pool: Pool, tenantUid?: string) {
 
             // Ensure brand exists dynamically in database
             let brandUid = "";
-            const brandRes = await client.query("SELECT uid FROM product_brands WHERE name = $1 AND is_deleted = 0", [prod.brandName]);
+            const brandRes = await client.query("SELECT uid FROM product_brands WHERE name = $1", [prod.brandName]);
             if (brandRes.rowCount && brandRes.rowCount > 0) {
                 brandUid = brandRes.rows[0].uid;
             } else {
                 brandUid = uuidv4();
-                await client.query(
+                const insertBrandRes = await client.query(
                     `INSERT INTO product_brands (uid, name, description, sort_order, created_by)
-                     VALUES ($1, $2, 'Seed brand for solar products', 1, 'SYSTEM')`,
+                     VALUES ($1, $2, 'Seed brand for solar products', 1, 'SYSTEM')
+                     ON CONFLICT (name) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+                     RETURNING uid`,
                     [brandUid, prod.brandName]
                 );
+                brandUid = insertBrandRes.rows[0]?.uid || brandUid;
                 logger.info(`✅ Created brand: ${prod.brandName} (${brandUid})`);
-                // Update categories map in case brand creation affects state (not here, but good practice)
             }
 
             const productUid = uuidv4();
@@ -195,6 +197,8 @@ export async function seedProducts(pool: Pool, tenantUid?: string) {
                     warranty, description, model_number, images, created_by
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::text[], 'SYSTEM')
+                ON CONFLICT (product_code) DO NOTHING
+                RETURNING uid
             `;
             const productValues = [
                 productUid,
@@ -213,7 +217,11 @@ export async function seedProducts(pool: Pool, tenantUid?: string) {
                 [] // images array
             ];
 
-            await client.query(insertProductQuery, productValues);
+            const insertRes = await client.query(insertProductQuery, productValues);
+            if (!insertRes.rowCount) {
+                logger.info(`Product with code ${prod.productCode} already exists. Skipping specifications.`);
+                continue;
+            }
             logger.info(`✅ Seeded product: ${prod.name} (${prod.productCode})`);
 
             // Insert Specifications dynamically mapping title to database specification UIDs
@@ -232,8 +240,6 @@ export async function seedProducts(pool: Pool, tenantUid?: string) {
                     }
                 }
             }
-
-
         }
 
         await client.query("COMMIT");

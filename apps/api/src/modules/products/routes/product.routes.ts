@@ -266,6 +266,17 @@ router.get("/:uid", requirePermission("PRODUCTS", "can_view"), controller.getPro
  *                 items:
  *                   type: string
  *                   format: binary
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array of product document files (e.g. datasheet, warranty certificate, installation manual)
+ *               documentTypeUids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: JSON stringified array or multiple field entries of product document type UIDs matching files array in the exact same order
  *     responses:
  *       201:
  *         description: Product created successfully
@@ -348,6 +359,20 @@ router.post("/", requirePermission("PRODUCTS", "can_create"), upload.any(), vali
  *                 items:
  *                   type: string
  *                   format: binary
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array of new product document files to upload
+ *               documentTypeUids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: JSON stringified array or multiple field entries of product document type UIDs matching new files in the exact same order
+ *               deleteDocumentUids:
+ *                 type: string
+ *                 description: JSON stringified array or multiple field entries of document UIDs or association UIDs to soft delete (e.g. '["uid1", "uid2"]')
  *               isActive:
  *                 type: integer
  *                 enum: [0, 1]

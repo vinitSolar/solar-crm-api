@@ -1,11 +1,13 @@
 import { v4 as uuidv4 } from "uuid";
+import path from "path";
+import type { PoolClient } from "pg";
 import { ProductRepository } from "../repositories/product.repository.js";
 import { ProductCategoryRepository } from "../../product-categories/repositories/product-category.repository.js";
 import { ProductBrandRepository } from "../../product-brands/repositories/product-brand.repository.js";
 import { ProductUnitRepository } from "../../product-units/repositories/product-unit.repository.js";
 import { ProductSpecificationRepository } from "../../product-specifications/repositories/product-specification.repository.js";
 import type { ICreateProductRequest, IUpdateProductRequest, IProductPaginationQuery } from "../interfaces/product.interface.js";
-import { toProductSafe, toProductDropdown, type IProductSafe, type IProductDropdown } from "../dto/product.dto.js";
+import { toProductSafe, toProductDropdown, type IProductSafe, type IProductDropdown, type IProductDocumentSafe } from "../dto/product.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { PRODUCT_MESSAGES } from "../constants/product.constants.js";
 import pool from "@packages/connection.js";
@@ -26,6 +28,55 @@ export class ProductService {
         this.brandRepo = new ProductBrandRepository(pool);
         this.unitRepo = new ProductUnitRepository(pool);
         this.specRepo = new ProductSpecificationRepository(pool);
+    }
+
+    async getProductDocuments(productUid: string, client?: PoolClient): Promise<IProductDocumentSafe[]> {
+        const executor = client || pool;
+        const query = `
+            SELECT 
+                md.uid,
+                md.entity_uid AS "productUid",
+                md.document_type_uid AS "documentTypeUid",
+                mdt.name AS "documentTypeName",
+                mdt.category AS "documentTypeCategory",
+                md.original_name AS "originalFileName",
+                md.original_name AS "originalName",
+                md.file_name AS "storedFileName",
+                md.file_name AS "fileName",
+                md.mime_type AS "mimeType",
+                md.file_size AS "fileSize",
+                md.created_at AS "createdAt",
+                da.uid AS "associationUid"
+            FROM document_associations da
+            JOIN master_documents md ON md.uid = da.master_document_uid
+            LEFT JOIN master_document_types mdt ON mdt.uid = md.document_type_uid
+            WHERE da.module = 'product'
+              AND da.context_uid = $1
+              AND da.is_deleted = 0
+              AND md.is_deleted = 0
+            ORDER BY mdt.sort_order ASC, md.created_at DESC
+        `;
+        const result = await executor.query(query, [productUid]);
+        return result.rows.map((row: any) => {
+            const publicUrl = storageService.getPublicUrl(row.storedFileName) || row.storedFileName;
+            return {
+                uid: row.uid,
+                productUid: row.productUid,
+                documentTypeUid: row.documentTypeUid,
+                documentTypeName: row.documentTypeName,
+                documentTypeCategory: row.documentTypeCategory,
+                originalFileName: row.originalFileName,
+                originalName: row.originalName,
+                storedFileName: row.storedFileName,
+                fileName: row.fileName,
+                filePath: publicUrl,
+                fileUrl: publicUrl,
+                mimeType: row.mimeType,
+                fileSize: Number(row.fileSize),
+                createdAt: row.createdAt,
+                associationUid: row.associationUid,
+            };
+        });
     }
 
     async createProduct(data: ICreateProductRequest, files: Express.Multer.File[], tenantUid: string, userUid: string): Promise<IProductSafe> {
@@ -76,8 +127,49 @@ export class ProductService {
         try {
             await client.query("BEGIN");
 
-            // Filter out images
+            // Filter out images and document files
             const imageFiles = files.filter(f => f.fieldname === "images");
+            const documentFiles = files.filter(f => f.fieldname !== "images");
+            const documentTypeUids = data.documentTypeUids || [];
+
+            if (documentFiles.length > 0) {
+                if (documentFiles.length !== documentTypeUids.length) {
+                    throw new CustomError("Number of uploaded files does not match the number of document type UIDs", 400);
+                }
+            }
+
+            // Validate document types and extensions
+            if (documentTypeUids.length > 0) {
+                const docTypesRes = await client.query(
+                    `SELECT * FROM master_document_types WHERE uid = ANY($1) AND is_deleted = 0 AND is_active = 1`,
+                    [documentTypeUids]
+                );
+                const docTypeMap = new Map(docTypesRes.rows.map((t: any) => [t.uid, t]));
+
+                const uploadCountByType = new Map<string, number>();
+                for (let i = 0; i < documentFiles.length; i++) {
+                    const file = documentFiles[i]!;
+                    const typeUid = documentTypeUids[i]!;
+                    const docType = docTypeMap.get(typeUid);
+                    if (!docType) {
+                        throw new CustomError(`Invalid document type UID: ${typeUid}`, 400);
+                    }
+
+                    const ext = path.extname(file.originalname).toLowerCase().replace(".", "");
+                    const allowedExtStr = docType.allowed_extensions || docType.allowedExtensions || "";
+                    const allowed = allowedExtStr.split(",").map((e: string) => e.trim().toLowerCase());
+                    if (allowed.length > 0 && !allowed.includes(ext) && !allowed.includes("*")) {
+                        throw new CustomError(`File extension '.${ext}' is not allowed for document type '${docType.name}'. Allowed extensions: ${allowedExtStr}`, 400);
+                    }
+
+                    const count = (uploadCountByType.get(typeUid) || 0) + 1;
+                    uploadCountByType.set(typeUid, count);
+                    const allowMultiple = docType.allow_multiple !== undefined ? docType.allow_multiple : docType.allowMultiple;
+                    if (allowMultiple === 0 && count > 1) {
+                        throw new CustomError(`Multiple files are not allowed for document type '${docType.name}'`, 400);
+                    }
+                }
+            }
 
             // Create Product record
             const productUid = uuidv4();
@@ -122,9 +214,56 @@ export class ProductService {
                 product.images = productImages;
             }
 
+            // Upload document files and record in master_documents and document_associations
+            for (let i = 0; i < documentFiles.length; i++) {
+                const file = documentFiles[i]!;
+                const typeUid = documentTypeUids[i]!;
+                const folder = `master-vault/${tenantUid || "global"}/product/${productUid}`;
+                const fileResult = await storageService.uploadFileWithPath(
+                    file.buffer,
+                    file.originalname,
+                    file.mimetype,
+                    folder
+                );
+                const fileName = fileResult.path || path.basename(fileResult.url);
+                const masterDocUid = uuidv4();
+
+                await client.query(`
+                    INSERT INTO master_documents (
+                        uid, tenant_uid, document_type_uid, entity_type, entity_uid,
+                        original_name, file_name, mime_type, file_size, created_by
+                    )
+                    VALUES ($1, $2, $3, 'product', $4, $5, $6, $7, $8, $9)
+                `, [
+                    masterDocUid,
+                    tenantUid || null,
+                    typeUid,
+                    productUid,
+                    file.originalname,
+                    fileName,
+                    file.mimetype,
+                    file.size,
+                    userUid
+                ]);
+
+                await client.query(`
+                    INSERT INTO document_associations (
+                        uid, tenant_uid, master_document_uid, module, context_uid, created_by
+                    )
+                    VALUES ($1, $2, $3, 'product', $4, $5)
+                `, [
+                    uuidv4(),
+                    tenantUid || null,
+                    masterDocUid,
+                    productUid,
+                    userUid
+                ]);
+            }
+
             await client.query("COMMIT");
             safeCacheDel("cache:products:dropdown").catch(() => {});
-            return toProductSafe(product);
+            const documents = await this.getProductDocuments(productUid);
+            return toProductSafe(product, documents);
         } catch (error) {
             await client.query("ROLLBACK");
             logger.error("ProductService.createProduct failed, transaction rolled back", { error });
@@ -195,8 +334,135 @@ export class ProductService {
         try {
             await client.query("BEGIN");
 
-            // Filter out images
+            // Filter out images and document files
             const imageFiles = files.filter(f => f.fieldname === "images");
+            const documentFiles = files.filter(f => f.fieldname !== "images");
+            const documentTypeUids = data.documentTypeUids || [];
+
+            if (documentFiles.length > 0) {
+                if (documentFiles.length !== documentTypeUids.length) {
+                    throw new CustomError("Number of uploaded files does not match the number of document type UIDs", 400);
+                }
+            }
+
+            // Process soft deletion of requested documents
+            const deleteUids = data.deleteDocumentUids || [];
+            if (deleteUids.length > 0) {
+                await client.query(`
+                    UPDATE master_documents
+                    SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
+                    WHERE (uid = ANY($2) OR uid IN (
+                        SELECT master_document_uid FROM document_associations WHERE uid = ANY($2)
+                    )) AND is_deleted = 0
+                `, [userUid, deleteUids]);
+
+                await client.query(`
+                    UPDATE document_associations
+                    SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
+                    WHERE (uid = ANY($2) OR master_document_uid = ANY($2)) AND is_deleted = 0
+                `, [userUid, deleteUids]);
+            }
+
+            // Validate new document files
+            if (documentTypeUids.length > 0) {
+                const docTypesRes = await client.query(
+                    `SELECT * FROM master_document_types WHERE uid = ANY($1) AND is_deleted = 0 AND is_active = 1`,
+                    [documentTypeUids]
+                );
+                const docTypeMap = new Map(docTypesRes.rows.map((t: any) => [t.uid, t]));
+
+                const uploadCountByType = new Map<string, number>();
+                for (let i = 0; i < documentFiles.length; i++) {
+                    const file = documentFiles[i]!;
+                    const typeUid = documentTypeUids[i]!;
+                    const docType = docTypeMap.get(typeUid);
+                    if (!docType) {
+                        throw new CustomError(`Invalid document type UID: ${typeUid}`, 400);
+                    }
+
+                    const ext = path.extname(file.originalname).toLowerCase().replace(".", "");
+                    const allowedExtStr = docType.allowed_extensions || docType.allowedExtensions || "";
+                    const allowed = allowedExtStr.split(",").map((e: string) => e.trim().toLowerCase());
+                    if (allowed.length > 0 && !allowed.includes(ext) && !allowed.includes("*")) {
+                        throw new CustomError(`File extension '.${ext}' is not allowed for document type '${docType.name}'. Allowed extensions: ${allowedExtStr}`, 400);
+                    }
+
+                    const count = (uploadCountByType.get(typeUid) || 0) + 1;
+                    uploadCountByType.set(typeUid, count);
+                    const allowMultiple = docType.allow_multiple !== undefined ? docType.allow_multiple : docType.allowMultiple;
+                    if (allowMultiple === 0 && count > 1) {
+                        throw new CustomError(`Multiple files are not allowed for document type '${docType.name}'`, 400);
+                    }
+                }
+
+                // Handle replacement logic for allowMultiple = 0
+                for (let i = 0; i < documentFiles.length; i++) {
+                    const typeUid = documentTypeUids[i]!;
+                    const docType = docTypeMap.get(typeUid);
+                    const allowMultiple = docType?.allow_multiple !== undefined ? docType.allow_multiple : docType?.allowMultiple;
+                    if (allowMultiple === 0) {
+                        await client.query(`
+                            UPDATE master_documents
+                            SET is_latest = 0, is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
+                            WHERE entity_type = 'product' AND entity_uid = $2 AND document_type_uid = $3 AND is_deleted = 0
+                        `, [userUid, uid, typeUid]);
+
+                        await client.query(`
+                            UPDATE document_associations
+                            SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
+                            WHERE module = 'product' AND context_uid = $2 
+                              AND master_document_uid IN (SELECT uid FROM master_documents WHERE entity_type = 'product' AND entity_uid = $2 AND document_type_uid = $3)
+                              AND is_deleted = 0
+                        `, [userUid, uid, typeUid]);
+                    }
+                }
+
+                // Upload new files and insert metadata
+                for (let i = 0; i < documentFiles.length; i++) {
+                    const file = documentFiles[i]!;
+                    const typeUid = documentTypeUids[i]!;
+                    const folder = `master-vault/${tenantUid || "global"}/product/${uid}`;
+                    const fileResult = await storageService.uploadFileWithPath(
+                        file.buffer,
+                        file.originalname,
+                        file.mimetype,
+                        folder
+                    );
+                    const fileName = fileResult.path || path.basename(fileResult.url);
+                    const masterDocUid = uuidv4();
+
+                    await client.query(`
+                        INSERT INTO master_documents (
+                            uid, tenant_uid, document_type_uid, entity_type, entity_uid,
+                            original_name, file_name, mime_type, file_size, created_by
+                        )
+                        VALUES ($1, $2, $3, 'product', $4, $5, $6, $7, $8, $9)
+                    `, [
+                        masterDocUid,
+                        tenantUid || null,
+                        typeUid,
+                        uid,
+                        file.originalname,
+                        fileName,
+                        file.mimetype,
+                        file.size,
+                        userUid
+                    ]);
+
+                    await client.query(`
+                        INSERT INTO document_associations (
+                            uid, tenant_uid, master_document_uid, module, context_uid, created_by
+                        )
+                        VALUES ($1, $2, $3, 'product', $4, $5)
+                    `, [
+                        uuidv4(),
+                        tenantUid || null,
+                        masterDocUid,
+                        uid,
+                        userUid
+                    ]);
+                }
+            }
 
             // Upload new image files
             const newProductImages: string[] = [];
@@ -222,7 +488,7 @@ export class ProductService {
 
             // Update product record
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { existingImages, ...repositoryData } = data;
+            const { existingImages, deleteDocumentUids: _delDocUids, documentTypeUids: _dtUids, ...repositoryData } = data;
             const updatedProduct = await this.repository.update(uid, {
                 ...repositoryData,
                 images: finalProductImages,
@@ -235,7 +501,8 @@ export class ProductService {
 
             await client.query("COMMIT");
             safeCacheDel("cache:products:dropdown").catch(() => {});
-            return toProductSafe(updatedProduct);
+            const documents = await this.getProductDocuments(uid);
+            return toProductSafe(updatedProduct, documents);
         } catch (error) {
             await client.query("ROLLBACK");
             logger.error("ProductService.updateProduct failed, transaction rolled back", { error });
@@ -251,7 +518,8 @@ export class ProductService {
         if (!product) {
             throw new CustomError(PRODUCT_MESSAGES.NOT_FOUND, 404);
         }
-        return toProductSafe(product);
+        const documents = await this.getProductDocuments(uid);
+        return toProductSafe(product, documents);
     }
 
     async getDropdownProducts(): Promise<IProductDropdown[]> {

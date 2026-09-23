@@ -1,5 +1,23 @@
 import type { IProduct } from "../interfaces/product.interface.js";
 import { storageService } from "@packages/storage/index.js";
+export interface IProductDocumentSafe {
+    uid: string;
+    productUid: string;
+    documentTypeUid: string;
+    documentTypeName?: string | undefined;
+    documentTypeCategory?: number | undefined;
+    originalFileName: string;
+    originalName?: string | undefined;
+    storedFileName: string;
+    fileName?: string | undefined;
+    filePath: string;
+    fileUrl: string;
+    mimeType: string;
+    fileSize: number;
+    createdAt: Date;
+    associationUid?: string | undefined;
+}
+
 export interface IProductSpecificationValueSafe {
     specificationUid: string;
     value: string;
@@ -28,10 +46,11 @@ export interface IProductSafe {
     brandName?: string | undefined;
     categoryName?: string | undefined;
     unitName?: string | undefined;
+    documents?: IProductDocumentSafe[];
     specifications?: IProductSpecificationValueSafe[];
 }
 
-export const toProductSafe = (product: IProduct): IProductSafe => {
+export const toProductSafe = (product: IProduct, documents?: IProductDocumentSafe[]): IProductSafe => {
     return {
         uid: product.uid,
         categoryUid: product.categoryUid,
@@ -54,6 +73,7 @@ export const toProductSafe = (product: IProduct): IProductSafe => {
         brandName: product.brandName,
         categoryName: product.categoryName,
         unitName: product.unitName,
+        documents: documents ? documents : (product.documents || []),
         specifications: product.specifications?.map(s => ({
             specificationUid: s.specificationUid,
             value: s.value,

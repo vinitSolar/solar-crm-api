@@ -85,9 +85,9 @@ export class MasterDocumentTypeService {
     const types = await this.repository.getByModule(module, tenantUid);
     const data = types.map(toMasterDocumentTypeSafe);
 
-    if (this.associationRepository && tenantUid) {
+    if (this.associationRepository && (tenantUid || module === "product")) {
       const docs = await this.associationRepository.getByContext(
-        tenantUid,
+        tenantUid || "",
         module,
         contextUid,
       );
@@ -140,9 +140,9 @@ export class MasterDocumentTypeService {
     const data = result.rows.map(toMasterDocumentTypeSafe);
 
     // If both module and contextUid are provided, fetch the uploaded files for this context
-    if (this.associationRepository && tenantUid && queryParams.module && queryParams.contextUid) {
+    if (this.associationRepository && (tenantUid || queryParams.module === "product") && queryParams.module && queryParams.contextUid) {
       const docs = await this.associationRepository.getByContext(
-        tenantUid,
+        tenantUid || "",
         queryParams.module as ModuleType,
         queryParams.contextUid,
       );

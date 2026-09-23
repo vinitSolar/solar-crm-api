@@ -351,6 +351,9 @@ export class MasterDocumentService {
       if (tableName === "tenants") {
         query = `SELECT 1 FROM tenants WHERE uid = $1 LIMIT 1`;
         params = [uid];
+      } else if (tableName === "products") {
+        query = `SELECT 1 FROM products WHERE uid = $1 AND is_deleted = 0 LIMIT 1`;
+        params = [uid];
       } else {
         query = `SELECT 1 FROM ${tableName} WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0 LIMIT 1`;
         params = [uid, tenantUid];

@@ -26,6 +26,7 @@ export interface IProduct {
     categoryName?: string | undefined;
     unitName?: string | undefined;
     specifications?: { specificationUid: string; value: string; specificationName?: string; }[];
+    documents?: import("../dto/product.dto.js").IProductDocumentSafe[];
 }
 
 export interface ICreateProductRequest {

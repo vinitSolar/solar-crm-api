@@ -14,12 +14,12 @@ export const upsertMenuPermissionsSchema = z.object({
     body: z.object({
         permissions: z.array(
             z.object({
-                menuUid: z.string().uuid({ message: "Invalid menu UID format" }),
+                menuUid: z.string().min(1, { message: "Invalid menu UID format" }),
                 canView: z.union([z.literal(0), z.literal(1)]),
                 canCreate: z.union([z.literal(0), z.literal(1)]),
                 canEdit: z.union([z.literal(0), z.literal(1)]),
                 canDelete: z.union([z.literal(0), z.literal(1)]),
-                canSetting: z.union([z.literal(0), z.literal(1)]),
+                canSetting: z.union([z.literal(0), z.literal(1)]).optional().default(0),
             })
         ).min(1, { message: "Permissions array cannot be empty" }),
     }),

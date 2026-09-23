@@ -18,12 +18,12 @@ export const upsertMenuPermissionsSchema = z.object({
         permissions: z
             .array(
                 z.object({
-                    menuUid: z.string().uuid(ROLE_PERMISSION_MESSAGES.INVALID_MENU_UID),
+                    menuUid: z.string().min(1, ROLE_PERMISSION_MESSAGES.INVALID_MENU_UID),
                     canView: permissionFlag,
                     canCreate: permissionFlag,
                     canEdit: permissionFlag,
                     canDelete: permissionFlag,
-                    canSetting: permissionFlag,
+                    canSetting: permissionFlag.optional().default(0),
                 }),
             )
             .min(1, ROLE_PERMISSION_MESSAGES.PERMISSIONS_REQUIRED),

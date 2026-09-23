@@ -6,7 +6,9 @@ const NOTE_COLUMNS = `
     n.id, n.uid, n.tenant_uid AS "tenantUid", n.module, n.module_uid AS "moduleUid", n.note,
     n.is_active AS "isActive", n.is_deleted AS "isDeleted",
     n.created_at AS "createdAt", n.updated_at AS "updatedAt",
-    n.created_by AS "createdBy", n.updated_by AS "updatedBy", n.deleted_by AS "deletedBy"
+    n.created_by AS "createdBy", n.updated_by AS "updatedBy", n.deleted_by AS "deletedBy",
+    COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))), ''), CASE WHEN n.created_by = 'SYSTEM' THEN 'System' ELSE NULL END) AS "createdByName",
+    u.email AS "createdByEmail"
 `;
 
 export class NoteRepository {
@@ -21,11 +23,22 @@ export class NoteRepository {
         const uid = uuidv4();
         
         const query = `
-            INSERT INTO notes (
-                uid, tenant_uid, module, module_uid, note, created_by
+            WITH inserted AS (
+                INSERT INTO notes (
+                    uid, tenant_uid, module, module_uid, note, created_by
+                )
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
             )
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING ${NOTE_COLUMNS.replace(/n\./g, '')}
+            SELECT 
+                n.id, n.uid, n.tenant_uid AS "tenantUid", n.module, n.module_uid AS "moduleUid", n.note,
+                n.is_active AS "isActive", n.is_deleted AS "isDeleted",
+                n.created_at AS "createdAt", n.updated_at AS "updatedAt",
+                n.created_by AS "createdBy", n.updated_by AS "updatedBy", n.deleted_by AS "deletedBy",
+                COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))), ''), CASE WHEN n.created_by = 'SYSTEM' THEN 'System' ELSE NULL END) AS "createdByName",
+                u.email AS "createdByEmail"
+            FROM inserted n
+            LEFT JOIN users u ON n.created_by = u.uid
         `;
         const values = [uid, tenantUid, module, moduleUid, note, createdBy || null];
         
@@ -38,6 +51,7 @@ export class NoteRepository {
         const query = `
             SELECT ${NOTE_COLUMNS}
             FROM notes n
+            LEFT JOIN users u ON n.created_by = u.uid
             WHERE n.uid = $1 AND n.tenant_uid = $2 AND n.is_deleted = 0
         `;
         const result = await executor.query(query, [uid, tenantUid]);
@@ -49,6 +63,7 @@ export class NoteRepository {
         const query = `
             SELECT ${NOTE_COLUMNS}
             FROM notes n
+            LEFT JOIN users u ON n.created_by = u.uid
             WHERE n.tenant_uid = $1 AND n.module = $2 AND n.module_uid = $3 AND n.is_deleted = 0
             ORDER BY n.created_at DESC
             LIMIT 1
@@ -62,6 +77,7 @@ export class NoteRepository {
         const query = `
             SELECT ${NOTE_COLUMNS}
             FROM notes n
+            LEFT JOIN users u ON n.created_by = u.uid
             WHERE n.tenant_uid = $1 AND n.module = $2 AND n.module_uid = $3 AND n.is_deleted = 0
             ORDER BY n.created_at DESC
         `;
@@ -96,6 +112,7 @@ export class NoteRepository {
         const dataQuery = `
             SELECT ${NOTE_COLUMNS}
             FROM notes n
+            LEFT JOIN users u ON n.created_by = u.uid
             WHERE ${whereClause}
             ORDER BY n.created_at DESC
             LIMIT $${params.length - 1} OFFSET $${params.length}
@@ -108,10 +125,21 @@ export class NoteRepository {
     async update(uid: string, tenantUid: string, data: IUpdateNote, updatedBy: string | undefined, client?: PoolClient): Promise<INote | null> {
         const executor = client || this.pool;
         const query = `
-            UPDATE notes
-            SET note = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
-            WHERE uid = $3 AND tenant_uid = $4 AND is_deleted = 0
-            RETURNING ${NOTE_COLUMNS.replace(/n\./g, '')}
+            WITH updated AS (
+                UPDATE notes
+                SET note = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+                WHERE uid = $3 AND tenant_uid = $4 AND is_deleted = 0
+                RETURNING *
+            )
+            SELECT 
+                n.id, n.uid, n.tenant_uid AS "tenantUid", n.module, n.module_uid AS "moduleUid", n.note,
+                n.is_active AS "isActive", n.is_deleted AS "isDeleted",
+                n.created_at AS "createdAt", n.updated_at AS "updatedAt",
+                n.created_by AS "createdBy", n.updated_by AS "updatedBy", n.deleted_by AS "deletedBy",
+                COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))), ''), CASE WHEN n.created_by = 'SYSTEM' THEN 'System' ELSE NULL END) AS "createdByName",
+                u.email AS "createdByEmail"
+            FROM updated n
+            LEFT JOIN users u ON n.created_by = u.uid
         `;
         const result = await executor.query(query, [data.note, updatedBy || null, uid, tenantUid]);
         return result.rows.length > 0 ? result.rows[0] as INote : null;

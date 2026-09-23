@@ -10,8 +10,16 @@ export interface INote {
     createdAt: Date;
     updatedAt: Date;
     createdBy?: string | null;
+    createdByName?: string | null;
+    createdByEmail?: string | null;
     updatedBy?: string | null;
     deletedBy?: string | null;
+}
+
+export interface IUserDataBasic {
+    uid: string | null;
+    name: string | null;
+    email: string | null;
 }
 
 export interface ICreateNote {
@@ -34,6 +42,11 @@ export interface INoteSafe {
     createdAt: Date;
     updatedAt: Date;
     createdBy?: string | null;
+    createdByName?: string | null;
+    createdByEmail?: string | null;
+    createdByUid?: string | null;
+    createdByUser?: IUserDataBasic | null;
+    creator?: IUserDataBasic | null;
     updatedBy?: string | null;
     deletedBy?: string | null;
 }

@@ -648,4 +648,86 @@ export class ProductService {
         await this.repository.restore(uid, userUid);
         safeCacheDel("cache:products:dropdown").catch(() => {});
     }
+
+    async deleteProductImage(productUid: string | undefined, imageUrlOrLink: string, tenantUid: string, userUid: string): Promise<IProductSafe> {
+        logger.info("ProductService.deleteProductImage", { productUid, imageUrlOrLink, tenantUid, userUid });
+
+        let uid = productUid;
+
+        // If productUid was not provided directly in params, try to extract it from the image link or query database
+        if (!uid) {
+            const extractedKey = storageService.extractStorageKey(imageUrlOrLink);
+            if (extractedKey) {
+                const match = extractedKey.match(/products\/([0-9a-fA-F-]{36})\/images/);
+                if (match && match[1]) {
+                    uid = match[1];
+                }
+            }
+        }
+
+        // If still not found, search in repository
+        let product = uid ? await this.repository.findByUid(uid) : null;
+        if (!product) {
+            product = await this.repository.findByImage(imageUrlOrLink);
+            if (product) {
+                uid = product.uid;
+            }
+        }
+
+        if (!product || !uid) {
+            throw new CustomError(PRODUCT_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const targetKey = storageService.extractStorageKey(imageUrlOrLink);
+        const targetFileName = targetKey ? path.basename(targetKey) : path.basename(imageUrlOrLink);
+
+        const currentImages = product.images || [];
+        let matchedIndex = -1;
+        let matchedKeyToDelete: string | null = null;
+
+        for (let i = 0; i < currentImages.length; i++) {
+            const existingImg = currentImages[i]!;
+            const existingKey = storageService.extractStorageKey(existingImg);
+            const existingFileName = existingKey ? path.basename(existingKey) : path.basename(existingImg);
+
+            if (
+                existingImg === imageUrlOrLink ||
+                (targetKey && existingKey && existingKey === targetKey) ||
+                (storageService.getPublicUrl(existingImg) === imageUrlOrLink) ||
+                (existingKey && storageService.getPublicUrl(existingKey) === imageUrlOrLink) ||
+                (targetFileName && existingFileName && targetFileName === existingFileName)
+            ) {
+                matchedIndex = i;
+                matchedKeyToDelete = existingKey || targetKey || existingImg;
+                break;
+            }
+        }
+
+        if (matchedIndex === -1) {
+            throw new CustomError(PRODUCT_MESSAGES.IMAGE_NOT_FOUND, 404);
+        }
+
+        // Remove matched image from product images list
+        const updatedImages = [...currentImages];
+        updatedImages.splice(matchedIndex, 1);
+
+        // Update product record
+        const updatedProduct = await this.repository.update(uid, {
+            images: updatedImages,
+            updatedBy: userUid,
+        });
+
+        if (!updatedProduct) {
+            throw new CustomError("Failed to update product images", 500);
+        }
+
+        // Safely delete file from storage
+        if (matchedKeyToDelete) {
+            await storageService.deleteFile(matchedKeyToDelete);
+        }
+
+        safeCacheDel("cache:products:dropdown").catch(() => {});
+        const documents = await this.getProductDocuments(uid);
+        return toProductSafe(updatedProduct, documents);
+    }
 }

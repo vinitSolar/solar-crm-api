@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
@@ -172,6 +172,39 @@ class StorageService {
             const url = `${this.baseUrl}/public/uploads/${key}`;
             return { url, path: key };
         }
+    }
+
+    /**
+     * Deletes a file given its storage key or full public URL.
+     */
+    async deleteFile(filePathOrUrl: string | null | undefined): Promise<boolean> {
+        if (!filePathOrUrl) return false;
+        const key = this.extractStorageKey(filePathOrUrl);
+        if (!key) return false;
+
+        try {
+            if (this.provider === "s3") {
+                if (this.s3Client && this.bucketName) {
+                    const command = new DeleteObjectCommand({
+                        Bucket: this.bucketName,
+                        Key: key,
+                    });
+                    await this.s3Client.send(command);
+                    logger.info(`StorageService: Deleted S3 file key: ${key}`);
+                    return true;
+                }
+            } else {
+                const localPath = this.getLocalFilePath(key);
+                if (fsSync.existsSync(localPath)) {
+                    await fs.unlink(localPath);
+                    logger.info(`StorageService: Deleted local file: ${localPath}`);
+                    return true;
+                }
+            }
+        } catch (error) {
+            logger.warn(`StorageService: Failed to delete file '${key}'`, { error });
+        }
+        return false;
     }
 }
 

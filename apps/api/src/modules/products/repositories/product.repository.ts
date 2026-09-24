@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import { v4 as uuidv4 } from "uuid";
+import path from "path";
 import type { IProduct } from "../interfaces/product.interface.js";
 
 export class ProductRepository {
@@ -270,6 +271,25 @@ export class ProductRepository {
         const result = client
             ? await client.query(query, [code])
             : await this.pool.query(query, [code]);
+        if (!result.rows[0]) return null;
+        
+        const product = this.mapRowToProduct(result.rows[0]);
+        product.specifications = await this.getProductSpecifications(product.uid, client);
+        return product;
+    }
+
+    async findByImage(imageKeyOrUrl: string, client?: PoolClient): Promise<IProduct | null> {
+        const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name
+             FROM products p 
+             LEFT JOIN product_brands b ON p.brand_uid = b.uid 
+             LEFT JOIN product_categories c ON p.category_uid = c.uid 
+             LEFT JOIN product_units u ON p.unit_uid = u.uid 
+             WHERE $1 = ANY(p.images) OR p.images::text LIKE '%' || $2 || '%'
+             LIMIT 1`;
+        const fileName = path.basename(imageKeyOrUrl);
+        const result = client
+            ? await client.query(query, [imageKeyOrUrl, fileName])
+            : await this.pool.query(query, [imageKeyOrUrl, fileName]);
         if (!result.rows[0]) return null;
         
         const product = this.mapRowToProduct(result.rows[0]);

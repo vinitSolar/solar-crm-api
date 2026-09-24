@@ -64,6 +64,13 @@ export interface IQuotationPdfData {
         netCustomerCost: number;
         showSubsidy: boolean;
     };
+    bankDetails?: {
+        bankName?: string | null;
+        accountHolderName?: string | null;
+        accountNumber?: string | null;
+        ifscCode?: string | null;
+        branchName?: string | null;
+    } | null;
 }
 
 function formatINR(amount: number): string {

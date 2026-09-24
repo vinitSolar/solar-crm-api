@@ -10,4 +10,6 @@ export const PRODUCT_MESSAGES = {
     CATEGORY_NOT_FOUND: "Product category not found",
     BRAND_NOT_FOUND: "Product brand not found",
     UNIT_NOT_FOUND: "Product unit not found",
+    IMAGE_DELETED: "Product image deleted successfully",
+    IMAGE_NOT_FOUND: "Product image not found",
 };

@@ -196,3 +196,31 @@ export function validateProductRequest(schema: z.ZodType) {
         next();
     };
 }
+
+export function validateDeleteProductImageRequest(req: Request, res: Response, next: NextFunction): void {
+    const rawImage = req.body?.imageUrl || req.body?.link || req.body?.image || req.query?.imageUrl || req.query?.link || req.query?.image;
+
+    if (!rawImage || typeof rawImage !== "string" || !rawImage.trim()) {
+        res.status(400).json({
+            success: false,
+            message: "Validation Error",
+            errors: [
+                {
+                    field: "imageUrl",
+                    message: "Image link or URL (link, imageUrl, or image) is required",
+                }
+            ],
+        });
+        return;
+    }
+
+    const productUid = req.params?.uid || req.body?.productUid || req.query?.productUid;
+
+    req.body = {
+        ...(typeof req.body === "object" && req.body !== null ? req.body : {}),
+        imageUrl: rawImage.trim(),
+        productUid: typeof productUid === "string" ? productUid.trim() : undefined,
+    };
+
+    next();
+}

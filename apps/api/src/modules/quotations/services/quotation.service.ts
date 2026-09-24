@@ -330,7 +330,7 @@ export class QuotationService {
                     const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
                     await strategy.execute(tenantUid, quotation.uid, createdBy);
 
-                    const pdfResult = await this.generatePdf(tenantUid, quotation.uid, createdBy);
+                    const pdfResult = await this.generatePdf(tenantUid, quotation.uid, createdBy, 'v3');
                     if (pdfResult.pdfUrl) {
                         this.sendQuotationEmailBackground(tenantUid, quotation.uid, pdfResult.pdfUrl, createdBy).catch(err => {
                             logger.error(`Failed to trigger background quotation email sending:`, err);
@@ -560,7 +560,7 @@ export class QuotationService {
                     const strategy = isRedisAvailable() ? new QueueSnapshotStrategy() : new DirectSnapshotStrategy();
                     await strategy.execute(tenantUid, updatedQuotation.uid, updatedBy);
 
-                    await this.generatePdf(tenantUid, updatedQuotation.uid, updatedBy);
+                    await this.generatePdf(tenantUid, updatedQuotation.uid, updatedBy, 'v3');
                 } catch (err: any) {
                     const errorMsg = err?.message || "Failed to regenerate quotation snapshot or PDF.";
                     logger.error(`Background PDF regeneration failed for Quote: ${updatedQuotation.uid}`, err);
@@ -764,7 +764,7 @@ export class QuotationService {
      * @param createdBy Authenticated user performing the generation
      * @returns Object containing public PDF storage URL and path key
      */
-    async generatePdf(tenantUid: string, uid: string, createdBy: string): Promise<{ pdfUrl: string; pdfPath: string }> {
+    async generatePdf(tenantUid: string, uid: string, createdBy: string, templateVersion: 'v2' | 'v3' = 'v3'): Promise<{ pdfUrl: string; pdfPath: string }> {
         const inFlight = QuotationService.inFlightPdfs.get(uid);
         if (inFlight) {
             logger.info(`PDF generation already in-flight for Quote UID: ${uid}. Reusing active task.`);
@@ -883,9 +883,9 @@ export class QuotationService {
                 }
             };
 
-            // 6. Generate PDF Buffer using Puppeteer
+            // 6. Generate PDF Buffer using Puppeteer (defaults to v3)
             const startTime = performance.now();
-            const pdfBuffer = await QuotationPdfGenerator.generatePdfBuffer(pdfData);
+            const pdfBuffer = await QuotationPdfGenerator.generatePdfBuffer(pdfData, templateVersion);
             const generationTime = performance.now() - startTime;
             logger.info(`PDF Generation for Quote ${quotation.uid} completed in ${generationTime.toFixed(2)} ms`);
 

@@ -133,6 +133,7 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
     const uid = req.params.uid as string;
     const createdBy = authReq.user.uid;
     const isSync = req.query.sync === "true" || req.body?.sync === true;
+    const templateVersion = ((req.query.version || req.query.templateVersion || req.body?.templateVersion || "v3") as string).toLowerCase() === "v2" ? "v2" : "v3";
 
     // 1. If PDF already exists and forced regeneration is not requested, return immediately
     const existing = await quotationService.getByUid(tenantUid, uid);
@@ -151,7 +152,7 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
     // 2. If PDF generation is already in progress for this quotation
     if (QuotationService.isGeneratingPdf(uid)) {
         if (isSync) {
-            const { pdfUrl, pdfPath } = await quotationService.generatePdf(tenantUid, uid, createdBy);
+            const { pdfUrl, pdfPath } = await quotationService.generatePdf(tenantUid, uid, createdBy, templateVersion);
             return res.status(200).json({
                 success: true,
                 message: "Quotation PDF generated successfully.",
@@ -174,7 +175,7 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
 
     // 3. If sync parameter was explicitly requested, await generation directly
     if (isSync) {
-        const { pdfUrl, pdfPath } = await quotationService.generatePdf(tenantUid, uid, createdBy);
+        const { pdfUrl, pdfPath } = await quotationService.generatePdf(tenantUid, uid, createdBy, templateVersion);
         return res.status(200).json({
             success: true,
             message: "Quotation PDF generated successfully.",
@@ -189,7 +190,7 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
     // 4. Trigger PDF generation in background (non-blocking for fast API response)
     setImmediate(async () => {
         try {
-            await quotationService.generatePdf(tenantUid, uid, createdBy);
+            await quotationService.generatePdf(tenantUid, uid, createdBy, templateVersion);
         } catch (err: any) {
             const errorMsg = err?.message || "Failed to generate quotation PDF.";
             await quotationService.sendQuotationFailedNotification(tenantUid, uid, createdBy, errorMsg);

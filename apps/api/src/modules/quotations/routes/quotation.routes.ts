@@ -127,12 +127,21 @@ router.post("/list", requirePermission("QUOTATIONS", "can_view"), validateReques
  *               extra:
  *                 type: object
  *                 properties:
+ *                   title:
+ *                     type: string
+ *                     example: "Structure Elevation"
  *                   value:
  *                     type: number
  *                     example: 5000
  *                   description:
  *                     type: string
- *                     example: "Additional meter wiring"
+ *                     example: "Structure Elevation & Heavy Duty Cabling"
+ *                   isGstApplied:
+ *                     type: boolean
+ *                     example: true
+ *                   gstPercentage:
+ *                     type: number
+ *                     example: 18
  *               packageProducts:
  *                 type: array
  *                 items:
@@ -278,12 +287,21 @@ router.get("/:uid", requirePermission("QUOTATIONS", "can_view"), validateRequest
  *               extra:
  *                 type: object
  *                 properties:
+ *                   title:
+ *                     type: string
+ *                     example: "Structure Elevation"
  *                   value:
  *                     type: number
  *                     example: 5000
  *                   description:
  *                     type: string
- *                     example: "Additional meter wiring"
+ *                     example: "Structure Elevation & Heavy Duty Cabling"
+ *                   isGstApplied:
+ *                     type: boolean
+ *                     example: true
+ *                   gstPercentage:
+ *                     type: number
+ *                     example: 18
  *               packageProducts:
  *                 type: array
  *                 items:

@@ -5,9 +5,9 @@ import { logger } from "../logger/index.js";
 /** Maximum retry delay for ioredis reconnection (10 seconds) */
 const MAX_RETRY_DELAY_MS = 10_000;
 
-/** Throttle error logging: only log Redis errors once per 60 seconds */
+/** Throttle error logging: only log Redis offline notice once per 15 minutes */
 let lastRedisErrorLog = 0;
-const ERROR_LOG_THROTTLE_MS = 60_000;
+const ERROR_LOG_THROTTLE_MS = 15 * 60_000;
 
 const redisClient = new Redis({
     host: env.REDIS.HOST,
@@ -18,20 +18,25 @@ const redisClient = new Redis({
     commandTimeout: 2000,      // Fail fast after 2 seconds so fallback can take over
     maxRetriesPerRequest: null,
     retryStrategy: (times: number) => {
-        const delay = Math.min(times * 500, MAX_RETRY_DELAY_MS);
+        if (times > 5) {
+            // Once Redis is confirmed offline, back off retry interval to 30s
+            return 30_000;
+        }
+        const delay = Math.min(times * 1000, MAX_RETRY_DELAY_MS);
         return delay;
     },
 });
 
 redisClient.on("connect", () => {
-    logger.info("Redis connected");
+    logger.info("Redis connected successfully");
 });
 
-redisClient.on("error", (error) => {
+redisClient.on("error", (error: any) => {
     const now = Date.now();
     if (now - lastRedisErrorLog >= ERROR_LOG_THROTTLE_MS) {
         lastRedisErrorLog = now;
-        logger.error(`Redis Connection Error: ${error.message}`);
+        const msg = error?.message || error?.code || "Connection refused";
+        logger.warn(`Redis is offline (${msg}). Safe database fallback is active.`);
     }
 });
 

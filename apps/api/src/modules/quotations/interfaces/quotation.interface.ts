@@ -37,8 +37,11 @@ export interface ISubsidyData {
 }
 
 export interface IQuotationExtra {
+    title?: string | null;
     value?: number | string | null;
     description?: string | null;
+    isGstApplied?: boolean | null;
+    gstPercentage?: number | null;
 }
 
 export interface IQuotationItem {

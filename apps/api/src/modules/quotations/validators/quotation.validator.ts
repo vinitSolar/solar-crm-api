@@ -3,8 +3,11 @@ import { QUOTATION_VALIDATION_MESSAGES } from "../constants/quotation.constants.
 import type { Request, Response, NextFunction } from "express";
 
 export const quotationExtraSchema = z.object({
+    title: z.string().optional().nullable(),
     value: z.union([z.number(), z.string()]).optional().nullable(),
     description: z.string().optional().nullable(),
+    isGstApplied: z.boolean().optional().nullable(),
+    gstPercentage: z.number().nonnegative().optional().nullable(),
 }).optional().nullable();
 
 export const createQuotationSchema = z.object({

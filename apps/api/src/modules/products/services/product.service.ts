@@ -479,7 +479,9 @@ export class ProductService {
             // Update product image list
             let currentImages: string[] = [];
             if (data.existingImages !== undefined) {
-                currentImages = [...data.existingImages];
+                currentImages = data.existingImages
+                    .map(img => storageService.extractStorageKey(img))
+                    .filter((img): img is string => Boolean(img));
             } else {
                 currentImages = product.images ? [...product.images] : [];
             }

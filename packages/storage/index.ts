@@ -93,6 +93,32 @@ class StorageService {
         return `${this.baseUrl}/public/uploads/${filePath}`;
     }
 
+    /**
+     * Extracts the relative storage key from a full URL or relative path.
+     * Examples:
+     *  "http://localhost:5000/public/uploads/products/123/images/abc.jpg" -> "products/123/images/abc.jpg"
+     *  "https://backend.sunselect.in/public/uploads/products/123/images/abc.jpg" -> "products/123/images/abc.jpg"
+     *  "/public/uploads/products/123/images/abc.jpg" -> "products/123/images/abc.jpg"
+     *  "products/123/images/abc.jpg" -> "products/123/images/abc.jpg"
+     */
+    extractStorageKey(filePathOrUrl: string | null | undefined): string | null {
+        if (!filePathOrUrl) return null;
+        let p = filePathOrUrl.trim();
+        try {
+            if (p.startsWith("http://") || p.startsWith("https://")) {
+                const parsed = new URL(p);
+                p = parsed.pathname;
+            }
+        } catch {
+            // Keep p as-is if URL parsing fails
+        }
+        // Remove leading /public/uploads/ or public/uploads/
+        p = p.replace(/^\/?public\/uploads\//, "");
+        // Remove any leading slashes
+        p = p.replace(/^\/+/, "");
+        return p || null;
+    }
+
     async uploadFile(buffer: Buffer, originalName: string, mimeType: string, folder: string = "general"): Promise<string> {
         const { path } = await this.uploadFileWithPath(buffer, originalName, mimeType, folder);
         return path;

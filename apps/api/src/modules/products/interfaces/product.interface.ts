@@ -60,8 +60,9 @@ export interface IUpdateProductRequest {
     warranty?: string | null | undefined;
     description?: string | null | undefined;
     modelNumber?: string | null | undefined;
-    images?: string[] | undefined;
-    existingImages?: string[] | undefined;
+    images?: string[] | null | undefined;
+    image?: string | null | undefined;
+    existingImages?: string[] | null | undefined;
     isActive?: number | undefined;
     deleteDocumentUids?: string[] | undefined;
     documentTypeUids?: string[] | undefined;

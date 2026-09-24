@@ -119,6 +119,10 @@ class StorageService {
         return p || null;
     }
 
+    getLocalFilePath(key: string): string {
+        return path.join(this.localUploadPath, key);
+    }
+
     async uploadFile(buffer: Buffer, originalName: string, mimeType: string, folder: string = "general"): Promise<string> {
         const { path } = await this.uploadFileWithPath(buffer, originalName, mimeType, folder);
         return path;

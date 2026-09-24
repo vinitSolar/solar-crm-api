@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
+import fs from "fs";
 import type { PoolClient } from "pg";
 import { ProductRepository } from "../repositories/product.repository.js";
 import { ProductCategoryRepository } from "../../product-categories/repositories/product-category.repository.js";
@@ -335,8 +336,8 @@ export class ProductService {
             await client.query("BEGIN");
 
             // Filter out images and document files
-            const imageFiles = files.filter(f => f.fieldname === "images");
-            const documentFiles = files.filter(f => f.fieldname !== "images");
+            const imageFiles = files.filter(f => f.fieldname === "images" || f.fieldname === "image" || f.fieldname === "images[]");
+            const documentFiles = files.filter(f => f.fieldname !== "images" && f.fieldname !== "image" && f.fieldname !== "images[]");
             const documentTypeUids = data.documentTypeUids || [];
 
             if (documentFiles.length > 0) {
@@ -464,33 +465,103 @@ export class ProductService {
                 }
             }
 
-            // Upload new image files
+            // Extract existing storage keys for this product
+            const existingProductKeys = (product.images || [])
+                .map(img => storageService.extractStorageKey(img))
+                .filter((img): img is string => Boolean(img));
+
+            // Upload new image files with deduplication against existing images
             const newProductImages: string[] = [];
             for (const file of imageFiles) {
-                const fileUrl = await storageService.uploadFile(
-                    file.buffer,
-                    file.originalname,
-                    file.mimetype,
-                    `products/${uid}/images`
-                );
-                newProductImages.push(fileUrl);
+                let matchedExistingKey: string | null = null;
+
+                for (const existingKey of existingProductKeys) {
+                    const existingFileName = path.basename(existingKey);
+                    // Match by filename (e.g. 1c29088c-31c4-4cbe-b981-072e14e3762e.jpg)
+                    if (file.originalname === existingFileName || existingFileName.includes(path.parse(file.originalname).name)) {
+                        matchedExistingKey = existingKey;
+                        break;
+                    }
+
+                    // Match by file content on disk (local storage)
+                    const localPath = storageService.getLocalFilePath(existingKey);
+                    if (fs.existsSync(localPath)) {
+                        try {
+                            const diskStat = fs.statSync(localPath);
+                            if (file.buffer.length === diskStat.size) {
+                                const diskBuffer = fs.readFileSync(localPath);
+                                if (file.buffer.equals(diskBuffer)) {
+                                    matchedExistingKey = existingKey;
+                                    break;
+                                }
+                            }
+                        } catch {
+                            // ignore read errors
+                        }
+                    }
+                }
+
+                if (matchedExistingKey) {
+                    // It is the same prefilled image, do not re-upload or generate a new UUID
+                    newProductImages.push(matchedExistingKey);
+                } else {
+                    const fileUrl = await storageService.uploadFile(
+                        file.buffer,
+                        file.originalname,
+                        file.mimetype,
+                        `products/${uid}/images`
+                    );
+                    newProductImages.push(fileUrl);
+                }
             }
+
+            // Check if client explicitly wants to clear/nullify images
+            // e.g. existingImages: null/[], images: null/[], image: null
+            const isExplicitlyCleared = 
+                data.existingImages === null || 
+                (Array.isArray(data.existingImages) && data.existingImages.length === 0) ||
+                data.images === null ||
+                (Array.isArray(data.images) && data.images.length === 0) ||
+                data.image === null;
 
             // Update product image list
-            let currentImages: string[] = [];
-            if (data.existingImages !== undefined) {
-                currentImages = data.existingImages
+            let finalProductImages: string[];
+            if (isExplicitlyCleared && imageFiles.length === 0) {
+                // When user explicitly removes image(s) or sets to null / empty array
+                finalProductImages = [];
+            } else if (newProductImages.length > 0) {
+                // If files were uploaded, check if user also specified existingImages to keep
+                if (data.existingImages && data.existingImages.length > 0) {
+                    const keptImages = data.existingImages
+                        .map(img => storageService.extractStorageKey(img))
+                        .filter((img): img is string => Boolean(img));
+                    finalProductImages = [...keptImages, ...newProductImages];
+                } else {
+                    finalProductImages = newProductImages;
+                }
+            } else if (data.existingImages && data.existingImages.length > 0) {
+                // If existingImages specified, retain only those images
+                finalProductImages = data.existingImages
                     .map(img => storageService.extractStorageKey(img))
                     .filter((img): img is string => Boolean(img));
+            } else if (data.images && data.images.length > 0) {
+                finalProductImages = data.images
+                    .map(img => storageService.extractStorageKey(img))
+                    .filter((img): img is string => Boolean(img));
+            } else if (data.image) {
+                const key = storageService.extractStorageKey(data.image);
+                finalProductImages = key ? [key] : [];
             } else {
-                currentImages = product.images ? [...product.images] : [];
+                // Otherwise keep existing product images unchanged
+                finalProductImages = product.images ? [...product.images] : [];
             }
 
-            const finalProductImages = [...currentImages, ...newProductImages];
+            // Deduplicate to guarantee no duplicate images
+            finalProductImages = Array.from(new Set(finalProductImages.filter((img): img is string => Boolean(img))));
 
             // Update product record
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { existingImages, deleteDocumentUids: _delDocUids, documentTypeUids: _dtUids, ...repositoryData } = data;
+            const { existingImages, images: _imgs, image: _img, deleteDocumentUids: _delDocUids, documentTypeUids: _dtUids, ...repositoryData } = data;
             const updatedProduct = await this.repository.update(uid, {
                 ...repositoryData,
                 images: finalProductImages,

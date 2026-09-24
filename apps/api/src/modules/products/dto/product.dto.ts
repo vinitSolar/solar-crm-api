@@ -65,7 +65,7 @@ export const toProductSafe = (product: IProduct, documents?: IProductDocumentSaf
         warranty: product.warranty,
         description: product.description,
         modelNumber: product.modelNumber,
-        images: (product.images || []).map(img => storageService.getPublicUrl(img) || img),
+        images: Array.from(new Set((product.images || []).map(img => storageService.getPublicUrl(img) || img).filter((img): img is string => Boolean(img)))),
         isActive: product.isActive === 1,
         isDeleted: product.isDeleted === 1,
         createdAt: product.createdAt,

@@ -63,7 +63,8 @@ export const updateProductSchema = z.object({
         value: z.string(),
     }))).optional(),
     existingImages: z.preprocess((val) => {
-        if (val === undefined || val === null || val === "" || val === "null" || val === "undefined") return [];
+        if (val === undefined || val === "undefined") return undefined;
+        if (val === null || val === "" || val === "null") return null;
         if (Array.isArray(val)) return val.map(String);
         if (typeof val === "string") {
             try {
@@ -74,7 +75,26 @@ export const updateProductSchema = z.object({
             }
         }
         return [];
-    }, z.array(z.string())).optional(),
+    }, z.array(z.string()).optional().nullable()),
+    images: z.preprocess((val) => {
+        if (val === undefined || val === "undefined") return undefined;
+        if (val === null || val === "" || val === "null") return null;
+        if (Array.isArray(val)) return val.map(String);
+        if (typeof val === "string") {
+            try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) return parsed.map(String);
+            } catch {
+                return [val];
+            }
+        }
+        return [];
+    }, z.array(z.string()).optional().nullable()),
+    image: z.preprocess((val) => {
+        if (val === undefined || val === "undefined") return undefined;
+        if (val === null || val === "" || val === "null") return null;
+        return String(val);
+    }, z.string().optional().nullable()),
     isActive: z.coerce.number().min(0).max(1).optional(),
     deleteDocumentUids: z.preprocess((val) => {
         if (val === undefined || val === null || val === "" || val === "null" || val === "undefined") return [];
@@ -142,6 +162,20 @@ export const paginationSchema = z.object({
 
 export function validateProductRequest(schema: z.ZodType) {
     return (req: Request, res: Response, next: NextFunction): void => {
+        if (req.body && typeof req.body === "object") {
+            if (req.body["existingImages[]"] !== undefined && req.body.existingImages === undefined) {
+                req.body.existingImages = req.body["existingImages[]"];
+            }
+            if (req.body["images[]"] !== undefined && req.body.images === undefined) {
+                req.body.images = req.body["images[]"];
+            }
+            if (req.body["documentTypeUids[]"] !== undefined && req.body.documentTypeUids === undefined) {
+                req.body.documentTypeUids = req.body["documentTypeUids[]"];
+            }
+            if (req.body["deleteDocumentUids[]"] !== undefined && req.body.deleteDocumentUids === undefined) {
+                req.body.deleteDocumentUids = req.body["deleteDocumentUids[]"];
+            }
+        }
         const result = schema.safeParse(req.body);
 
         if (!result.success) {

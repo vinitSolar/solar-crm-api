@@ -287,7 +287,7 @@ export class PackageRepository {
             JOIN products p ON p.uid::text = pp.product_uid::text
             LEFT JOIN product_categories c ON c.uid::text = p.category_uid::text
             LEFT JOIN product_brands b ON b.uid::text = p.brand_uid::text
-            WHERE pp.package_uid = $1 AND pp.is_deleted = false
+            WHERE pp.package_uid = $1 AND pp.is_deleted = false AND p.is_deleted = 0
         `;
         const productsResult = await this.pool.query(productsQuery, [uid]);
         pkg.products = productsResult.rows.map(row => this.mapRowToPackageProduct(row));
@@ -360,7 +360,7 @@ export class PackageRepository {
         const dataQuery = `
             SELECT 
                 p.*,
-                (SELECT COUNT(*) FROM package_products pp WHERE pp.package_uid = p.uid AND pp.is_deleted = false) AS products_count
+                (SELECT COUNT(*) FROM package_products pp JOIN products prod ON prod.uid::text = pp.product_uid::text WHERE pp.package_uid = p.uid AND pp.is_deleted = false AND prod.is_deleted = 0) AS products_count
             FROM packages p 
             WHERE ${whereClause} 
             ORDER BY p.created_at DESC 

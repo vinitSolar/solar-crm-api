@@ -744,17 +744,62 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   // ── Panel Section HTML ──
   let bomPanelHtml = '';
   if (bomGroups.panel.length > 0) {
-    const panelCards = bomGroups.panel.map(p => {
-      const wattPeak = extractWattPeak(p);
-      const catLabel = p.categoryName || 'Panel';
-      const panelIconHtml = p.categoryImage
-        ? `<img src="${p.categoryImage}" alt="${catLabel}" class="bom-category-img" />`
-        : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+    const panelsByCategory = new Map<string, typeof items>();
+    bomGroups.panel.forEach(p => {
+      const catKey = (p.categoryName || 'Solar Panels').trim();
+      if (!panelsByCategory.has(catKey)) {
+        panelsByCategory.set(catKey, []);
+      }
+      panelsByCategory.get(catKey)!.push(p);
+    });
+
+    bomPanelHtml = Array.from(panelsByCategory.entries()).map(([catLabel, panelItems]) => {
+      const catImg = panelItems.find(p => p.categoryImage)?.categoryImage || null;
+      const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
               <rect x="2" y="2" width="13" height="13" rx="1.5" fill="#1E88E5"/>
               <rect x="17" y="2" width="13" height="13" rx="1.5" fill="#1E88E5"/>
               <rect x="2" y="17" width="13" height="13" rx="1.5" fill="#1E88E5"/>
               <rect x="17" y="17" width="13" height="13" rx="1.5" fill="#1E88E5"/>
             </svg>`;
+      const panelIconHtml = catImg
+        ? `<img src="${catImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+        : fallbackSvg;
+
+      const panelRowsHtml = panelItems.map((p, idx) => {
+        const wattPeak = extractWattPeak(p);
+        const dividerStyle = idx > 0 ? 'style="margin-top:8px; padding-top:8px; border-top:1px solid #e2e8f0;"' : '';
+        return `
+          <div class="bom-panel-row" ${dividerStyle}>
+            <div class="bom-field">
+              <div class="bom-field-label">Watt Peak:</div>
+              <div class="bom-field-val">${wattPeak || '-'}</div>
+            </div>
+            <div class="bom-field">
+              <div class="bom-field-label">Panel Qty:</div>
+              <div class="bom-field-val">${p.quantity} ${p.unitName || 'Nos'}</div>
+            </div>
+            <div class="bom-field" style="flex:1.4;">
+              <div class="bom-field-label">Panel Type:</div>
+              <div class="bom-field-val">${p.productName}</div>
+            </div>
+            <div class="bom-field">
+              <div class="bom-field-label">Panel Make:</div>
+              <div class="bom-field-val">${p.brandName || '-'}</div>
+            </div>
+            <div class="bom-field">
+              <div class="bom-field-label">Panel Warranty:</div>
+              <div class="bom-field-val-sm">${p.warranty || '12 Year'}</div>
+              <div class="bom-field-label" style="margin-top:2px;">Performance Warranty:</div>
+              <div class="bom-field-val-sm">25 Year</div>
+            </div>
+            <div class="bom-brand-logo">
+              <span class="bom-brand-name-blue">${p.brandName || ''}</span>
+              <span class="bom-brand-sub">Solar</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
       return `
       <div class="bom-card">
         <div class="bom-card-inner">
@@ -762,33 +807,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             ${panelIconHtml}
           </div>
           <div class="bom-card-content">
-            <div class="bom-panel-row">
-              <div class="bom-field">
-                <div class="bom-field-label">Watt Peak:</div>
-                <div class="bom-field-val">${wattPeak || '-'}</div>
-              </div>
-              <div class="bom-field">
-                <div class="bom-field-label">Panel Qty:</div>
-                <div class="bom-field-val">${p.quantity} ${p.unitName || 'Nos'}</div>
-              </div>
-              <div class="bom-field" style="flex:1.4;">
-                <div class="bom-field-label">Panel Type:</div>
-                <div class="bom-field-val">${p.productName}</div>
-              </div>
-              <div class="bom-field">
-                <div class="bom-field-label">Panel Make:</div>
-                <div class="bom-field-val">${p.brandName || '-'}</div>
-              </div>
-              <div class="bom-field">
-                <div class="bom-field-label">Panel Warranty:</div>
-                <div class="bom-field-val-sm">${p.warranty || '12 Year'}</div>
-                <div class="bom-field-label" style="margin-top:2px;">Performance Warranty:</div>
-                <div class="bom-field-val-sm">25 Year</div>
-              </div>
-              <div class="bom-brand-logo">
-                <span class="bom-brand-name-blue">${p.brandName || ''}</span>
-                <span class="bom-brand-sub">Solar</span>
-              </div>
+            <div class="bom-panel-list">
+              ${panelRowsHtml}
             </div>
           </div>
         </div>
@@ -796,18 +816,23 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       </div>
       `;
     }).join('');
-    bomPanelHtml = panelCards;
   }
 
   // ── Inverter Section HTML ──
   let bomInverterHtml = '';
   if (bomGroups.inverter.length > 0) {
-    const inverterCards = bomGroups.inverter.map(inv => {
-      const kwSize = extractKwSize(inv);
-      const catLabel = inv.categoryName || 'Inverter';
-      const inverterIconHtml = inv.categoryImage
-        ? `<img src="${inv.categoryImage}" alt="${catLabel}" class="bom-category-img" />`
-        : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+    const invertersByCategory = new Map<string, typeof items>();
+    bomGroups.inverter.forEach(inv => {
+      const catKey = (inv.categoryName || 'Inverters').trim();
+      if (!invertersByCategory.has(catKey)) {
+        invertersByCategory.set(catKey, []);
+      }
+      invertersByCategory.get(catKey)!.push(inv);
+    });
+
+    bomInverterHtml = Array.from(invertersByCategory.entries()).map(([catLabel, inverterItems]) => {
+      const catImg = inverterItems.find(inv => inv.categoryImage)?.categoryImage || null;
+      const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
               <rect x="3" y="3" width="26" height="26" rx="4" fill="#1e293b"/>
               <rect x="6" y="6" width="20" height="9" rx="2" fill="#0284c7"/>
               <circle cx="8" cy="22" r="2" fill="#ef4444"/>
@@ -815,6 +840,45 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
               <circle cx="20" cy="22" r="2" fill="#22c55e"/>
               <circle cx="26" cy="22" r="2" fill="#3b82f6"/>
             </svg>`;
+      const inverterIconHtml = catImg
+        ? `<img src="${catImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+        : fallbackSvg;
+
+      const inverterBlocksHtml = inverterItems.map((inv, idx) => {
+        const kwSize = extractKwSize(inv);
+        const dividerStyle = idx > 0 ? 'style="margin-top:8px; padding-top:8px; border-top:1px solid #e2e8f0;"' : '';
+        return `
+        <div class="bom-inverter-block" ${dividerStyle}>
+          <div class="bom-inverter-top">
+            <div class="bom-field">
+              <div class="bom-field-label">Inverter Size:</div>
+              <div class="bom-field-val">${kwSize || '-'}</div>
+            </div>
+            <div class="bom-field">
+              <div class="bom-field-label">Inverter Qty:</div>
+              <div class="bom-field-val">${inv.quantity} ${inv.unitName || 'Nos'}</div>
+            </div>
+            <div class="bom-field" style="flex:1.2;">
+              <div class="bom-field-label">Inverter Make:</div>
+              <div class="bom-field-val">${inv.brandName || '-'}</div>
+            </div>
+            <div class="bom-field">
+              <div class="bom-field-label">Inverter Warranty:</div>
+              <div class="bom-field-val">${inv.warranty || '7 Year'}</div>
+            </div>
+            <div class="bom-brand-logo">
+              <span class="bom-brand-name-red">${inv.brandName || ''}</span>
+            </div>
+          </div>
+          <div class="bom-alt-box">
+            <div class="bom-alt-title">ALTERNATIVE PRODUCTS</div>
+            <div class="bom-alt-sub">May be supplied if the primary product is unavailable, with equivalent specification.</div>
+            <div class="bom-alt-items">${inv.description || `${inv.productName} - Equivalent`}</div>
+          </div>
+        </div>
+        `;
+      }).join('');
+
       return `
       <div class="bom-card">
         <div class="bom-card-inner">
@@ -822,31 +886,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             ${inverterIconHtml}
           </div>
           <div class="bom-card-content">
-            <div class="bom-inverter-top">
-              <div class="bom-field">
-                <div class="bom-field-label">Inverter Size:</div>
-                <div class="bom-field-val">${kwSize || '-'}</div>
-              </div>
-              <div class="bom-field">
-                <div class="bom-field-label">Inverter Qty:</div>
-                <div class="bom-field-val">${inv.quantity} ${inv.unitName || 'Nos'}</div>
-              </div>
-              <div class="bom-field" style="flex:1.2;">
-                <div class="bom-field-label">Inverter Make:</div>
-                <div class="bom-field-val">${inv.brandName || '-'}</div>
-              </div>
-              <div class="bom-field">
-                <div class="bom-field-label">Inverter Warranty:</div>
-                <div class="bom-field-val">${inv.warranty || '7 Year'}</div>
-              </div>
-              <div class="bom-brand-logo">
-                <span class="bom-brand-name-red">${inv.brandName || ''}</span>
-              </div>
-            </div>
-            <div class="bom-alt-box">
-              <div class="bom-alt-title">ALTERNATIVE PRODUCTS</div>
-              <div class="bom-alt-sub">May be supplied if the primary product is unavailable, with equivalent specification.</div>
-              <div class="bom-alt-items">${inv.description || `${inv.productName} - Equivalent`}</div>
+            <div class="bom-inverter-list">
+              ${inverterBlocksHtml}
             </div>
           </div>
         </div>
@@ -854,45 +895,55 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       </div>
       `;
     }).join('');
-    bomInverterHtml = inverterCards;
   }
 
   // ── Cables Section HTML — grid cards ──
   let bomCablesHtml = '';
   if (bomGroups.cables.length > 0) {
-    const allCards = bomGroups.cables;
-    const firstRowCards = allCards.slice(0, 4);
-    const restCards = allCards.slice(4);
+    const cablesByCategory = new Map<string, typeof items>();
+    bomGroups.cables.forEach(c => {
+      const catKey = (c.categoryName || 'Cables & Wires').trim();
+      if (!cablesByCategory.has(catKey)) {
+        cablesByCategory.set(catKey, []);
+      }
+      cablesByCategory.get(catKey)!.push(c);
+    });
 
-    const firstRowHtml = firstRowCards.map(c => `
-      <div class="bom-cable-col">
-        <div class="bom-cable-type">${getCableTypeLabel(c.productName)}</div>
-        <div class="bom-cable-make">${c.brandName || '-'}</div>
-        <div class="bom-cable-qty">Qty: ${c.quantity} ${c.unitName || 'Meter'}</div>
-        <div class="bom-cable-spec">${c.description || c.productName}</div>
-        ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
-      </div>
-    `).join('');
+    bomCablesHtml = Array.from(cablesByCategory.entries()).map(([cablesCatLabel, cableItems]) => {
+      const allCards = cableItems;
+      const firstRowCards = allCards.slice(0, 4);
+      const restCards = allCards.slice(4);
 
-    const restRowHtml = restCards.length > 0 ? restCards.map(c => `
-      <div class="bom-cable-col">
-        <div class="bom-cable-type">${getCableTypeLabel(c.productName)}</div>
-        <div class="bom-cable-make">${c.brandName || '-'}</div>
-        <div class="bom-cable-qty">Qty: ${c.quantity} ${c.unitName || 'Meter'}</div>
-        <div class="bom-cable-spec">${c.description || c.productName}</div>
-        ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
-      </div>
-    `).join('') : '';
+      const firstRowHtml = firstRowCards.map(c => `
+        <div class="bom-cable-col">
+          <div class="bom-cable-type">${getCableTypeLabel(c.productName)}</div>
+          <div class="bom-cable-make">${c.brandName || '-'}</div>
+          <div class="bom-cable-qty">Qty: ${c.quantity} ${c.unitName || 'Meter'}</div>
+          <div class="bom-cable-spec">${c.description || c.productName}</div>
+          ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
+        </div>
+      `).join('');
 
-    const cablesCatLabel = bomGroups.cables[0]?.categoryName || 'Cables & Wires';
-    const cablesCatImg = bomGroups.cables.find(c => c.categoryImage)?.categoryImage || null;
-    const cablesIconHtml = cablesCatImg
-      ? `<img src="${cablesCatImg}" alt="${cablesCatLabel}" class="bom-category-img" />`
-      : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="#E65100" stroke-width="3" stroke-linecap="round">
+      const restRowHtml = restCards.length > 0 ? restCards.map(c => `
+        <div class="bom-cable-col">
+          <div class="bom-cable-type">${getCableTypeLabel(c.productName)}</div>
+          <div class="bom-cable-make">${c.brandName || '-'}</div>
+          <div class="bom-cable-qty">Qty: ${c.quantity} ${c.unitName || 'Meter'}</div>
+          <div class="bom-cable-spec">${c.description || c.productName}</div>
+          ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
+        </div>
+      `).join('') : '';
+
+      const cablesCatImg = cableItems.find(c => c.categoryImage)?.categoryImage || null;
+      const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="#E65100" stroke-width="3" stroke-linecap="round">
               <path d="M4 14 Q 10 8, 16 14 T 28 14"/>
               <path d="M4 20 Q 10 14, 16 20 T 28 20" stroke="#FB8C00" stroke-width="2"/>
             </svg>`;
-    bomCablesHtml = `
+      const cablesIconHtml = cablesCatImg
+        ? `<img src="${cablesCatImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+        : fallbackSvg;
+
+      return `
       <div class="bom-card">
         <div class="bom-card-inner">
           <div class="bom-card-icon">
@@ -900,12 +951,13 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           </div>
           <div class="bom-card-content">
             <div class="bom-cable-grid-4">${firstRowHtml}</div>
-            ${restRowHtml ? `<div class="bom-cable-grid-2">${restRowHtml}</div>` : ''}
+            ${restRowHtml ? `<div class="bom-cable-grid-2" style="margin-top:6px;">${restRowHtml}</div>` : ''}
           </div>
         </div>
         <span class="bom-card-tag">${cablesCatLabel}</span>
       </div>
-    `;
+      `;
+    }).join('');
   } else {
     // Standard system cables fallback
     bomCablesHtml = `
@@ -971,33 +1023,44 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   // ── Structure Section HTML ──
   let bomStructureHtml = '';
   if (bomGroups.structure.length > 0) {
-    const rowsHtml = bomGroups.structure.map(item => `
-      <div class="bom-struct-grid-row">
-        <div>
-          <div class="bom-struct-lbl">Product:</div>
-          <div class="bom-struct-v">${item.productName}</div>
-        </div>
-        <div>
-          <div class="bom-struct-lbl">Qty:</div>
-          <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
-        </div>
-        <div>
-          <div class="bom-struct-lbl">Make:</div>
-          <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
-        </div>
-      </div>
-    `).join('');
+    const structureByCategory = new Map<string, typeof items>();
+    bomGroups.structure.forEach(s => {
+      const catKey = (s.categoryName || 'Mounting Structures').trim();
+      if (!structureByCategory.has(catKey)) {
+        structureByCategory.set(catKey, []);
+      }
+      structureByCategory.get(catKey)!.push(s);
+    });
 
-    const structureCatLabel = bomGroups.structure[0]?.categoryName || 'Mounting Structures';
-    const structureCatImg = bomGroups.structure.find(s => s.categoryImage)?.categoryImage || null;
-    const structureIconHtml = structureCatImg
-      ? `<img src="${structureCatImg}" alt="${structureCatLabel}" class="bom-category-img" />`
-      : `<svg viewBox="0 0 32 32" width="32" height="32" fill="#475569">
+    bomStructureHtml = Array.from(structureByCategory.entries()).map(([structureCatLabel, structItems]) => {
+      const rowsHtml = structItems.map(item => `
+        <div class="bom-struct-grid-row">
+          <div>
+            <div class="bom-struct-lbl">Product:</div>
+            <div class="bom-struct-v">${item.productName}</div>
+          </div>
+          <div>
+            <div class="bom-struct-lbl">Qty:</div>
+            <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
+          </div>
+          <div>
+            <div class="bom-struct-lbl">Make:</div>
+            <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+          </div>
+        </div>
+      `).join('');
+
+      const structureCatImg = structItems.find(s => s.categoryImage)?.categoryImage || null;
+      const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="#475569">
               <rect x="4" y="12" width="24" height="8" rx="1.5"/>
               <rect x="4" y="7" width="6" height="18" rx="1.5"/>
               <rect x="22" y="7" width="6" height="18" rx="1.5"/>
             </svg>`;
-    bomStructureHtml = `
+      const structureIconHtml = structureCatImg
+        ? `<img src="${structureCatImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+        : fallbackSvg;
+
+      return `
       <div class="bom-card">
         <div class="bom-card-inner">
           <div class="bom-card-icon">
@@ -1009,7 +1072,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         </div>
         <span class="bom-card-tag">${structureCatLabel}</span>
       </div>
-    `;
+      `;
+    }).join('');
   } else {
     // Standard structure fallback matching system panels
     const totalPanels = bomGroups.panel.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0) || Math.round(Number(quotation.systemSize) * 2) || 9;
@@ -1070,46 +1134,58 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
     let nonDbCardHtml = '';
     if (nonDbItems.length > 0) {
-      const rowsHtml = nonDbItems.map(item => `
-        <div class="bom-struct-grid-row">
-          <div>
-            <div class="bom-struct-lbl">Product:</div>
-            <div class="bom-struct-v">${item.productName}</div>
-          </div>
-          <div>
-            <div class="bom-struct-lbl">Qty:</div>
-            <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
-          </div>
-          <div>
-            <div class="bom-struct-lbl">Make:</div>
-            <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
-          </div>
-        </div>
-      `).join('');
+      const accessoriesByCategory = new Map<string, typeof items>();
+      nonDbItems.forEach(a => {
+        const catKey = (a.categoryName || 'Accessories').trim();
+        if (!accessoriesByCategory.has(catKey)) {
+          accessoriesByCategory.set(catKey, []);
+        }
+        accessoriesByCategory.get(catKey)!.push(a);
+      });
 
-      const accessoriesCatLabel = bomGroups.accessories[0]?.categoryName || 'Accessories';
-      const accessoriesCatImg = bomGroups.accessories.find(a => a.categoryImage)?.categoryImage || null;
-      const accessoriesIconHtml = accessoriesCatImg
-        ? `<img src="${accessoriesCatImg}" alt="${accessoriesCatLabel}" class="bom-category-img" />`
-        : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+      nonDbCardHtml = Array.from(accessoriesByCategory.entries()).map(([accessoriesCatLabel, accItems]) => {
+        const rowsHtml = accItems.map(item => `
+          <div class="bom-struct-grid-row">
+            <div>
+              <div class="bom-struct-lbl">Product:</div>
+              <div class="bom-struct-v">${item.productName}</div>
+            </div>
+            <div>
+              <div class="bom-struct-lbl">Qty:</div>
+              <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
+            </div>
+            <div>
+              <div class="bom-struct-lbl">Make:</div>
+              <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+            </div>
+          </div>
+        `).join('');
+
+        const accessoriesCatImg = accItems.find(a => a.categoryImage)?.categoryImage || null;
+        const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
               <rect x="3" y="3" width="12" height="12" rx="2" fill="#1e293b"/>
               <rect x="17" y="3" width="12" height="12" rx="2" fill="#ea580c"/>
               <rect x="3" y="17" width="12" height="12" rx="2" fill="#ea580c"/>
               <rect x="17" y="17" width="12" height="12" rx="2" fill="#1e293b"/>
             </svg>`;
-      nonDbCardHtml = `
-      <div class="bom-card">
-        <div class="bom-card-inner">
-          <div class="bom-card-icon">
-            ${accessoriesIconHtml}
+        const accessoriesIconHtml = accessoriesCatImg
+          ? `<img src="${accessoriesCatImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+          : fallbackSvg;
+
+        return `
+        <div class="bom-card">
+          <div class="bom-card-inner">
+            <div class="bom-card-icon">
+              ${accessoriesIconHtml}
+            </div>
+            <div class="bom-card-content">
+              <div class="bom-struct-list">${rowsHtml}</div>
+            </div>
           </div>
-          <div class="bom-card-content">
-            <div class="bom-struct-list">${rowsHtml}</div>
-          </div>
+          <span class="bom-card-tag">${accessoriesCatLabel}</span>
         </div>
-        <span class="bom-card-tag">${accessoriesCatLabel}</span>
-      </div>
-      `;
+        `;
+      }).join('');
     }
 
     let dbCardHtml = '';
@@ -1302,12 +1378,13 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     `).join('');
 
     const otherCatImg = catItems.find(i => i.categoryImage)?.categoryImage || null;
-    const otherIconHtml = otherCatImg
-      ? `<img src="${otherCatImg}" alt="${catName}" class="bom-category-img" />`
-      : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+    const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
               <rect x="4" y="4" width="24" height="24" rx="3" fill="#0f172a"/>
               <circle cx="16" cy="16" r="6" stroke="#38bdf8" stroke-width="2"/>
             </svg>`;
+    const otherIconHtml = otherCatImg
+      ? `<img src="${otherCatImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+      : fallbackSvg;
 
     bomOtherHtml += `
       <div class="bom-card">

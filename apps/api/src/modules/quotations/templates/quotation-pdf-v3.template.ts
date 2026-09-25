@@ -420,7 +420,13 @@ function formatPrice(amount: number | string): string {
 }
 
 export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
-  const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy } = data;
+  const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy, bankDetails } = data;
+
+  const bankName = bankDetails?.bankName || 'HDFC Bank';
+  const accountHolderName = bankDetails?.accountHolderName || franchise.name || 'SunSelect Solar Private Limited';
+  const accountNumber = bankDetails?.accountNumber || '0876543210123';
+  const ifscCode = bankDetails?.ifscCode || 'HDFC0001234';
+  const branchName = bankDetails?.branchName || franchise.city || 'Navi Mumbai';
 
   const coverBgBase64 = getCoverBgBase64();
   const coverLogoBase64 = getCoverLogoBase64();
@@ -2101,11 +2107,11 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
              <h3 style="color: var(--red); margin: 6px 0 4px 0;">Bank Details</h3>
              <table style="width: 100%; border: none; font-size: 12.5px; line-height: 1.5; color: var(--text); border-collapse: collapse;">
                  <tbody>
-                     <tr><td style="padding: 2px 0; width: 85px; border: none; vertical-align: top;">Bank Name:</td><td style="padding: 2px 0; border: none; font-weight: 500;">HDFC Bank</td></tr>
-                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">Name:</td><td style="padding: 2px 0; border: none; font-weight: 500;">SunSelect Solar Private Limited</td></tr>
-                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">Account No:</td><td style="padding: 2px 0; border: none; font-weight: 500;">0876543210123</td></tr>
-                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">IFSC Code:</td><td style="padding: 2px 0; border: none; font-weight: 500;">HDFC0001234</td></tr>
-                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">Branch:</td><td style="padding: 2px 0; border: none; font-weight: 500;">Navi Mumbai</td></tr>
+                     <tr><td style="padding: 2px 0; width: 85px; border: none; vertical-align: top;">Bank Name:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${bankName}</td></tr>
+                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">Name:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${accountHolderName}</td></tr>
+                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">Account No:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${accountNumber}</td></tr>
+                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">IFSC Code:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${ifscCode}</td></tr>
+                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">Branch:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${branchName}</td></tr>
                  </tbody>
              </table>
          </div>

@@ -61,6 +61,14 @@ export class MasterDocumentService {
       throw new CustomError("Document type not found", 404);
     }
 
+    if (
+      data.entityType === "lead" &&
+      (docType.applicableModules.length === 1 && docType.applicableModules[0] === "product" ||
+       (docType.applicableModules.includes("product") && !docType.applicableModules.some(m => ["site_survey", "project", "finance", "discom", "subsidy_tracker", "lead", "customer"].includes(m))))
+    ) {
+      throw new CustomError("Product document types cannot be attached to a lead", 400);
+    }
+
     // Validate Entity and Context existence to prevent ghost records
     const isEntityValid = await this.validateExistence(
       data.entityType,

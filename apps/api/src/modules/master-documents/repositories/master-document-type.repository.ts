@@ -176,6 +176,7 @@ export class MasterDocumentTypeRepository {
     status?: string,
     module?: string,
     category?: number,
+    entityType?: string,
   ) {
     const offset = (page - 1) * limit;
     let whereClause = `WHERE (mdt.tenant_uid IS NULL OR mdt.tenant_uid = $1)`;
@@ -199,6 +200,26 @@ export class MasterDocumentTypeRepository {
       whereClause += ` AND $${paramIndex} = ANY(mdt.applicable_modules)`;
       values.push(module);
       paramIndex++;
+    }
+
+    if (entityType) {
+      if (entityType === "product") {
+        whereClause += ` AND 'product' = ANY(mdt.applicable_modules)`;
+      } else {
+        whereClause += ` AND NOT (
+          mdt.applicable_modules = ARRAY['product']::text[] 
+          OR (cardinality(mdt.applicable_modules) = 1 AND mdt.applicable_modules[1] = 'product')
+          OR ('product' = ANY(mdt.applicable_modules) AND NOT (
+            'site_survey' = ANY(mdt.applicable_modules) OR 
+            'project' = ANY(mdt.applicable_modules) OR 
+            'finance' = ANY(mdt.applicable_modules) OR 
+            'discom' = ANY(mdt.applicable_modules) OR 
+            'subsidy_tracker' = ANY(mdt.applicable_modules) OR 
+            'lead' = ANY(mdt.applicable_modules) OR 
+            'customer' = ANY(mdt.applicable_modules)
+          ))
+        )`;
+      }
     }
 
     if (category) {

@@ -133,11 +133,12 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
     const uid = req.params.uid as string;
     const createdBy = authReq.user.uid;
     const isSync = req.query.sync === "true" || req.body?.sync === true;
+    const isForce = req.query.force === "true" || req.body?.force === true || req.query.regenerate === "true" || Boolean(req.query.version) || Boolean(req.query.templateVersion);
     const templateVersion = ((req.query.version || req.query.templateVersion || req.body?.templateVersion || "v3") as string).toLowerCase() === "v2" ? "v2" : "v3";
 
     // 1. If PDF already exists and forced regeneration is not requested, return immediately
     const existing = await quotationService.getByUid(tenantUid, uid);
-    if (!isSync && existing.pdfUrl) {
+    if (!isSync && !isForce && existing.pdfUrl) {
         return res.status(200).json({
             success: true,
             message: "Quotation PDF retrieved successfully.",

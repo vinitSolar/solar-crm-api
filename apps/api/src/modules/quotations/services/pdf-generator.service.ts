@@ -52,11 +52,34 @@ export class QuotationPdfGenerator {
         
         let browser;
         try {
-            browser = await puppeteer.launch({
-                headless: true,
+            const launchOptions = {
                 ...(process.env.PUPPETEER_EXECUTABLE_PATH ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH } : {}),
-                args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-            });
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--window-position=-2400,-2400",
+                    "--window-size=1920,1080",
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--mute-audio"
+                ]
+            };
+
+            try {
+                browser = await puppeteer.launch({
+                    ...launchOptions,
+                    headless: "shell"
+                });
+            } catch {
+                browser = await puppeteer.launch({
+                    ...launchOptions,
+                    headless: true
+                });
+            }
             const page = await browser.newPage();
             
             // Set HTML content and wait for fonts to resolve (all images/fonts are embedded base64 data URIs)

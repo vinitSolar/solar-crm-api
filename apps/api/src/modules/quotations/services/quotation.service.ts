@@ -828,7 +828,7 @@ export class QuotationService {
                     isExtra: (item as any).isExtra,
                     categoryName: item.categoryName ?? null,
                     categoryUid: item.categoryUid ?? null,
-                    categoryImage: item.categoryImage ?? null,
+                    categoryImage: item.categoryImage ? (storageService.getPublicUrl(item.categoryImage) || item.categoryImage) : null,
                     capacity: item.capacity ?? null,
                     capacityUnit: item.capacityUnit ?? null,
                     warranty: item.warranty ?? null,

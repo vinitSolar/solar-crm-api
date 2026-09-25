@@ -135,6 +135,7 @@ export class MasterDocumentTypeService {
       queryParams.status,
       queryParams.module,
       queryParams.category,
+      queryParams.entityType,
     );
 
     const data = result.rows.map(toMasterDocumentTypeSafe);

@@ -445,38 +445,51 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     : (franchise.logo ? `<img src="${franchise.logo}" alt="${franchise.name}" class="page-top-logo" />` : `<div class="logo-slot">${franchise.name.substring(0, 2).toUpperCase()}</div>`);
 
   // Build 2-column Proposal Pricing Breakdown matching Sunselect Theme & Exact Flow
+  // Build 2-column Proposal Pricing Breakdown matching Sunselect Theme & Exact Flow
   const packageItems = items.filter(i => !i.isExtra);
   const extraItems = items.filter(i => i.isExtra);
-  const rawPackageTotal = packageItems.length > 0
-    ? packageItems.reduce((sum, i) => sum + i.lineTotal, 0)
-    : (quotation.subtotal || quotation.grandTotal);
 
+  // 1. Extra charge value from quotation.extra
   const rawExtraValue = quotation.extra && !isNaN(Number(quotation.extra.value))
     ? Number(quotation.extra.value)
     : 0;
 
-  // Determine whether line items are net of GST (already base amounts) or gross (inclusive of GST)
-  // If quotation.subtotal is present and (rawPackageTotal + rawExtraValue) is close to quotation.subtotal,
-  // amounts are already net of GST (exclusive).
-  const isNetOfGst = Boolean(
-    quotation.subtotal &&
-    Math.abs((rawPackageTotal + rawExtraValue) - quotation.subtotal) <= 10
+  // 2. Determine Gross Package Price:
+  // Prefer quotation.subtotal or (quotation.grandTotal - rawExtraValue) over raw component item totals
+  let grossPackagePrice = 0;
+  if (Number(quotation.subtotal) > 0) {
+    if (rawExtraValue > 0 && Math.abs(Number(quotation.subtotal) - (Number(quotation.grandTotal) || 0)) <= 10 && Number(quotation.subtotal) > rawExtraValue) {
+      grossPackagePrice = Number(quotation.subtotal) - rawExtraValue;
+    } else {
+      grossPackagePrice = Number(quotation.subtotal);
+    }
+  } else if (Number(quotation.grandTotal) > 0) {
+    grossPackagePrice = Math.max(0, Number(quotation.grandTotal) - rawExtraValue);
+  } else if (packageItems.length > 0) {
+    grossPackagePrice = packageItems.reduce((sum, i) => sum + i.lineTotal, 0);
+  }
+
+  // 3. Determine if GST is applied on package:
+  const isPackageGstApplied = Boolean(
+    (quotation.packageGst !== null && quotation.packageGst !== undefined && Number(quotation.packageGst) > 0) ||
+    (quotation.gstAmount !== null && quotation.gstAmount !== undefined && Number(quotation.gstAmount) > 0)
   );
 
-  const packageGstPct = Number(quotation.packageGst ?? (packageItems[0]?.gstPercentage ?? 18));
+  const packageGstPct = isPackageGstApplied
+    ? Number(quotation.packageGst ?? (quotation.gstAmount && grossPackagePrice > 0 ? Math.round((Number(quotation.gstAmount) / grossPackagePrice) * 100) : 18))
+    : 0;
 
   let displayedPackageAmount: number;
   let packageGstAmount: number;
 
-  if (isNetOfGst) {
-    displayedPackageAmount = rawPackageTotal;
-    packageGstAmount = packageGstPct > 0 ? Math.round(rawPackageTotal * (packageGstPct / 100)) : 0;
+  if (isPackageGstApplied && packageGstPct > 0) {
+    // Deduct GST from package and show base price
+    displayedPackageAmount = Math.round(grossPackagePrice / (1 + (packageGstPct / 100)));
+    packageGstAmount = grossPackagePrice - displayedPackageAmount;
   } else {
-    // 18% GST deducted from gross package price (reverse GST: Base = Total / 1.18)
-    displayedPackageAmount = packageGstPct > 0
-      ? Math.round(rawPackageTotal / (1 + (packageGstPct / 100)))
-      : rawPackageTotal;
-    packageGstAmount = rawPackageTotal - displayedPackageAmount;
+    // If GST is not applied, do not deduct anything
+    displayedPackageAmount = grossPackagePrice;
+    packageGstAmount = 0;
   }
 
   const systemTitle = quotation.packageName
@@ -496,7 +509,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   const pricingRows: IPricingRow[] = [];
 
-  // 1. Package : Package - gst (18% GST deducted if gross, or net base amount)
+  // 1. Package Row
   pricingRows.push({
     description: systemTitle,
     subDescription: quotation.packageDescription || undefined,
@@ -515,17 +528,15 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     if (/net[\s-]?meter/i.test(item.productName) || /net[\s-]?meter/i.test(item.description || '')) {
       hasNetMeteringItem = true;
     }
-    const itemGstPct = Number(item.gstPercentage ?? quotation.packageGst ?? 18);
+    const itemGstPct = Number(item.gstPercentage ?? (isPackageGstApplied ? packageGstPct : 0));
     let itemBaseAmount: number;
     let itemGst: number;
-    if (isNetOfGst) {
-      itemBaseAmount = item.lineTotal;
-      itemGst = itemGstPct > 0 ? Math.round(item.lineTotal * (itemGstPct / 100)) : 0;
-    } else {
-      itemBaseAmount = itemGstPct > 0
-        ? Math.round(item.lineTotal / (1 + (itemGstPct / 100)))
-        : item.lineTotal;
+    if (itemGstPct > 0) {
+      itemBaseAmount = Math.round(item.lineTotal / (1 + (itemGstPct / 100)));
       itemGst = item.lineTotal - itemBaseAmount;
+    } else {
+      itemBaseAmount = item.lineTotal;
+      itemGst = 0;
     }
     totalExtraAmount += itemBaseAmount;
     totalExtraGst += itemGst;
@@ -549,22 +560,17 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
     if (!alreadyAdded && !isNaN(extraVal) && extraVal > 0) {
       const isExtraGstApplied = Boolean(quotation.extra.isGstApplied);
-      const extraGstPct = Number(quotation.extra.gstPercentage ?? quotation.packageGst ?? 18);
-      
+      const extraGstPct = Number(quotation.extra.gstPercentage ?? (isPackageGstApplied ? packageGstPct : 18));
+
       let displayedExtraAmount: number;
       let extraGstAmount: number;
 
-      if (isNetOfGst) {
-        displayedExtraAmount = extraVal;
-        extraGstAmount = (isExtraGstApplied && extraGstPct > 0)
-          ? Math.round(extraVal * (extraGstPct / 100))
-          : 0;
-      } else {
-        // If GST is applied, deduct GST from extra value (reverse GST) so extra row shows net amount
-        displayedExtraAmount = isExtraGstApplied && extraGstPct > 0
-          ? Math.round(extraVal / (1 + (extraGstPct / 100)))
-          : extraVal;
+      if (isExtraGstApplied && extraGstPct > 0) {
+        displayedExtraAmount = Math.round(extraVal / (1 + (extraGstPct / 100)));
         extraGstAmount = extraVal - displayedExtraAmount;
+      } else {
+        displayedExtraAmount = extraVal;
+        extraGstAmount = 0;
       }
 
       totalExtraAmount += displayedExtraAmount;
@@ -590,11 +596,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     });
   }
 
-  // 4. GST: Package GST + Extra GST
-  let totalGstAmount = packageGstAmount + totalExtraGst;
-  if (isNetOfGst && quotation.gstAmount && Math.abs(quotation.gstAmount - totalGstAmount) <= 10) {
-    totalGstAmount = quotation.gstAmount;
-  }
+  // 4. GST: Deducted from package and extra, shown here if GST is applied
+  const totalGstAmount = packageGstAmount + totalExtraGst;
   if (totalGstAmount > 0) {
     pricingRows.push({
       description: 'GST',
@@ -611,18 +614,15 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     });
   }
 
-  // 4. Grand Total Cost Of The Project
-  let grandTotalAmount = displayedPackageAmount + totalExtraAmount + totalGstAmount - (quotation.discount || 0);
-  if (isNetOfGst && quotation.grandTotal && Math.abs(quotation.grandTotal - grandTotalAmount) <= 10) {
-    grandTotalAmount = quotation.grandTotal;
-  }
+  // 5. Grand Total Cost Of The Project
+  const grandTotalAmount = displayedPackageAmount + totalExtraAmount + totalGstAmount - (quotation.discount || 0);
   pricingRows.push({
     description: 'Grand Total Cost Of The Project',
     amount: formatPrice(grandTotalAmount),
     isBold: true
   });
 
-  // 5. Subsidy: only subsidy name
+  // 6. Subsidy: only subsidy name
   let subsidyAmount = 0;
   if (subsidy && subsidy.showSubsidy && subsidy.subsidyData && subsidy.subsidyData.length > 0) {
     subsidy.subsidyData.forEach(sub => {
@@ -640,11 +640,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     });
   }
 
-  // 6. Final Effective Cost to Customer After Subsidy
-  let finalCost = Math.max(0, grandTotalAmount - subsidyAmount);
-  if (isNetOfGst && subsidy?.netCustomerCost && Math.abs(subsidy.netCustomerCost - finalCost) <= 10) {
-    finalCost = subsidy.netCustomerCost;
-  }
+  // 7. Final Effective Cost to Customer After Subsidy
+  const finalCost = Math.max(0, grandTotalAmount - subsidyAmount);
   pricingRows.push({
     description: 'Final Effective Cost to Customer After Subsidy',
     amount: formatPrice(finalCost),
@@ -723,9 +720,9 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   const treesSaved = Math.round(systemSizeNum * 50);
   const co2Reduction = Math.max(1, Math.round(systemSizeNum));
   
-  const totalCost = Number(quotation.grandTotal) || Number(quotation.subtotal) || (systemSizeNum * 50000);
-  const effectiveCost = (subsidy && subsidy.showSubsidy && subsidy.netCustomerCost && Number(subsidy.netCustomerCost) > 0)
-    ? Number(subsidy.netCustomerCost)
+  const totalCost = grandTotalAmount || Number(quotation.grandTotal) || Number(quotation.subtotal) || (systemSizeNum * 50000);
+  const effectiveCost = (subsidy && subsidy.showSubsidy && finalCost > 0)
+    ? finalCost
     : totalCost;
   const paybackYears = (effectiveCost / annualSavings).toFixed(2);
 

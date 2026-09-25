@@ -111,9 +111,21 @@ async function main() {
 
     // Launch browser
     const browser = await puppeteer.launch({
-        headless: true,
+        headless: 'shell',
         ...(process.env.PUPPETEER_EXECUTABLE_PATH ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH } : {}),
-        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+        args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--window-position=-2400,-2400",
+            "--window-size=1920,1080",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--mute-audio"
+        ]
     });
 
     const page = await browser.newPage();

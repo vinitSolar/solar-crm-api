@@ -197,11 +197,64 @@ export class QuotationRepository {
 
     async findItemsByQuotationUid(quotationUid: string): Promise<IQuotationItem[]> {
         const query = `
-            SELECT * FROM quotation_items 
-            WHERE quotation_uid = $1 AND is_deleted = 0 
-            ORDER BY created_at ASC
+            SELECT 
+                qi.*,
+                c.name AS category_name,
+                c.uid AS category_uid,
+                c.image AS category_image,
+                p.capacity,
+                p.capacity_unit,
+                p.warranty,
+                p.model_number
+            FROM quotation_items qi
+            LEFT JOIN products p ON p.uid::text = qi.product_uid::text
+            LEFT JOIN product_categories c ON c.uid::text = p.category_uid::text
+            WHERE qi.quotation_uid = $1 AND qi.is_deleted = 0 
+            ORDER BY qi.created_at ASC
         `;
         const result = await this.pool.query(query, [quotationUid]);
+        return result.rows.map(row => this.mapItemToCamelCase(row));
+    }
+
+    async findProductsByPackageUid(packageUid: string): Promise<IQuotationItem[]> {
+        const query = `
+            SELECT 
+                pp.uid,
+                pp.package_uid AS quotation_uid,
+                pp.product_uid,
+                p.name AS product_name,
+                COALESCE(b.name, 'Generic') AS brand_name,
+                COALESCE(u.name, 'Units') AS unit_name,
+                pp.quantity,
+                COALESCE(pp.unit_price_snapshot, p.price_per_unit, 0) AS price_per_unit,
+                COALESCE(p.gst_percentage, 0) AS gst_percentage,
+                (pp.quantity * COALESCE(pp.unit_price_snapshot, p.price_per_unit, 0)) AS line_total,
+                pp.remarks AS description,
+                0 AS is_extra,
+                1 AS is_active,
+                0 AS is_deleted,
+                pp.created_at,
+                pp.updated_at,
+                NULL AS deleted_at,
+                pp.created_by,
+                pp.updated_by,
+                pp.deleted_by,
+                c.name AS category_name,
+                c.uid AS category_uid,
+                c.image AS category_image,
+                p.capacity,
+                p.capacity_unit,
+                p.warranty,
+                p.model_number
+            FROM package_products pp
+            JOIN products p ON p.uid::text = pp.product_uid::text
+            LEFT JOIN product_categories c ON c.uid::text = p.category_uid::text
+            LEFT JOIN product_brands b ON b.uid::text = p.brand_uid::text
+            LEFT JOIN product_units u ON u.uid::text = p.unit_uid::text
+            WHERE pp.package_uid = $1 AND pp.is_deleted = false AND p.is_deleted = 0
+            ORDER BY pp.created_at ASC
+        `;
+        const result = await this.pool.query(query, [packageUid]);
         return result.rows.map(row => this.mapItemToCamelCase(row));
     }
 
@@ -685,7 +738,14 @@ export class QuotationRepository {
             deletedAt: row.deleted_at,
             createdBy: row.created_by,
             updatedBy: row.updated_by,
-            deletedBy: row.deleted_by
+            deletedBy: row.deleted_by,
+            categoryName: row.category_name || null,
+            categoryUid: row.category_uid || null,
+            categoryImage: row.category_image || null,
+            capacity: row.capacity || null,
+            capacityUnit: row.capacity_unit || null,
+            warranty: row.warranty || null,
+            modelNumber: row.model_number || null
         };
     }
 

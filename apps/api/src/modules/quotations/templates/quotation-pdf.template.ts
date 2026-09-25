@@ -50,6 +50,13 @@ export interface IQuotationPdfData {
         lineTotal: number;
         description: string | null;
         isExtra?: number;
+        categoryName?: string | null;
+        categoryUid?: string | null;
+        categoryImage?: string | null;
+        capacity?: string | null;
+        capacityUnit?: string | null;
+        warranty?: string | null;
+        modelNumber?: string | null;
     }>;
     scopeOfWork: Array<{
         title: string;

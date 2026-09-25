@@ -66,6 +66,13 @@ export interface IQuotationItem {
     createdBy: string | null;
     updatedBy: string | null;
     deletedBy: string | null;
+    categoryName?: string | null;
+    categoryUid?: string | null;
+    categoryImage?: string | null;
+    capacity?: string | null;
+    capacityUnit?: string | null;
+    warranty?: string | null;
+    modelNumber?: string | null;
 }
 
 export interface IQuotationScopeOfWorkItem {

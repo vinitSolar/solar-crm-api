@@ -778,11 +778,16 @@ export class QuotationService {
                 throw new CustomError(QUOTATION_VALIDATION_MESSAGES.RECORD_NOT_FOUND, 404);
             }
 
-            const [items, scopeOfWork, termsConditions] = await Promise.all([
+            let [items, scopeOfWork, termsConditions] = await Promise.all([
                 this.repository.findItemsByQuotationUid(quotation.uid),
                 this.repository.findScopeOfWorkByQuotationUid(quotation.uid),
                 this.repository.findTermsConditionsByQuotationUid(quotation.uid)
             ]);
+
+            // If quotation items are not yet snapshotted but quotation has a package, resolve directly from package
+            if (items.length === 0 && quotation.packageUid) {
+                items = await this.repository.findProductsByPackageUid(quotation.packageUid);
+            }
 
             // 2. Fetch Lead details for customer info
             const customer = await this.repository.getLeadDetails(tenantUid, quotation.leadUid);
@@ -820,7 +825,14 @@ export class QuotationService {
                     gstPercentage: Number(item.gstPercentage),
                     lineTotal: lineTotal,
                     description: item.description,
-                    isExtra: (item as any).isExtra
+                    isExtra: (item as any).isExtra,
+                    categoryName: item.categoryName ?? null,
+                    categoryUid: item.categoryUid ?? null,
+                    categoryImage: item.categoryImage ?? null,
+                    capacity: item.capacity ?? null,
+                    capacityUnit: item.capacityUnit ?? null,
+                    warranty: item.warranty ?? null,
+                    modelNumber: item.modelNumber ?? null
                 };
             });
 

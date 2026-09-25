@@ -669,18 +669,663 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     `;
   }).join('');
 
-  // Build Bill of Materials (BOM) rows for Page 4 - lists all package items + extra items
-  const bomRowsHtml = items.map((item, idx) => `
-    <tr>
-      <td class="bom-col-sno">${idx + 1}</td>
-      <td class="bom-col-desc">
-        <div class="item-title">${item.productName}</div>
-      </td>
-      <td class="bom-col-make">${item.brandName || "-"}</td>
-      <td class="bom-col-specs">${item.description || "-"}</td>
-      <td class="bom-col-qty">${item.quantity} ${item.unitName || "Nos"}</td>
-    </tr>
-  `).join("");
+  // Build Bill of Materials (BOM) for Page 4 — structured dynamically by product category
+  type BomLayoutType = 'panel' | 'inverter' | 'cables' | 'structure' | 'accessories' | 'other';
+
+  function getProductLayoutType(item: (typeof items)[0]): BomLayoutType {
+    const cat = (item.categoryName || '').toLowerCase().trim();
+    if (cat.includes('panel') || cat.includes('module')) return 'panel';
+    if (cat.includes('inverter')) return 'inverter';
+    if (cat.includes('cable') || cat.includes('wire')) return 'cables';
+    if (cat.includes('structure') || cat.includes('mounting')) return 'structure';
+    if (cat.includes('accessor') || cat.includes('electrical')) return 'accessories';
+
+    // Fallback if categoryName is missing: infer from productName
+    const name = item.productName.toLowerCase();
+    if (name.includes('panel') || name.includes('module') || name.includes('solar plate')) return 'panel';
+    if (name.includes('inverter')) return 'inverter';
+    if (name.includes('cable') || name.includes('wire')) return 'cables';
+    if (name.includes('structure') || name.includes('mounting') || name.includes('hdgi') || name.includes('rail')) return 'structure';
+    if (name.includes('acdb') || name.includes('dcdb') || name.includes('earthing') || name.includes('arrestor') || name.includes('mcb')) return 'accessories';
+
+    return 'other';
+  }
+
+  // Group items by layout category and preserve actual category labels
+  const bomGroups = {
+    panel: [] as typeof items,
+    inverter: [] as typeof items,
+    cables: [] as typeof items,
+    structure: [] as typeof items,
+    accessories: [] as typeof items,
+    other: new Map<string, typeof items>()
+  };
+
+  items.forEach(item => {
+    const layoutType = getProductLayoutType(item);
+    if (layoutType === 'other') {
+      const catLabel = item.categoryName || 'Other Equipment';
+      if (!bomGroups.other.has(catLabel)) {
+        bomGroups.other.set(catLabel, []);
+      }
+      bomGroups.other.get(catLabel)!.push(item);
+    } else {
+      bomGroups[layoutType].push(item);
+    }
+  });
+
+  // Helper: extract watt peak from product specs or name
+  function extractWattPeak(item: (typeof items)[0]): string {
+    if (item.capacity) {
+      return `${item.capacity} ${item.capacityUnit || 'Wp'}`;
+    }
+    const m = item.productName.match(/(\d+)\s*[wW][pP]?\b/);
+    return m ? `${m[1]} Wp` : '';
+  }
+
+  // Helper: extract kW size from product specs or name
+  function extractKwSize(item: (typeof items)[0]): string {
+    if (item.capacity) {
+      return `${item.capacity} ${item.capacityUnit || 'kW'}`;
+    }
+    const m = item.productName.match(/(\d+\.?\d*)\s*[kK][wW]/);
+    return m ? `${m[1]} kW` : '';
+  }
+
+  // Helper: classify cable type label
+  function getCableTypeLabel(name: string): string {
+    const n = name.toLowerCase();
+    if (/earthing/i.test(n)) return 'Earthing Cable:';
+    if (/\bla\b/i.test(n)) return 'LA Cable:';
+    if (/\bdc\b|d\.?c/i.test(n)) return 'DC Cable:';
+    return 'AC Cable:';
+  }
+
+  // ── Panel Section HTML ──
+  let bomPanelHtml = '';
+  if (bomGroups.panel.length > 0) {
+    const panelCards = bomGroups.panel.map(p => {
+      const wattPeak = extractWattPeak(p);
+      const catLabel = p.categoryName || 'Panel';
+      const panelIconHtml = p.categoryImage
+        ? `<img src="${p.categoryImage}" alt="${catLabel}" class="bom-category-img" />`
+        : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+              <rect x="2" y="2" width="13" height="13" rx="1.5" fill="#1E88E5"/>
+              <rect x="17" y="2" width="13" height="13" rx="1.5" fill="#1E88E5"/>
+              <rect x="2" y="17" width="13" height="13" rx="1.5" fill="#1E88E5"/>
+              <rect x="17" y="17" width="13" height="13" rx="1.5" fill="#1E88E5"/>
+            </svg>`;
+      return `
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            ${panelIconHtml}
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-panel-row">
+              <div class="bom-field">
+                <div class="bom-field-label">Watt Peak:</div>
+                <div class="bom-field-val">${wattPeak || '-'}</div>
+              </div>
+              <div class="bom-field">
+                <div class="bom-field-label">Panel Qty:</div>
+                <div class="bom-field-val">${p.quantity} ${p.unitName || 'Nos'}</div>
+              </div>
+              <div class="bom-field" style="flex:1.4;">
+                <div class="bom-field-label">Panel Type:</div>
+                <div class="bom-field-val">${p.productName}</div>
+              </div>
+              <div class="bom-field">
+                <div class="bom-field-label">Panel Make:</div>
+                <div class="bom-field-val">${p.brandName || '-'}</div>
+              </div>
+              <div class="bom-field">
+                <div class="bom-field-label">Panel Warranty:</div>
+                <div class="bom-field-val-sm">${p.warranty || '12 Year'}</div>
+                <div class="bom-field-label" style="margin-top:2px;">Performance Warranty:</div>
+                <div class="bom-field-val-sm">25 Year</div>
+              </div>
+              <div class="bom-brand-logo">
+                <span class="bom-brand-name-blue">${p.brandName || ''}</span>
+                <span class="bom-brand-sub">Solar</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="bom-card-tag">${catLabel}</span>
+      </div>
+      `;
+    }).join('');
+    bomPanelHtml = panelCards;
+  }
+
+  // ── Inverter Section HTML ──
+  let bomInverterHtml = '';
+  if (bomGroups.inverter.length > 0) {
+    const inverterCards = bomGroups.inverter.map(inv => {
+      const kwSize = extractKwSize(inv);
+      const catLabel = inv.categoryName || 'Inverter';
+      const inverterIconHtml = inv.categoryImage
+        ? `<img src="${inv.categoryImage}" alt="${catLabel}" class="bom-category-img" />`
+        : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+              <rect x="3" y="3" width="26" height="26" rx="4" fill="#1e293b"/>
+              <rect x="6" y="6" width="20" height="9" rx="2" fill="#0284c7"/>
+              <circle cx="8" cy="22" r="2" fill="#ef4444"/>
+              <circle cx="14" cy="22" r="2" fill="#eab308"/>
+              <circle cx="20" cy="22" r="2" fill="#22c55e"/>
+              <circle cx="26" cy="22" r="2" fill="#3b82f6"/>
+            </svg>`;
+      return `
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            ${inverterIconHtml}
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-inverter-top">
+              <div class="bom-field">
+                <div class="bom-field-label">Inverter Size:</div>
+                <div class="bom-field-val">${kwSize || '-'}</div>
+              </div>
+              <div class="bom-field">
+                <div class="bom-field-label">Inverter Qty:</div>
+                <div class="bom-field-val">${inv.quantity} ${inv.unitName || 'Nos'}</div>
+              </div>
+              <div class="bom-field" style="flex:1.2;">
+                <div class="bom-field-label">Inverter Make:</div>
+                <div class="bom-field-val">${inv.brandName || '-'}</div>
+              </div>
+              <div class="bom-field">
+                <div class="bom-field-label">Inverter Warranty:</div>
+                <div class="bom-field-val">${inv.warranty || '7 Year'}</div>
+              </div>
+              <div class="bom-brand-logo">
+                <span class="bom-brand-name-red">${inv.brandName || ''}</span>
+              </div>
+            </div>
+            <div class="bom-alt-box">
+              <div class="bom-alt-title">ALTERNATIVE PRODUCTS</div>
+              <div class="bom-alt-sub">May be supplied if the primary product is unavailable, with equivalent specification.</div>
+              <div class="bom-alt-items">${inv.description || `${inv.productName} - Equivalent`}</div>
+            </div>
+          </div>
+        </div>
+        <span class="bom-card-tag">${catLabel}</span>
+      </div>
+      `;
+    }).join('');
+    bomInverterHtml = inverterCards;
+  }
+
+  // ── Cables Section HTML — grid cards ──
+  let bomCablesHtml = '';
+  if (bomGroups.cables.length > 0) {
+    const allCards = bomGroups.cables;
+    const firstRowCards = allCards.slice(0, 4);
+    const restCards = allCards.slice(4);
+
+    const firstRowHtml = firstRowCards.map(c => `
+      <div class="bom-cable-col">
+        <div class="bom-cable-type">${getCableTypeLabel(c.productName)}</div>
+        <div class="bom-cable-make">${c.brandName || '-'}</div>
+        <div class="bom-cable-qty">Qty: ${c.quantity} ${c.unitName || 'Meter'}</div>
+        <div class="bom-cable-spec">${c.description || c.productName}</div>
+        ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
+      </div>
+    `).join('');
+
+    const restRowHtml = restCards.length > 0 ? restCards.map(c => `
+      <div class="bom-cable-col">
+        <div class="bom-cable-type">${getCableTypeLabel(c.productName)}</div>
+        <div class="bom-cable-make">${c.brandName || '-'}</div>
+        <div class="bom-cable-qty">Qty: ${c.quantity} ${c.unitName || 'Meter'}</div>
+        <div class="bom-cable-spec">${c.description || c.productName}</div>
+        ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
+      </div>
+    `).join('') : '';
+
+    const cablesCatLabel = bomGroups.cables[0]?.categoryName || 'Cables & Wires';
+    const cablesCatImg = bomGroups.cables.find(c => c.categoryImage)?.categoryImage || null;
+    const cablesIconHtml = cablesCatImg
+      ? `<img src="${cablesCatImg}" alt="${cablesCatLabel}" class="bom-category-img" />`
+      : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="#E65100" stroke-width="3" stroke-linecap="round">
+              <path d="M4 14 Q 10 8, 16 14 T 28 14"/>
+              <path d="M4 20 Q 10 14, 16 20 T 28 20" stroke="#FB8C00" stroke-width="2"/>
+            </svg>`;
+    bomCablesHtml = `
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            ${cablesIconHtml}
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-cable-grid-4">${firstRowHtml}</div>
+            ${restRowHtml ? `<div class="bom-cable-grid-2">${restRowHtml}</div>` : ''}
+          </div>
+        </div>
+        <span class="bom-card-tag">${cablesCatLabel}</span>
+      </div>
+    `;
+  } else {
+    // Standard system cables fallback
+    bomCablesHtml = `
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            <svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="#E65100" stroke-width="3" stroke-linecap="round">
+              <path d="M4 14 Q 10 8, 16 14 T 28 14"/>
+              <path d="M4 20 Q 10 14, 16 20 T 28 20" stroke="#FB8C00" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-cable-grid-4">
+              <div class="bom-cable-col">
+                <div class="bom-cable-type">AC Cable:</div>
+                <div class="bom-cable-make">Polycab / KEI</div>
+                <div class="bom-cable-qty">Qty: 25 Meter</div>
+                <div class="bom-cable-spec">A.C 4.0 SQMM 4 CORE COPPER</div>
+                <div class="bom-cable-brand-badge">POLYCAB</div>
+              </div>
+              <div class="bom-cable-col">
+                <div class="bom-cable-type">DC Cable:</div>
+                <div class="bom-cable-make">Waaree / Polycab</div>
+                <div class="bom-cable-qty">Qty: 20 Meter</div>
+                <div class="bom-cable-spec">D.C CABLE RED 4.0 SQMM (UV)</div>
+                <div class="bom-cable-brand-badge">WAAREE</div>
+              </div>
+              <div class="bom-cable-col">
+                <div class="bom-cable-type">DC Cable:</div>
+                <div class="bom-cable-make">Waaree / Polycab</div>
+                <div class="bom-cable-qty">Qty: 20 Meter</div>
+                <div class="bom-cable-spec">D.C CABLE BLACK 4.0 SQMM (UV)</div>
+                <div class="bom-cable-brand-badge">WAAREE</div>
+              </div>
+              <div class="bom-cable-col">
+                <div class="bom-cable-type">Earthing Cable:</div>
+                <div class="bom-cable-make">Earthcab / Polycab</div>
+                <div class="bom-cable-qty">Qty: 50 Meter</div>
+                <div class="bom-cable-spec">COPPER EARTHING 16 SQMM GREEN</div>
+              </div>
+            </div>
+            <div class="bom-cable-grid-2">
+              <div class="bom-cable-col">
+                <div class="bom-cable-type">LA Cable:</div>
+                <div class="bom-cable-make">Earthcab / Polycab</div>
+                <div class="bom-cable-qty">Qty: 25 Meter</div>
+                <div class="bom-cable-spec">LIGHTNING ARRESTER COPPER 25 SQMM</div>
+              </div>
+              <div class="bom-cable-col">
+                <div class="bom-cable-type">Communication Cable:</div>
+                <div class="bom-cable-make">D-Link / Polycab</div>
+                <div class="bom-cable-qty">Qty: 10 Meter</div>
+                <div class="bom-cable-spec">RS485 / CAT6 SHIELDED CABLE</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="bom-card-tag">Cables & Wires</span>
+      </div>
+    `;
+  }
+
+  // ── Structure Section HTML ──
+  let bomStructureHtml = '';
+  if (bomGroups.structure.length > 0) {
+    const rowsHtml = bomGroups.structure.map(item => `
+      <div class="bom-struct-grid-row">
+        <div>
+          <div class="bom-struct-lbl">Product:</div>
+          <div class="bom-struct-v">${item.productName}</div>
+        </div>
+        <div>
+          <div class="bom-struct-lbl">Qty:</div>
+          <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
+        </div>
+        <div>
+          <div class="bom-struct-lbl">Make:</div>
+          <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+        </div>
+      </div>
+    `).join('');
+
+    const structureCatLabel = bomGroups.structure[0]?.categoryName || 'Mounting Structures';
+    const structureCatImg = bomGroups.structure.find(s => s.categoryImage)?.categoryImage || null;
+    const structureIconHtml = structureCatImg
+      ? `<img src="${structureCatImg}" alt="${structureCatLabel}" class="bom-category-img" />`
+      : `<svg viewBox="0 0 32 32" width="32" height="32" fill="#475569">
+              <rect x="4" y="12" width="24" height="8" rx="1.5"/>
+              <rect x="4" y="7" width="6" height="18" rx="1.5"/>
+              <rect x="22" y="7" width="6" height="18" rx="1.5"/>
+            </svg>`;
+    bomStructureHtml = `
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            ${structureIconHtml}
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-struct-list">${rowsHtml}</div>
+          </div>
+        </div>
+        <span class="bom-card-tag">${structureCatLabel}</span>
+      </div>
+    `;
+  } else {
+    // Standard structure fallback matching system panels
+    const totalPanels = bomGroups.panel.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0) || Math.round(Number(quotation.systemSize) * 2) || 9;
+    bomStructureHtml = `
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            <svg viewBox="0 0 32 32" width="32" height="32" fill="#475569">
+              <rect x="4" y="12" width="24" height="8" rx="1.5"/>
+              <rect x="4" y="7" width="6" height="18" rx="1.5"/>
+              <rect x="22" y="7" width="6" height="18" rx="1.5"/>
+            </svg>
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-struct-list">
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">Galvanized Iron Structure 80 Micron (HDGI) - ${totalPanels} Modules</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">1 Set</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">SunSelect Standard Heavy Duty Galvanized</div>
+                </div>
+              </div>
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">Aluminium Mid Clamps & End Clamps with SS304 Hardware</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">${totalPanels * 4} Nos</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">Anodized High Grade Aluminium AL6005-T5</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="bom-card-tag">Mounting Structures</span>
+      </div>
+    `;
+  }
+
+  // ── Accessories Section HTML (Components & Distribution Boxes) ──
+  let bomAccessoriesHtml = '';
+  if (bomGroups.accessories.length > 0) {
+    const isDbItem = (item: (typeof items)[0]) => /acdb|dcdb|earthing|arrestor|arrester|lightning|lightening/i.test(item.productName);
+    const dbItems = bomGroups.accessories.filter(isDbItem);
+    const nonDbItems = bomGroups.accessories.filter(i => !isDbItem(i));
+
+    let nonDbCardHtml = '';
+    if (nonDbItems.length > 0) {
+      const rowsHtml = nonDbItems.map(item => `
+        <div class="bom-struct-grid-row">
+          <div>
+            <div class="bom-struct-lbl">Product:</div>
+            <div class="bom-struct-v">${item.productName}</div>
+          </div>
+          <div>
+            <div class="bom-struct-lbl">Qty:</div>
+            <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
+          </div>
+          <div>
+            <div class="bom-struct-lbl">Make:</div>
+            <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+          </div>
+        </div>
+      `).join('');
+
+      const accessoriesCatLabel = bomGroups.accessories[0]?.categoryName || 'Accessories';
+      const accessoriesCatImg = bomGroups.accessories.find(a => a.categoryImage)?.categoryImage || null;
+      const accessoriesIconHtml = accessoriesCatImg
+        ? `<img src="${accessoriesCatImg}" alt="${accessoriesCatLabel}" class="bom-category-img" />`
+        : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+              <rect x="3" y="3" width="12" height="12" rx="2" fill="#1e293b"/>
+              <rect x="17" y="3" width="12" height="12" rx="2" fill="#ea580c"/>
+              <rect x="3" y="17" width="12" height="12" rx="2" fill="#ea580c"/>
+              <rect x="17" y="17" width="12" height="12" rx="2" fill="#1e293b"/>
+            </svg>`;
+      nonDbCardHtml = `
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            ${accessoriesIconHtml}
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-struct-list">${rowsHtml}</div>
+          </div>
+        </div>
+        <span class="bom-card-tag">${accessoriesCatLabel}</span>
+      </div>
+      `;
+    }
+
+    let dbCardHtml = '';
+    const findVal = (regex: RegExp) => {
+      const found = dbItems.find(i => regex.test(i.productName));
+      return found ? found.productName : null;
+    };
+
+    const acdbVal = findVal(/acdb/i) || '3-Phase ACDB with MCB & Type II SPD';
+    const dcdbVal = findVal(/dcdb/i) || '1000V DCDB with 15A Fuse & SPD';
+    const earthingVal = findVal(/earthing/i) || 'Dual Earth Pit with Chemical Compound';
+    const laVal = findVal(/arrestor|arrester|lightning|lightening/i) || 'Class B+C Surge Protection Device';
+
+    dbCardHtml = `
+    <div class="bom-card">
+      <div class="bom-card-inner">
+        <div class="bom-card-icon">
+          <svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+            <rect x="2" y="2" width="28" height="28" rx="4" fill="#0f172a"/>
+            <rect x="5" y="5" width="10" height="10" rx="1.5" fill="#38bdf8"/>
+            <rect x="17" y="5" width="10" height="10" rx="1.5" fill="#f97316"/>
+            <rect x="5" y="17" width="10" height="10" rx="1.5" fill="#22c55e"/>
+            <rect x="17" y="17" width="10" height="10" rx="1.5" fill="#eab308"/>
+          </svg>
+        </div>
+        <div class="bom-card-content">
+          <div class="bom-db-row">
+            <div class="bom-db-col">
+              <div class="bom-db-lbl">ACDB:</div>
+              <div class="bom-db-v">${acdbVal}</div>
+            </div>
+            <div class="bom-db-col">
+              <div class="bom-db-lbl">DCDB:</div>
+              <div class="bom-db-v">${dcdbVal}</div>
+            </div>
+            <div class="bom-db-col">
+              <div class="bom-db-lbl">Earthing:</div>
+              <div class="bom-db-v">${earthingVal}</div>
+            </div>
+            <div class="bom-db-col">
+              <div class="bom-db-lbl">Lightening Arrestor:</div>
+              <div class="bom-db-v">${laVal}</div>
+            </div>
+            <div class="bom-db-col">
+              <div class="bom-db-lbl">Miscellaneous:</div>
+              <div class="bom-db-v">Cable Ties, Danger Board, Warning Stickers</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    `;
+
+    bomAccessoriesHtml = nonDbCardHtml + dbCardHtml;
+  } else {
+    // Standard accessories and distribution boxes fallback
+    bomAccessoriesHtml = `
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            <svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+              <rect x="3" y="3" width="12" height="12" rx="2" fill="#1e293b"/>
+              <rect x="17" y="3" width="12" height="12" rx="2" fill="#ea580c"/>
+              <rect x="3" y="17" width="12" height="12" rx="2" fill="#ea580c"/>
+              <rect x="17" y="17" width="12" height="12" rx="2" fill="#1e293b"/>
+            </svg>
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-struct-list">
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">MC4 Connectors (1000V DC / 1500V DC IP68 Rated)</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">4 Pairs</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">Waaree / Staubli Multi-Contact</div>
+                </div>
+              </div>
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">Copper Bonded Chemical Earthing Rods (17.2mm Dia x 3m Length)</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">2 Sets</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">Earthcab / SunSelect Certified (250 Micron)</div>
+                </div>
+              </div>
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">Conventional Lightning Arrester 1-Meter Pure Copper Spike</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">1 Nos</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">SunSelect Standard Copper Spike with Base</div>
+                </div>
+              </div>
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">PVC UV-Resistant Conduits, Cable Trays & SS304 Fasteners</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">1 Lot</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">Precision / Astral / Standard Industry Grade</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="bom-card-tag">Accessories</span>
+      </div>
+
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            <svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+              <rect x="2" y="2" width="28" height="28" rx="4" fill="#0f172a"/>
+              <rect x="5" y="5" width="10" height="10" rx="1.5" fill="#38bdf8"/>
+              <rect x="17" y="5" width="10" height="10" rx="1.5" fill="#f97316"/>
+              <rect x="5" y="17" width="10" height="10" rx="1.5" fill="#22c55e"/>
+              <rect x="17" y="17" width="10" height="10" rx="1.5" fill="#eab308"/>
+            </svg>
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-db-row">
+              <div class="bom-db-col">
+                <div class="bom-db-lbl">ACDB:</div>
+                <div class="bom-db-v">3-Phase ACDB with MCB & Type II SPD</div>
+              </div>
+              <div class="bom-db-col">
+                <div class="bom-db-lbl">DCDB:</div>
+                <div class="bom-db-v">1000V DCDB with 15A Fuse & SPD</div>
+              </div>
+              <div class="bom-db-col">
+                <div class="bom-db-lbl">Earthing:</div>
+                <div class="bom-db-v">Dual Earth Pit with Chemical Compound</div>
+              </div>
+              <div class="bom-db-col">
+                <div class="bom-db-lbl">Lightening Arrestor:</div>
+                <div class="bom-db-v">Class B+C Surge Protection Device</div>
+              </div>
+              <div class="bom-db-col">
+                <div class="bom-db-lbl">Miscellaneous:</div>
+                <div class="bom-db-v">Cable Ties, Danger Board, Warning Stickers</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Other Categories (Batteries, Custom Equipment) ──
+  let bomOtherHtml = '';
+  for (const [catName, catItems] of bomGroups.other.entries()) {
+    const rowsHtml = catItems.map(item => `
+      <div class="bom-struct-grid-row">
+        <div>
+          <div class="bom-struct-lbl">Product:</div>
+          <div class="bom-struct-v">${item.productName}</div>
+        </div>
+        <div>
+          <div class="bom-struct-lbl">Qty:</div>
+          <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
+        </div>
+        <div>
+          <div class="bom-struct-lbl">Make:</div>
+          <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+        </div>
+      </div>
+    `).join('');
+
+    const otherCatImg = catItems.find(i => i.categoryImage)?.categoryImage || null;
+    const otherIconHtml = otherCatImg
+      ? `<img src="${otherCatImg}" alt="${catName}" class="bom-category-img" />`
+      : `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+              <rect x="4" y="4" width="24" height="24" rx="3" fill="#0f172a"/>
+              <circle cx="16" cy="16" r="6" stroke="#38bdf8" stroke-width="2"/>
+            </svg>`;
+
+    bomOtherHtml += `
+      <div class="bom-card">
+        <div class="bom-card-inner">
+          <div class="bom-card-icon">
+            ${otherIconHtml}
+          </div>
+          <div class="bom-card-content">
+            <div class="bom-struct-list">${rowsHtml}</div>
+          </div>
+        </div>
+        <span class="bom-card-tag">${catName}</span>
+      </div>
+    `;
+  }
+
+  // Combine all BOM sections
+  const bomSectionsHtml = bomPanelHtml + bomInverterHtml + bomCablesHtml + bomStructureHtml + bomAccessoriesHtml + bomOtherHtml;
 
   // Build dynamic Scope of Work from quotation_scope_of_work_items as bullet list
   let sowContentHtml = "";
@@ -1416,70 +2061,232 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
 
   /* ========================================================
-     PAGE 4: BILL OF MATERIAL TABLE
+     PAGE 4: BILL OF MATERIAL — SOLAR EARTH EXACT DESIGN
      ======================================================== */
-  table.bom-table{
-    width:100%;
-    border-collapse:collapse;
-    margin-bottom:20px;
-    font-size:11px;
+
+  .bom-card{
+    border:1px solid #d4d4d8;
+    border-radius:8px;
+    position:relative;
+    margin-bottom:12px;
+    background:transparent;
+    padding:8px 14px 10px 14px;
+  }
+  .bom-card-tag{
+    position:absolute;
+    bottom:-7px;
+    left:22px;
     background:#ffffff;
-  }
-
-  table.bom-table th{
-    font-family:var(--font-heading);
-    background-color:#F8FAFC;
-    color:#0F172A;
+    padding:0 8px;
     font-weight:700;
-    font-size:11.5px;
-    padding:10px 12px;
-    border-top:1px solid #E2E8F0;
-    border-bottom:2px solid #E2E8F0;
-    vertical-align:middle;
+    font-size:10px;
+    color:#1e293b;
+    line-height:1;
+    letter-spacing:0.2px;
   }
 
-  table.bom-table td{
-    border:none;
-    border-bottom:1px solid #E2E8F0;
-    padding:10px 12px;
-    vertical-align:middle;
-    color:var(--dark);
+  .bom-card-inner{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+  }
+  .bom-card-icon{
+    width:32px;
+    height:32px;
+    flex-shrink:0;
+    margin-top:2px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .bom-category-img{
+    width:32px;
+    height:32px;
+    object-fit:contain;
+    display:block;
+  }
+  .bom-card-content{
+    flex:1;
+    min-width:0;
   }
 
-  table.bom-table tbody tr:nth-child(even){
-    background-color:transparent;
-  }
-
-  .bom-col-sno{
-    text-align:center;
-    width:8%;
+  /* Field Styles */
+  .bom-field{ min-width:0; }
+  .bom-field-label{
+    font-size:7.5px;
     font-weight:700;
+    color:#3f3f46;
+    margin-bottom:1.5px;
+    white-space:nowrap;
+  }
+  .bom-field-val{
+    font-size:10px;
+    font-weight:700;
+    color:#09090b;
+    line-height:1.25;
+  }
+  .bom-field-val-sm{
+    font-size:8.5px;
+    font-weight:700;
+    color:#09090b;
+    line-height:1.2;
   }
 
-  .bom-col-desc{
-    text-align:left;
-    width:32%;
+  /* Panel Card */
+  .bom-panel-row{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .bom-brand-logo{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .bom-brand-name-blue{
+    font-size:14px;
+    font-weight:800;
+    color:#0284c7;
+    letter-spacing:0.5px;
+    line-height:1;
+  }
+  .bom-brand-sub{
+    font-size:7px;
     font-weight:600;
+    color:#64748b;
+    letter-spacing:0.5px;
   }
 
-  .bom-col-make{
-    text-align:left;
-    width:16%;
-    color:var(--dark);
+  /* Inverter Card */
+  .bom-inverter-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .bom-brand-name-red{
+    font-size:14px;
+    font-weight:900;
+    color:#dc2626;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }
+  .bom-alt-box{
+    background:#FFFDF5;
+    border-left:3px solid #d97706;
+    padding:4px 8px;
+    border-radius:0 3px 3px 0;
+  }
+  .bom-alt-title{
+    font-size:7.5px;
+    font-weight:800;
+    color:#1e3a8a;
+    letter-spacing:0.3px;
+    margin-bottom:1px;
+  }
+  .bom-alt-sub{
+    font-size:6.5px;
+    font-style:italic;
+    color:#71717a;
+    margin-bottom:1px;
+  }
+  .bom-alt-items{
+    font-size:7px;
+    font-weight:600;
+    color:#27272a;
+    line-height:1.3;
   }
 
-  .bom-col-specs{
-    text-align:left;
-    width:32%;
-    color:#4B5563;
-    font-size:10.5px;
-    line-height:1.4;
+  /* Cables Grid */
+  .bom-cable-grid-4{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:6px 10px;
+    margin-bottom:6px;
   }
-
-  .bom-col-qty{
-    text-align:center;
-    width:12%;
+  .bom-cable-grid-2{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:6px 10px;
+  }
+  .bom-cable-col{ min-width:0; }
+  .bom-cable-type{
+    font-size:7.5px;
     font-weight:700;
+    color:#3f3f46;
+    margin-bottom:1px;
+  }
+  .bom-cable-make{
+    font-size:9px;
+    font-weight:700;
+    color:#09090b;
+    margin-bottom:1px;
+  }
+  .bom-cable-qty{
+    font-size:7px;
+    color:#52525b;
+    margin-bottom:1px;
+  }
+  .bom-cable-spec{
+    font-size:6.5px;
+    color:#71717a;
+    line-height:1.2;
+    margin-bottom:2px;
+  }
+  .bom-cable-brand-badge{
+    font-size:7.5px;
+    font-weight:800;
+    color:#dc2626;
+    text-transform:uppercase;
+  }
+
+  /* Structure & Electrical Rows */
+  .bom-struct-list{
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+  }
+  .bom-struct-grid-row{
+    display:grid;
+    grid-template-columns:2.2fr 0.9fr 1.6fr;
+    align-items:baseline;
+    gap:10px;
+  }
+  .bom-struct-lbl{
+    font-size:7px;
+    font-weight:700;
+    color:#3f3f46;
+    margin-bottom:1px;
+  }
+  .bom-struct-v{
+    font-size:9px;
+    font-weight:700;
+    color:#09090b;
+    line-height:1.25;
+  }
+
+  /* Distribution Boxes Row */
+  .bom-db-row{
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    gap:8px;
+  }
+  .bom-db-col{ min-width:0; }
+  .bom-db-lbl{
+    font-size:7.5px;
+    font-weight:700;
+    color:#3f3f46;
+    margin-bottom:1.5px;
+  }
+  .bom-db-v{
+    font-size:9px;
+    font-weight:700;
+    color:#09090b;
+    line-height:1.25;
   }
 
   /* ========================================================
@@ -2156,25 +2963,10 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
     <div class="content">
       <div class="header">
-        <h1 class="proposal-title">BILL OF MATERIAL</h1>
+        <h1 class="proposal-title">BILL OF <span style="font-family:var(--font-heading);font-weight:400;font-style:italic;color:#555;">MATERIAL</span></h1>
       </div>
 
-      <p class="intro">Bill of Materials &amp; Technical Specifications for ${quotation.systemSize} KW System:</p>
-
-      <table class="bom-table">
-        <thead>
-          <tr>
-            <th class="bom-col-sno">Sr. No.</th>
-            <th class="bom-col-desc">Description of Goods</th>
-            <th class="bom-col-make">Make</th>
-            <th class="bom-col-specs">Specifications</th>
-            <th class="bom-col-qty">QTY</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${bomRowsHtml}
-        </tbody>
-      </table>
+      ${bomSectionsHtml}
     </div>
 
     <!-- Footer for Page 4 -->

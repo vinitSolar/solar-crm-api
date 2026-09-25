@@ -119,4 +119,20 @@ export class ProductController {
             next(error);
         }
     };
+
+    public deleteProductImage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const uid = (req.params.uid as string) || (req.body.productUid as string);
+            const imageUrl = (req.body.imageUrl as string) || (req.body.link as string) || (req.body.image as string);
+            const product = await this.service.deleteProductImage(uid, imageUrl, authReq.tenantUid, authReq.user.uid);
+            res.status(200).json({
+                success: true,
+                message: PRODUCT_MESSAGES.IMAGE_DELETED,
+                data: product,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

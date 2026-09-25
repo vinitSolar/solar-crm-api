@@ -1,5 +1,6 @@
 import puppeteer from "puppeteer";
 import { generateQuotationHtmlV2 } from "../templates/quotation-pdf-v2.template.js";
+import { generateQuotationHtmlV3 } from "../templates/quotation-pdf-v3.template.js";
 import type { IQuotationPdfData } from "../templates/quotation-pdf.template.js";
 import { logger } from "@packages/logger/index.js";
 
@@ -41,12 +42,13 @@ export class QuotationPdfGenerator {
      * Uses a concurrency queue to protect Docker server memory.
      * 
      * @param data Dynamic mapping data parameters for the template
+     * @param templateVersion Template version to use ('v2' | 'v3', defaults to 'v3')
      * @returns A Promise resolving to the PDF file buffer
      */
-    static async generatePdfBuffer(data: IQuotationPdfData): Promise<Buffer> {
+    static async generatePdfBuffer(data: IQuotationPdfData, templateVersion: 'v2' | 'v3' = 'v3'): Promise<Buffer> {
         await acquireRenderSlot();
         logger.info(`Acquired PDF render slot for Quote #: ${data.quotation.quotationNumber} [Active: ${activeRenders}/${MAX_CONCURRENT_PDF_RENDERS}, Queued: ${renderQueue.length}]`);
-        const html = generateQuotationHtmlV2(data);
+        const html = templateVersion === 'v2' ? generateQuotationHtmlV2(data) : generateQuotationHtmlV3(data);
         
         let browser;
         try {

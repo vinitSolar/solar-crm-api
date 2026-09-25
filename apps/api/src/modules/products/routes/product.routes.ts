@@ -4,7 +4,7 @@ import { ProductController } from "../controllers/product.controller.js";
 import { ProductService } from "../services/product.service.js";
 import { ProductRepository } from "../repositories/product.repository.js";
 import { authenticate } from "../../auth/middleware/auth.middleware.js";
-import { createProductSchema, updateProductSchema, paginationSchema, validateProductRequest } from "../validators/product.validator.js";
+import { createProductSchema, updateProductSchema, paginationSchema, validateProductRequest, validateDeleteProductImageRequest } from "../validators/product.validator.js";
 import pool from "@packages/connection.js";
 import { requirePermission } from "../../../middlewares/permission.middleware.js";
 
@@ -381,6 +381,52 @@ router.post("/", requirePermission("PRODUCTS", "can_create"), upload.any(), vali
  *         description: Product updated successfully
  */
 router.put("/:uid", requirePermission("PRODUCTS", "can_edit"), upload.any(), validateProductRequest(updateProductSchema), controller.updateProduct);
+
+/**
+ * @swagger
+ * /products/{uid}/images:
+ *   delete:
+ *     tags: [Products]
+ *     summary: Delete a product image using link
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: uid
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Product UID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - link
+ *             properties:
+ *               link:
+ *                 type: string
+ *                 description: Image URL or storage key to delete
+ *                 example: "https://backend.sunselect.in/public/uploads/products/1b6e738a-b4f1-4128-b890-591741a7557b/images/1c29088c-31c4-4cbe-b981-072e14e3762e.jpg"
+ *               imageUrl:
+ *                 type: string
+ *                 description: Alias for link
+ *     responses:
+ *       200:
+ *         description: Product image deleted successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Product or image not found
+ */
+router.delete("/images", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.delete("/image", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.delete("/:uid/images", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.delete("/:uid/image", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.post("/:uid/images/delete", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.post("/images/delete", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
 
 /**
  * @swagger

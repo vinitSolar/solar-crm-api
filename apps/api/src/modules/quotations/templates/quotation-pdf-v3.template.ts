@@ -890,29 +890,22 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         const kwSize = extractKwSize(inv);
         const dividerStyle = idx > 0 ? 'style="margin-top:8px; padding-top:8px; border-top:1px solid #e2e8f0;"' : '';
         return `
-        <div class="bom-inverter-block" ${dividerStyle}>
-          <div class="bom-inverter-top">
-            <div class="bom-field">
-              <div class="bom-field-label">Inverter Size:</div>
-              <div class="bom-field-val">${kwSize || '-'}</div>
-            </div>
-            <div class="bom-field">
-              <div class="bom-field-label">Inverter Qty:</div>
-              <div class="bom-field-val">${inv.quantity ? `${inv.quantity} ${inv.unitName || 'Nos'}` : '-'}</div>
-            </div>
-            <div class="bom-field" style="flex:1.2;">
-              <div class="bom-field-label">Inverter Make:</div>
-              <div class="bom-field-val">${inv.brandName || '-'}</div>
-            </div>
-            <div class="bom-field">
-              <div class="bom-field-label">Inverter Warranty:</div>
-              <div class="bom-field-val">${inv.warranty || '-'}</div>
-            </div>
+        <div class="bom-inverter-top" ${dividerStyle}>
+          <div class="bom-field">
+            <div class="bom-field-label">Inverter Size:</div>
+            <div class="bom-field-val">${kwSize || '-'}</div>
           </div>
-          <div class="bom-alt-box">
-            <div class="bom-alt-title">ALTERNATIVE PRODUCTS</div>
-            <div class="bom-alt-sub">May be supplied if the primary product is unavailable, with equivalent specification.</div>
-            <div class="bom-alt-items">${inv.description || `${inv.productName || 'Primary Product'} - Equivalent`}</div>
+          <div class="bom-field">
+            <div class="bom-field-label">Inverter Qty:</div>
+            <div class="bom-field-val">${inv.quantity ? `${inv.quantity} ${inv.unitName || 'Nos'}` : '-'}</div>
+          </div>
+          <div class="bom-field" style="flex:1.2;">
+            <div class="bom-field-label">Inverter Make:</div>
+            <div class="bom-field-val">${inv.brandName || '-'}</div>
+          </div>
+          <div class="bom-field">
+            <div class="bom-field-label">Inverter Warranty:</div>
+            <div class="bom-field-val">${inv.warranty || '-'}</div>
           </div>
         </div>
         `;
@@ -2270,32 +2263,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     grid-template-columns:95px 95px 1.5fr 1.8fr;
     gap:12px;
     align-items:flex-start;
-    margin-bottom:6px;
-  }
-  .bom-alt-box{
-    background:#FFFDF5;
-    border-left:3px solid #d97706;
-    padding:4px 8px;
-    border-radius:0 3px 3px 0;
-  }
-  .bom-alt-title{
-    font-size:7.5px;
-    font-weight:800;
-    color:#1e3a8a;
-    letter-spacing:0.3px;
-    margin-bottom:1px;
-  }
-  .bom-alt-sub{
-    font-size:6.5px;
-    font-style:italic;
-    color:#71717a;
-    margin-bottom:1px;
-  }
-  .bom-alt-items{
-    font-size:7px;
-    font-weight:600;
-    color:#27272a;
-    line-height:1.3;
   }
 
   /* Cables Grid */
@@ -3060,7 +3027,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
     <div class="content">
       <div class="header">
-        <h1 class="proposal-title">BILL OF <span style="font-family:var(--font-heading);font-weight:400;font-style:italic;color:#555;">MATERIAL</span></h1>
+        <h1 class="proposal-title">BILL OF MATERIAL</h1>
       </div>
 
       ${bomSectionsHtml}

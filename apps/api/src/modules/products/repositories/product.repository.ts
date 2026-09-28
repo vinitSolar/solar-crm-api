@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
+import { storageService } from "@packages/storage/index.js";
 import type { IProduct } from "../interfaces/product.interface.js";
 
 export class ProductRepository {
@@ -279,17 +280,40 @@ export class ProductRepository {
     }
 
     async findByImage(imageKeyOrUrl: string, client?: PoolClient): Promise<IProduct | null> {
+        let cleaned = (imageKeyOrUrl || "").trim();
+        try {
+            if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+                const u = new URL(cleaned);
+                cleaned = u.pathname;
+            } else {
+                cleaned = (cleaned.split("?")[0] || "").split("#")[0] || cleaned;
+            }
+        } catch {}
+        cleaned = cleaned.replace(/\\/g, "/");
+        try {
+            cleaned = decodeURIComponent(cleaned);
+        } catch {}
+
+        const storageKey = storageService.extractStorageKey(imageKeyOrUrl) || cleaned;
+        const fileName = path.basename(storageKey || cleaned);
+
         const query = `SELECT p.*, b.name as brand_name, c.name as category_name, u.name as unit_name
              FROM products p 
              LEFT JOIN product_brands b ON p.brand_uid = b.uid 
              LEFT JOIN product_categories c ON p.category_uid = c.uid 
              LEFT JOIN product_units u ON p.unit_uid = u.uid 
-             WHERE $1 = ANY(p.images) OR p.images::text LIKE '%' || $2 || '%'
+             WHERE p.deleted_at IS NULL
+               AND (
+                 $1 = ANY(p.images)
+                 OR $2 = ANY(p.images)
+                 OR p.images::text LIKE '%' || $2 || '%'
+                 OR (length($3) > 3 AND p.images::text LIKE '%' || $3 || '%')
+               )
+             ORDER BY p.created_at DESC
              LIMIT 1`;
-        const fileName = path.basename(imageKeyOrUrl);
         const result = client
-            ? await client.query(query, [imageKeyOrUrl, fileName])
-            : await this.pool.query(query, [imageKeyOrUrl, fileName]);
+            ? await client.query(query, [imageKeyOrUrl, storageKey, fileName])
+            : await this.pool.query(query, [imageKeyOrUrl, storageKey, fileName]);
         if (!result.rows[0]) return null;
         
         const product = this.mapRowToProduct(result.rows[0]);

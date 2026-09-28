@@ -741,6 +741,52 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     return 'AC Cable:';
   }
 
+  // Helper: resolve local uploads to base64 data URI for offline PDF rendering
+  function resolveImageToBase64Sync(imagePathOrUrl: string | null | undefined): string | null {
+    if (!imagePathOrUrl) return null;
+    if (imagePathOrUrl.startsWith('data:')) return imagePathOrUrl;
+
+    let key = imagePathOrUrl.trim().replace(/\\/g, '/');
+    try {
+      if (key.startsWith('http://') || key.startsWith('https://')) {
+        const parsed = new URL(key);
+        key = parsed.pathname;
+      }
+    } catch {
+      // ignore
+    }
+    key = key.replace(/^\/?public\/uploads\//, '').replace(/^\/+/, '');
+
+    const candidates = [
+      path.resolve(process.cwd(), 'apps/api/public/uploads', key),
+      path.resolve(process.cwd(), 'dist/apps/api/public/uploads', key),
+      path.resolve(process.cwd(), 'public/uploads', key),
+      path.resolve(process.cwd(), key),
+      path.resolve(__dirname, '../../public/uploads', key),
+      path.resolve(__dirname, '../../../public/uploads', key),
+      path.resolve(__dirname, '../../../../public/uploads', key),
+      path.resolve(__dirname, '../../../../../public/uploads', key),
+      path.resolve(__dirname, '../../../../../apps/api/public/uploads', key),
+      path.resolve('C:/Sunselect-India/solar-crm-api/apps/api/public/uploads', key),
+      path.resolve('C:/Sunselect-India/solar-crm-2/solar-crm-api/apps/api/public/uploads', key)
+    ];
+
+    for (const filePath of candidates) {
+      if (fs.existsSync(filePath)) {
+        try {
+          const buffer = fs.readFileSync(filePath);
+          const ext = path.extname(filePath).toLowerCase().replace('.', '');
+          const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+          return `data:${mime};base64,${buffer.toString('base64')}`;
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    return imagePathOrUrl;
+  }
+
   // ── Panel Section HTML ──
   let bomPanelHtml = '';
   if (bomGroups.panel.length > 0) {
@@ -754,7 +800,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     });
 
     bomPanelHtml = Array.from(panelsByCategory.entries()).map(([catLabel, panelItems]) => {
-      const catImg = panelItems.find(p => p.categoryImage)?.categoryImage || null;
+      const rawCatImg = panelItems.find(p => p.categoryImage)?.categoryImage || null;
+      const catImg = resolveImageToBase64Sync(rawCatImg);
       const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
               <rect x="2" y="2" width="13" height="13" rx="1.5" fill="#1E88E5"/>
               <rect x="17" y="2" width="13" height="13" rx="1.5" fill="#1E88E5"/>
@@ -776,11 +823,11 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </div>
             <div class="bom-field">
               <div class="bom-field-label">Panel Qty:</div>
-              <div class="bom-field-val">${p.quantity} ${p.unitName || 'Nos'}</div>
+              <div class="bom-field-val">${p.quantity ? `${p.quantity} ${p.unitName || 'Nos'}` : '-'}</div>
             </div>
             <div class="bom-field" style="flex:1.4;">
               <div class="bom-field-label">Panel Type:</div>
-              <div class="bom-field-val">${p.productName}</div>
+              <div class="bom-field-val">${p.productName || '-'}</div>
             </div>
             <div class="bom-field">
               <div class="bom-field-label">Panel Make:</div>
@@ -788,13 +835,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </div>
             <div class="bom-field">
               <div class="bom-field-label">Panel Warranty:</div>
-              <div class="bom-field-val-sm">${p.warranty || '12 Year'}</div>
-              <div class="bom-field-label" style="margin-top:2px;">Performance Warranty:</div>
-              <div class="bom-field-val-sm">25 Year</div>
-            </div>
-            <div class="bom-brand-logo">
-              <span class="bom-brand-name-blue">${p.brandName || ''}</span>
-              <span class="bom-brand-sub">Solar</span>
+              <div class="bom-field-val">${p.warranty || '-'}</div>
             </div>
           </div>
         `;
@@ -831,7 +872,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     });
 
     bomInverterHtml = Array.from(invertersByCategory.entries()).map(([catLabel, inverterItems]) => {
-      const catImg = inverterItems.find(inv => inv.categoryImage)?.categoryImage || null;
+      const rawCatImg = inverterItems.find(inv => inv.categoryImage)?.categoryImage || null;
+      const catImg = resolveImageToBase64Sync(rawCatImg);
       const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
               <rect x="3" y="3" width="26" height="26" rx="4" fill="#1e293b"/>
               <rect x="6" y="6" width="20" height="9" rx="2" fill="#0284c7"/>
@@ -856,7 +898,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </div>
             <div class="bom-field">
               <div class="bom-field-label">Inverter Qty:</div>
-              <div class="bom-field-val">${inv.quantity} ${inv.unitName || 'Nos'}</div>
+              <div class="bom-field-val">${inv.quantity ? `${inv.quantity} ${inv.unitName || 'Nos'}` : '-'}</div>
             </div>
             <div class="bom-field" style="flex:1.2;">
               <div class="bom-field-label">Inverter Make:</div>
@@ -864,16 +906,13 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </div>
             <div class="bom-field">
               <div class="bom-field-label">Inverter Warranty:</div>
-              <div class="bom-field-val">${inv.warranty || '7 Year'}</div>
-            </div>
-            <div class="bom-brand-logo">
-              <span class="bom-brand-name-red">${inv.brandName || ''}</span>
+              <div class="bom-field-val">${inv.warranty || '-'}</div>
             </div>
           </div>
           <div class="bom-alt-box">
             <div class="bom-alt-title">ALTERNATIVE PRODUCTS</div>
             <div class="bom-alt-sub">May be supplied if the primary product is unavailable, with equivalent specification.</div>
-            <div class="bom-alt-items">${inv.description || `${inv.productName} - Equivalent`}</div>
+            <div class="bom-alt-items">${inv.description || `${inv.productName || 'Primary Product'} - Equivalent`}</div>
           </div>
         </div>
         `;
@@ -918,9 +957,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         <div class="bom-cable-col">
           <div class="bom-cable-type">${getCableTypeLabel(c.productName)}</div>
           <div class="bom-cable-make">${c.brandName || '-'}</div>
-          <div class="bom-cable-qty">Qty: ${c.quantity} ${c.unitName || 'Meter'}</div>
-          <div class="bom-cable-spec">${c.description || c.productName}</div>
-          ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
+          <div class="bom-cable-qty">Qty: ${c.quantity ? `${c.quantity} ${c.unitName || 'Meter'}` : '-'}</div>
+          <div class="bom-cable-spec">${c.description || c.productName || '-'}</div>
         </div>
       `).join('');
 
@@ -928,19 +966,19 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         <div class="bom-cable-col">
           <div class="bom-cable-type">${getCableTypeLabel(c.productName)}</div>
           <div class="bom-cable-make">${c.brandName || '-'}</div>
-          <div class="bom-cable-qty">Qty: ${c.quantity} ${c.unitName || 'Meter'}</div>
-          <div class="bom-cable-spec">${c.description || c.productName}</div>
-          ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
+          <div class="bom-cable-qty">Qty: ${c.quantity ? `${c.quantity} ${c.unitName || 'Meter'}` : '-'}</div>
+          <div class="bom-cable-spec">${c.description || c.productName || '-'}</div>
         </div>
       `).join('') : '';
 
-      const cablesCatImg = cableItems.find(c => c.categoryImage)?.categoryImage || null;
+      const rawCatImg = cableItems.find(c => c.categoryImage)?.categoryImage || null;
+      const catImg = resolveImageToBase64Sync(rawCatImg);
       const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="#E65100" stroke-width="3" stroke-linecap="round">
               <path d="M4 14 Q 10 8, 16 14 T 28 14"/>
               <path d="M4 20 Q 10 14, 16 20 T 28 20" stroke="#FB8C00" stroke-width="2"/>
             </svg>`;
-      const cablesIconHtml = cablesCatImg
-        ? `<img src="${cablesCatImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+      const cablesIconHtml = catImg
+        ? `<img src="${catImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
         : fallbackSvg;
 
       return `
@@ -976,21 +1014,18 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                 <div class="bom-cable-make">Polycab / KEI</div>
                 <div class="bom-cable-qty">Qty: 25 Meter</div>
                 <div class="bom-cable-spec">A.C 4.0 SQMM 4 CORE COPPER</div>
-                <div class="bom-cable-brand-badge">POLYCAB</div>
               </div>
               <div class="bom-cable-col">
                 <div class="bom-cable-type">DC Cable:</div>
                 <div class="bom-cable-make">Waaree / Polycab</div>
                 <div class="bom-cable-qty">Qty: 20 Meter</div>
                 <div class="bom-cable-spec">D.C CABLE RED 4.0 SQMM (UV)</div>
-                <div class="bom-cable-brand-badge">WAAREE</div>
               </div>
               <div class="bom-cable-col">
                 <div class="bom-cable-type">DC Cable:</div>
                 <div class="bom-cable-make">Waaree / Polycab</div>
                 <div class="bom-cable-qty">Qty: 20 Meter</div>
                 <div class="bom-cable-spec">D.C CABLE BLACK 4.0 SQMM (UV)</div>
-                <div class="bom-cable-brand-badge">WAAREE</div>
               </div>
               <div class="bom-cable-col">
                 <div class="bom-cable-type">Earthing Cable:</div>
@@ -1037,27 +1072,28 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         <div class="bom-struct-grid-row">
           <div>
             <div class="bom-struct-lbl">Product:</div>
-            <div class="bom-struct-v">${item.productName}</div>
+            <div class="bom-struct-v">${item.productName || '-'}</div>
           </div>
           <div>
             <div class="bom-struct-lbl">Qty:</div>
-            <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
+            <div class="bom-struct-v">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
           </div>
           <div>
             <div class="bom-struct-lbl">Make:</div>
-            <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+            <div class="bom-struct-v">${item.brandName || '-'}</div>
           </div>
         </div>
       `).join('');
 
-      const structureCatImg = structItems.find(s => s.categoryImage)?.categoryImage || null;
+      const rawCatImg = structItems.find(s => s.categoryImage)?.categoryImage || null;
+      const catImg = resolveImageToBase64Sync(rawCatImg);
       const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="#475569">
               <rect x="4" y="12" width="24" height="8" rx="1.5"/>
               <rect x="4" y="7" width="6" height="18" rx="1.5"/>
               <rect x="22" y="7" width="6" height="18" rx="1.5"/>
             </svg>`;
-      const structureIconHtml = structureCatImg
-        ? `<img src="${structureCatImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+      const structureIconHtml = catImg
+        ? `<img src="${catImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
         : fallbackSvg;
 
       return `
@@ -1148,28 +1184,29 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           <div class="bom-struct-grid-row">
             <div>
               <div class="bom-struct-lbl">Product:</div>
-              <div class="bom-struct-v">${item.productName}</div>
+              <div class="bom-struct-v">${item.productName || '-'}</div>
             </div>
             <div>
               <div class="bom-struct-lbl">Qty:</div>
-              <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
+              <div class="bom-struct-v">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
             </div>
             <div>
               <div class="bom-struct-lbl">Make:</div>
-              <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+              <div class="bom-struct-v">${item.brandName || '-'}</div>
             </div>
           </div>
         `).join('');
 
-        const accessoriesCatImg = accItems.find(a => a.categoryImage)?.categoryImage || null;
+        const rawCatImg = accItems.find(a => a.categoryImage)?.categoryImage || null;
+        const catImg = resolveImageToBase64Sync(rawCatImg);
         const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
               <rect x="3" y="3" width="12" height="12" rx="2" fill="#1e293b"/>
               <rect x="17" y="3" width="12" height="12" rx="2" fill="#ea580c"/>
               <rect x="3" y="17" width="12" height="12" rx="2" fill="#ea580c"/>
               <rect x="17" y="17" width="12" height="12" rx="2" fill="#1e293b"/>
             </svg>`;
-        const accessoriesIconHtml = accessoriesCatImg
-          ? `<img src="${accessoriesCatImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+        const accessoriesIconHtml = catImg
+          ? `<img src="${catImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
           : fallbackSvg;
 
         return `
@@ -1194,22 +1231,31 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       return found ? found.productName : null;
     };
 
-    const acdbVal = findVal(/acdb/i) || '3-Phase ACDB with MCB & Type II SPD';
-    const dcdbVal = findVal(/dcdb/i) || '1000V DCDB with 15A Fuse & SPD';
-    const earthingVal = findVal(/earthing/i) || 'Dual Earth Pit with Chemical Compound';
-    const laVal = findVal(/arrestor|arrester|lightning|lightening/i) || 'Class B+C Surge Protection Device';
+    const acdbVal = findVal(/acdb/i) || '-';
+    const dcdbVal = findVal(/dcdb/i) || '-';
+    const earthingVal = findVal(/earthing/i) || '-';
+    const laVal = findVal(/arrestor|arrester|lightning|lightening/i) || '-';
+    const miscItem = dbItems.find(i => /misc|tie|danger|board|sticker/i.test(i.productName));
+    const miscVal = miscItem ? miscItem.productName : '-';
 
-    dbCardHtml = `
-    <div class="bom-card">
-      <div class="bom-card-inner">
-        <div class="bom-card-icon">
-          <svg viewBox="0 0 32 32" width="32" height="32" fill="none">
+    const rawDbCatImg = dbItems.find(d => d.categoryImage)?.categoryImage || null;
+    const dbCatImg = resolveImageToBase64Sync(rawDbCatImg);
+    const fallbackDbSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
             <rect x="2" y="2" width="28" height="28" rx="4" fill="#0f172a"/>
             <rect x="5" y="5" width="10" height="10" rx="1.5" fill="#38bdf8"/>
             <rect x="17" y="5" width="10" height="10" rx="1.5" fill="#f97316"/>
             <rect x="5" y="17" width="10" height="10" rx="1.5" fill="#22c55e"/>
             <rect x="17" y="17" width="10" height="10" rx="1.5" fill="#eab308"/>
-          </svg>
+          </svg>`;
+    const dbIconHtml = dbCatImg
+      ? `<img src="${dbCatImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackDbSvg}</div>`
+      : fallbackDbSvg;
+
+    dbCardHtml = `
+    <div class="bom-card">
+      <div class="bom-card-inner">
+        <div class="bom-card-icon">
+          ${dbIconHtml}
         </div>
         <div class="bom-card-content">
           <div class="bom-db-row">
@@ -1231,7 +1277,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </div>
             <div class="bom-db-col">
               <div class="bom-db-lbl">Miscellaneous:</div>
-              <div class="bom-db-v">Cable Ties, Danger Board, Warning Stickers</div>
+              <div class="bom-db-v">${miscVal}</div>
             </div>
           </div>
         </div>
@@ -1364,26 +1410,27 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       <div class="bom-struct-grid-row">
         <div>
           <div class="bom-struct-lbl">Product:</div>
-          <div class="bom-struct-v">${item.productName}</div>
+          <div class="bom-struct-v">${item.productName || '-'}</div>
         </div>
         <div>
           <div class="bom-struct-lbl">Qty:</div>
-          <div class="bom-struct-v">${item.quantity} ${item.unitName || 'NOS'}</div>
+          <div class="bom-struct-v">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
         </div>
         <div>
           <div class="bom-struct-lbl">Make:</div>
-          <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+          <div class="bom-struct-v">${item.brandName || '-'}</div>
         </div>
       </div>
     `).join('');
 
-    const otherCatImg = catItems.find(i => i.categoryImage)?.categoryImage || null;
+    const rawCatImg = catItems.find(i => i.categoryImage)?.categoryImage || null;
+    const catImg = resolveImageToBase64Sync(rawCatImg);
     const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
               <rect x="4" y="4" width="24" height="24" rx="3" fill="#0f172a"/>
               <circle cx="16" cy="16" r="6" stroke="#38bdf8" stroke-width="2"/>
             </svg>`;
-    const otherIconHtml = otherCatImg
-      ? `<img src="${otherCatImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
+    const otherIconHtml = catImg
+      ? `<img src="${catImg}" alt="" class="bom-category-img" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';" /><div class="bom-icon-fallback" style="display:none;">${fallbackSvg}</div>`
       : fallbackSvg;
 
     bomOtherHtml += `
@@ -2168,8 +2215,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     gap:14px;
   }
   .bom-card-icon{
-    width:32px;
-    height:32px;
+    width:34px;
+    height:34px;
     flex-shrink:0;
     margin-top:2px;
     display:flex;
@@ -2177,8 +2224,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     justify-content:center;
   }
   .bom-category-img{
-    width:32px;
-    height:32px;
+    width:34px;
+    height:34px;
     object-fit:contain;
     display:block;
   }
@@ -2211,46 +2258,19 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   /* Panel Card */
   .bom-panel-row{
-    display:flex;
+    display:grid;
+    grid-template-columns:85px 85px 2.2fr 1.3fr 1.3fr;
+    gap:12px;
     align-items:flex-start;
-    justify-content:space-between;
-    gap:10px;
-  }
-  .bom-brand-logo{
-    display:flex;
-    flex-direction:column;
-    align-items:flex-end;
-    justify-content:center;
-    flex-shrink:0;
-  }
-  .bom-brand-name-blue{
-    font-size:14px;
-    font-weight:800;
-    color:#0284c7;
-    letter-spacing:0.5px;
-    line-height:1;
-  }
-  .bom-brand-sub{
-    font-size:7px;
-    font-weight:600;
-    color:#64748b;
-    letter-spacing:0.5px;
   }
 
   /* Inverter Card */
   .bom-inverter-top{
-    display:flex;
+    display:grid;
+    grid-template-columns:95px 95px 1.5fr 1.8fr;
+    gap:12px;
     align-items:flex-start;
-    justify-content:space-between;
-    gap:10px;
     margin-bottom:6px;
-  }
-  .bom-brand-name-red{
-    font-size:14px;
-    font-weight:900;
-    color:#dc2626;
-    letter-spacing:0.5px;
-    text-transform:uppercase;
   }
   .bom-alt-box{
     background:#FFFDF5;

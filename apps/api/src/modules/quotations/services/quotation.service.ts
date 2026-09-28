@@ -67,6 +67,59 @@ function getDefaultLogoBase64(): string {
     return cachedDefaultLogoBase64;
 }
 
+async function resolveImageToBase64(imagePathOrUrl: string | null | undefined): Promise<string | null> {
+    if (!imagePathOrUrl) return null;
+    if (imagePathOrUrl.startsWith("data:")) return imagePathOrUrl;
+
+    const key = storageService.extractStorageKey(imagePathOrUrl) || imagePathOrUrl;
+    const pathsToTry = [
+        storageService.getLocalFilePath(key),
+        path.resolve(process.cwd(), "apps/api/public/uploads", key),
+        path.resolve(process.cwd(), "dist/apps/api/public/uploads", key),
+        path.resolve(process.cwd(), "public/uploads", key),
+        path.resolve(process.cwd(), key),
+        path.resolve(__dirname, "../../public/uploads", key),
+        path.resolve(__dirname, "../../../public/uploads", key),
+        path.resolve(__dirname, "../../../../public/uploads", key),
+        path.resolve(__dirname, "../../../../../public/uploads", key),
+        path.resolve(__dirname, "../../../../../apps/api/public/uploads", key),
+        path.resolve("C:/Sunselect-India/solar-crm-api/apps/api/public/uploads", key),
+        path.resolve("C:/Sunselect-India/solar-crm-2/solar-crm-api/apps/api/public/uploads", key),
+    ];
+
+    for (const p of pathsToTry) {
+        if (fs.existsSync(p)) {
+            try {
+                const ext = path.extname(p).toLowerCase().replace(".", "");
+                const mime = ext === "svg" ? "image/svg+xml" : ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+                const buf = fs.readFileSync(p);
+                return `data:${mime};base64,${buf.toString("base64")}`;
+            } catch (err) {
+                logger.warn(`Failed to read local image to base64: ${p}`, { err });
+            }
+        }
+    }
+
+    const publicUrl = storageService.getPublicUrl(imagePathOrUrl) || imagePathOrUrl;
+    if (publicUrl && (publicUrl.startsWith("http://") || publicUrl.startsWith("https://"))) {
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 3000);
+            const resp = await fetch(publicUrl, { signal: controller.signal });
+            clearTimeout(timeout);
+            if (resp.ok) {
+                const buffer = Buffer.from(await resp.arrayBuffer());
+                const contentType = resp.headers.get("content-type") || "image/jpeg";
+                return `data:${contentType};base64,${buffer.toString("base64")}`;
+            }
+        } catch {
+            // fallback to publicUrl
+        }
+    }
+
+    return publicUrl;
+}
+
 export class QuotationService {
     private static readonly inFlightPdfs = new Map<string, Promise<{ pdfUrl: string; pdfPath: string }>>();
 
@@ -814,8 +867,9 @@ export class QuotationService {
                 }
             }
 
-            const mappedItems = items.map(item => {
+            const mappedItems = await Promise.all(items.map(async item => {
                 const lineTotal = Number(item.lineTotal);
+                const resolvedCatImg = await resolveImageToBase64(item.categoryImage);
                 return {
                     productName: item.productName,
                     brandName: item.brandName,
@@ -828,13 +882,13 @@ export class QuotationService {
                     isExtra: (item as any).isExtra,
                     categoryName: item.categoryName ?? null,
                     categoryUid: item.categoryUid ?? null,
-                    categoryImage: item.categoryImage ? (storageService.getPublicUrl(item.categoryImage) || item.categoryImage) : null,
+                    categoryImage: resolvedCatImg,
                     capacity: item.capacity ?? null,
                     capacityUnit: item.capacityUnit ?? null,
                     warranty: item.warranty ?? null,
                     modelNumber: item.modelNumber ?? null
                 };
-            });
+            }));
 
             const showSubsidy = quotation.subsidyData && quotation.subsidyData.length > 0;
             const systemSize = Number(quotation.systemSize);

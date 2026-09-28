@@ -123,9 +123,32 @@ export class ProductController {
     public deleteProductImage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
-            const uid = (req.params.uid as string) || (req.body.productUid as string);
-            const imageUrl = (req.body.imageUrl as string) || (req.body.link as string) || (req.body.image as string);
-            const product = await this.service.deleteProductImage(uid, imageUrl, authReq.tenantUid, authReq.user.uid);
+            const uid =
+                (req.params?.uid as string) ||
+                (req.body?.productUid as string) ||
+                (req.body?.product_uid as string) ||
+                (req.body?.uid as string) ||
+                (req.query?.productUid as string) ||
+                (req.query?.product_uid as string) ||
+                (req.query?.uid as string);
+
+            const imageUrl =
+                (req.body?.link as string) ||
+                (req.body?.imageUrl as string) ||
+                (req.body?.image as string) ||
+                (req.body?.url as string) ||
+                (req.body?.imageLink as string) ||
+                (req.query?.link as string) ||
+                (req.query?.imageUrl as string) ||
+                (req.query?.image as string) ||
+                (req.query?.url as string);
+
+            const product = await this.service.deleteProductImage(
+                uid,
+                imageUrl,
+                authReq.tenantUid,
+                authReq.user?.uid || (authReq as any).userUid
+            );
             res.status(200).json({
                 success: true,
                 message: PRODUCT_MESSAGES.IMAGE_DELETED,

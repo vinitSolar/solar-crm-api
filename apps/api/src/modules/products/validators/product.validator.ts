@@ -198,7 +198,23 @@ export function validateProductRequest(schema: z.ZodType) {
 }
 
 export function validateDeleteProductImageRequest(req: Request, res: Response, next: NextFunction): void {
-    const rawImage = req.body?.imageUrl || req.body?.link || req.body?.image || req.query?.imageUrl || req.query?.link || req.query?.image;
+    const rawImage =
+        req.body?.link ||
+        req.body?.imageUrl ||
+        req.body?.image ||
+        req.body?.url ||
+        req.body?.imageLink ||
+        req.body?.image_url ||
+        req.body?.path ||
+        req.body?.filePath ||
+        req.query?.link ||
+        req.query?.imageUrl ||
+        req.query?.image ||
+        req.query?.url ||
+        req.query?.imageLink ||
+        req.query?.image_url ||
+        req.query?.path ||
+        req.query?.filePath;
 
     if (!rawImage || typeof rawImage !== "string" || !rawImage.trim()) {
         res.status(400).json({
@@ -206,19 +222,29 @@ export function validateDeleteProductImageRequest(req: Request, res: Response, n
             message: "Validation Error",
             errors: [
                 {
-                    field: "imageUrl",
-                    message: "Image link or URL (link, imageUrl, or image) is required",
+                    field: "link",
+                    message: "Image link or URL (link, imageUrl, image, or url) is required",
                 }
             ],
         });
         return;
     }
 
-    const productUid = req.params?.uid || req.body?.productUid || req.query?.productUid;
+    const productUid =
+        req.params?.uid ||
+        req.body?.productUid ||
+        req.body?.product_uid ||
+        req.body?.uid ||
+        req.query?.productUid ||
+        req.query?.product_uid ||
+        req.query?.uid;
+
+    const trimmedImage = rawImage.trim();
 
     req.body = {
         ...(typeof req.body === "object" && req.body !== null ? req.body : {}),
-        imageUrl: rawImage.trim(),
+        link: trimmedImage,
+        imageUrl: trimmedImage,
         productUid: typeof productUid === "string" ? productUid.trim() : undefined,
     };
 

@@ -652,23 +652,40 @@ export class ProductService {
     async deleteProductImage(productUid: string | undefined, imageUrlOrLink: string, tenantUid: string, userUid: string): Promise<IProductSafe> {
         logger.info("ProductService.deleteProductImage", { productUid, imageUrlOrLink, tenantUid, userUid });
 
+        const rawInput = (imageUrlOrLink || "").trim();
+        let cleaned = rawInput;
+        try {
+            if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+                const u = new URL(cleaned);
+                cleaned = u.pathname;
+            } else {
+                cleaned = (cleaned.split("?")[0] || "").split("#")[0] || cleaned;
+            }
+        } catch {}
+        cleaned = cleaned.replace(/\\/g, "/");
+        try {
+            cleaned = decodeURIComponent(cleaned);
+        } catch {}
+
+        const targetKey = storageService.extractStorageKey(rawInput) || storageService.extractStorageKey(cleaned);
+        const targetFileName = targetKey ? path.basename(targetKey) : path.basename(cleaned);
+
         let uid = productUid;
 
         // If productUid was not provided directly in params, try to extract it from the image link or query database
-        if (!uid) {
-            const extractedKey = storageService.extractStorageKey(imageUrlOrLink);
-            if (extractedKey) {
-                const match = extractedKey.match(/products\/([0-9a-fA-F-]{36})\/images/);
-                if (match && match[1]) {
-                    uid = match[1];
-                }
+        if (!uid && targetKey) {
+            const match = targetKey.match(/products\/([0-9a-fA-F-]{36})\/images/);
+            if (match && match[1]) {
+                uid = match[1];
             }
         }
 
-        // If still not found, search in repository
+        // Search product by UID if available
         let product = uid ? await this.repository.findByUid(uid) : null;
+
+        // If not found by UID, search by image link in repository
         if (!product) {
-            product = await this.repository.findByImage(imageUrlOrLink);
+            product = await this.repository.findByImage(rawInput);
             if (product) {
                 uid = product.uid;
             }
@@ -678,38 +695,49 @@ export class ProductService {
             throw new CustomError(PRODUCT_MESSAGES.NOT_FOUND, 404);
         }
 
-        const targetKey = storageService.extractStorageKey(imageUrlOrLink);
-        const targetFileName = targetKey ? path.basename(targetKey) : path.basename(imageUrlOrLink);
-
         const currentImages = product.images || [];
-        let matchedIndex = -1;
-        let matchedKeyToDelete: string | null = null;
 
-        for (let i = 0; i < currentImages.length; i++) {
-            const existingImg = currentImages[i]!;
-            const existingKey = storageService.extractStorageKey(existingImg);
-            const existingFileName = existingKey ? path.basename(existingKey) : path.basename(existingImg);
+        const isMatch = (existingImg: string): boolean => {
+            if (!existingImg) return false;
+            const existingRaw = existingImg.trim();
+            const existingCleaned = ((existingRaw.split("?")[0] || "").split("#")[0] || existingRaw).replace(/\\/g, "/");
+            const existingKey = storageService.extractStorageKey(existingRaw);
+            const existingFileName = existingKey ? path.basename(existingKey) : path.basename(existingCleaned);
 
-            if (
-                existingImg === imageUrlOrLink ||
-                (targetKey && existingKey && existingKey === targetKey) ||
-                (storageService.getPublicUrl(existingImg) === imageUrlOrLink) ||
-                (existingKey && storageService.getPublicUrl(existingKey) === imageUrlOrLink) ||
-                (targetFileName && existingFileName && targetFileName === existingFileName)
-            ) {
-                matchedIndex = i;
-                matchedKeyToDelete = existingKey || targetKey || existingImg;
-                break;
+            return (
+                existingRaw === rawInput ||
+                existingCleaned === cleaned ||
+                (Boolean(targetKey) && Boolean(existingKey) && existingKey === targetKey) ||
+                (storageService.getPublicUrl(existingRaw) === rawInput) ||
+                (Boolean(existingKey) && storageService.getPublicUrl(existingKey) === rawInput) ||
+                (Boolean(targetFileName) && Boolean(existingFileName) && targetFileName.length > 3 && targetFileName === existingFileName)
+            );
+        };
+
+        let hasMatch = currentImages.some(isMatch);
+
+        // Fallback: If image wasn't found in this product, maybe productUid param was wrong; search globally by image
+        if (!hasMatch && productUid) {
+            const fallbackProduct = await this.repository.findByImage(rawInput);
+            if (fallbackProduct && fallbackProduct.uid !== uid) {
+                product = fallbackProduct;
+                uid = fallbackProduct.uid;
+                hasMatch = (product.images || []).some(isMatch);
             }
         }
 
-        if (matchedIndex === -1) {
+        if (!hasMatch) {
             throw new CustomError(PRODUCT_MESSAGES.IMAGE_NOT_FOUND, 404);
         }
 
-        // Remove matched image from product images list
-        const updatedImages = [...currentImages];
-        updatedImages.splice(matchedIndex, 1);
+        const imagesToInspect = product.images || [];
+        const matchedItem = imagesToInspect.find(isMatch);
+        const matchedKeyToDelete = matchedItem
+            ? (storageService.extractStorageKey(matchedItem) || matchedItem)
+            : targetKey;
+
+        // Remove all matching occurrences to clean up duplicates
+        const updatedImages = imagesToInspect.filter(img => !isMatch(img));
 
         // Update product record
         const updatedProduct = await this.repository.update(uid, {

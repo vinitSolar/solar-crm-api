@@ -108,12 +108,25 @@ class StorageService {
             if (p.startsWith("http://") || p.startsWith("https://")) {
                 const parsed = new URL(p);
                 p = parsed.pathname;
+            } else {
+                p = (p.split("?")[0] || "").split("#")[0] || p;
             }
         } catch {
             // Keep p as-is if URL parsing fails
         }
+        // Normalize backslashes to forward slashes
+        p = p.replace(/\\/g, "/");
+        // Decode URI component safely
+        try {
+            p = decodeURIComponent(p);
+        } catch {}
         // Remove leading /public/uploads/ or public/uploads/
         p = p.replace(/^\/?public\/uploads\//, "");
+        // If bucket name is at the start of the path, strip it
+        if (this.bucketName) {
+            const bucketPattern = new RegExp(`^\\/?${this.bucketName}\\/`);
+            p = p.replace(bucketPattern, "");
+        }
         // Remove any leading slashes
         p = p.replace(/^\/+/, "");
         return p || null;

@@ -384,10 +384,73 @@ router.put("/:uid", requirePermission("PRODUCTS", "can_edit"), upload.any(), val
 
 /**
  * @swagger
+ * /products/delete-image:
+ *   post:
+ *     tags: [Products]
+ *     summary: Delete a product image based on link or URL
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - link
+ *             properties:
+ *               link:
+ *                 type: string
+ *                 description: Image URL, storage key, or file link to delete
+ *                 example: "https://backend.sunselect.in/public/uploads/products/1b6e738a-b4f1-4128-b890-591741a7557b/images/1c29088c-31c4-4cbe-b981-072e14e3762e.jpg"
+ *               imageUrl:
+ *                 type: string
+ *                 description: Alias for link
+ *               productUid:
+ *                 type: string
+ *                 description: Optional product UID if not resolvable from URL
+ *     responses:
+ *       200:
+ *         description: Product image deleted successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Product or image not found
+ *
+ * /products/image:
+ *   delete:
+ *     tags: [Products]
+ *     summary: Delete a product image based on link or URL
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - link
+ *             properties:
+ *               link:
+ *                 type: string
+ *                 description: Image URL or storage key to delete
+ *                 example: "https://backend.sunselect.in/public/uploads/products/1b6e738a-b4f1-4128-b890-591741a7557b/images/1c29088c-31c4-4cbe-b981-072e14e3762e.jpg"
+ *               imageUrl:
+ *                 type: string
+ *                 description: Alias for link
+ *     responses:
+ *       200:
+ *         description: Product image deleted successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Product or image not found
+ *
  * /products/{uid}/images:
  *   delete:
  *     tags: [Products]
- *     summary: Delete a product image using link
+ *     summary: Delete a product image from a specific product by link
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -421,12 +484,19 @@ router.put("/:uid", requirePermission("PRODUCTS", "can_edit"), upload.any(), val
  *       404:
  *         description: Product or image not found
  */
+router.post("/delete-image", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.delete("/delete-image", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
 router.delete("/images", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
 router.delete("/image", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.post("/images/delete", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.post("/image/delete", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+
+router.delete("/:uid/delete-image", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.post("/:uid/delete-image", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
 router.delete("/:uid/images", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
 router.delete("/:uid/image", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
 router.post("/:uid/images/delete", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
-router.post("/images/delete", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
+router.post("/:uid/image/delete", requirePermission("PRODUCTS", "can_edit"), validateDeleteProductImageRequest, controller.deleteProductImage);
 
 /**
  * @swagger

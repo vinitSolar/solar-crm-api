@@ -3048,9 +3048,9 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     top:144mm;
     width:48mm;
     height:48mm;
-    z-index:3;
+    z-index:12;
     pointer-events:none;
-    opacity:0.45;
+    opacity:0.55;
   }
 
   /* Dynamic Contact Us Card Overlay */
@@ -3759,8 +3759,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
     <!-- Sun Watermark glowing on right edge of Contact Card -->
     <svg class="closing-sun-watermark" viewBox="0 0 120 120" fill="none">
-      <circle cx="60" cy="60" r="32" fill="#E31E24" />
-      <g fill="#E31E24">
+      <circle cx="60" cy="60" r="32" fill="#ffffff" />
+      <g fill="#ffffff">
         <rect x="56" y="8" width="8" height="15" rx="4" transform="rotate(-60 60 60)" />
         <rect x="56" y="8" width="8" height="15" rx="4" transform="rotate(-30 60 60)" />
         <rect x="56" y="8" width="8" height="15" rx="4" transform="rotate(0 60 60)" />

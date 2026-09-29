@@ -6,7 +6,7 @@ const BANK_DETAIL_COLUMNS = `
     id, uid, tenant_uid AS "tenantUid",
     account_name AS "accountName", account_number AS "accountNumber",
     ifsc_code AS "ifscCode", bank_name AS "bankName", branch_name AS "branchName",
-    swift_code AS "swiftCode", upi_id AS "upiId",
+    swift_code AS "swiftCode", upi_id AS "upiId", qr_code AS "qrCode",
     is_default AS "isDefault", is_active AS "isActive", is_deleted AS "isDeleted",
     created_at AS "createdAt", updated_at AS "updatedAt",
     created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
@@ -33,16 +33,16 @@ export class BankDetailRepository {
         const query = `
             INSERT INTO bank_details (
                 uid, tenant_uid, account_name, account_number, ifsc_code,
-                bank_name, branch_name, swift_code, upi_id, is_default, created_by
+                bank_name, branch_name, swift_code, upi_id, qr_code, is_default, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, 1, $10
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, $11
             )
             RETURNING ${BANK_DETAIL_COLUMNS}
         `;
         const values = [
             uid, tenantUid, data.accountName, data.accountNumber, data.ifscCode,
-            data.bankName, data.branchName, data.swiftCode || null, data.upiId || null, createdBy
+            data.bankName, data.branchName, data.swiftCode || null, data.upiId || null, data.qrCode || null, createdBy
         ];
 
         const result = client 
@@ -102,6 +102,7 @@ export class BankDetailRepository {
         if (data.branchName !== undefined) { updates.push(`branch_name = $${index++}`); values.push(data.branchName); }
         if (data.swiftCode !== undefined) { updates.push(`swift_code = $${index++}`); values.push(data.swiftCode); }
         if (data.upiId !== undefined) { updates.push(`upi_id = $${index++}`); values.push(data.upiId); }
+        if (data.qrCode !== undefined) { updates.push(`qr_code = $${index++}`); values.push(data.qrCode); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 

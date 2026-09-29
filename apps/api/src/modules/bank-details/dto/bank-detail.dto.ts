@@ -1,4 +1,5 @@
 import type { IBankDetail, IBankDetailSafe } from "../interfaces/bank-detail.interface.js";
+import { storageService } from "@packages/storage/index.js";
 
 export function toBankDetailSafe(detail: IBankDetail): IBankDetailSafe {
     return {
@@ -10,6 +11,7 @@ export function toBankDetailSafe(detail: IBankDetail): IBankDetailSafe {
         branchName: detail.branchName,
         swiftCode: detail.swiftCode,
         upiId: detail.upiId,
+        qrCode: detail.qrCode ? storageService.getPublicUrl(detail.qrCode) : null,
         isDefault: detail.isDefault,
         isActive: detail.isActive,
         isDeleted: detail.isDeleted,

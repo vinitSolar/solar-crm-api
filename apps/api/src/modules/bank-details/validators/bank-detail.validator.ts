@@ -8,8 +8,9 @@ export const createBankDetailSchema = z.object({
         ifscCode: z.string().min(1, "IFSC code is required").max(50),
         bankName: z.string().min(1, "Bank name is required").max(255),
         branchName: z.string().min(1, "Branch name is required").max(255),
-        swiftCode: z.string().max(50).optional(),
-        upiId: z.string().max(100).optional(),
+        swiftCode: z.string().max(50).optional().nullable().or(z.literal("")),
+        upiId: z.string().max(100).optional().nullable().or(z.literal("")),
+        qrCode: z.string().optional().nullable().or(z.literal("")),
     }),
 });
 
@@ -20,8 +21,9 @@ export const updateBankDetailSchema = z.object({
         ifscCode: z.string().min(1, "IFSC code is required").max(50).optional(),
         bankName: z.string().min(1, "Bank name is required").max(255).optional(),
         branchName: z.string().min(1, "Branch name is required").max(255).optional(),
-        swiftCode: z.string().max(50).optional(),
-        upiId: z.string().max(100).optional(),
+        swiftCode: z.string().max(50).optional().nullable().or(z.literal("")),
+        upiId: z.string().max(100).optional().nullable().or(z.literal("")),
+        qrCode: z.string().optional().nullable().or(z.literal("")),
     }),
 });
 

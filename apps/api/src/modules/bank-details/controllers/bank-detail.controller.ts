@@ -18,7 +18,7 @@ export class BankDetailController {
             throw new CustomError("Unauthorized", 401);
         }
 
-        const bankDetail = await this.service.createBankDetail(tenantUid, req.body, createdBy);
+        const bankDetail = await this.service.createBankDetail(tenantUid, req.body, req.file, createdBy);
 
         res.status(201).json({
             success: true,
@@ -68,7 +68,7 @@ export class BankDetailController {
             throw new CustomError("Unauthorized", 401);
         }
 
-        const updated = await this.service.updateBankDetail(uid as string, tenantUid, req.body, updatedBy);
+        const updated = await this.service.updateBankDetail(uid as string, tenantUid, req.body, req.file, updatedBy);
 
         if (!updated) {
             throw new CustomError("Bank details not found", 404);

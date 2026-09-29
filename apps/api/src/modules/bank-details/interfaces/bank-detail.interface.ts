@@ -9,6 +9,7 @@ export interface IBankDetail {
     branchName: string;
     swiftCode: string | null;
     upiId: string | null;
+    qrCode: string | null;
     isDefault: number;
     isActive: number;
     isDeleted: number;
@@ -25,8 +26,9 @@ export interface ICreateBankDetail {
     ifscCode: string;
     bankName: string;
     branchName: string;
-    swiftCode?: string;
-    upiId?: string;
+    swiftCode?: string | null;
+    upiId?: string | null;
+    qrCode?: string | null;
 }
 
 export interface IUpdateBankDetail extends Partial<ICreateBankDetail> {}
@@ -40,6 +42,7 @@ export interface IBankDetailSafe {
     branchName: string;
     swiftCode: string | null;
     upiId: string | null;
+    qrCode: string | null;
     isDefault: number;
     isActive: number;
     isDeleted: number;

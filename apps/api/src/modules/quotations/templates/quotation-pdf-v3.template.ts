@@ -437,6 +437,52 @@ function formatPrice(amount: number | string): string {
   });
 }
 
+// Helper: resolve local uploads to base64 data URI for offline PDF rendering
+function resolveImageToBase64Sync(imagePathOrUrl: string | null | undefined): string | null {
+  if (!imagePathOrUrl) return null;
+  if (imagePathOrUrl.startsWith('data:')) return imagePathOrUrl;
+
+  let key = imagePathOrUrl.trim().replace(/\\/g, '/');
+  try {
+    if (key.startsWith('http://') || key.startsWith('https://')) {
+      const parsed = new URL(key);
+      key = parsed.pathname;
+    }
+  } catch {
+    // ignore
+  }
+  key = key.replace(/^\/?public\/uploads\//, '').replace(/^\/+/, '');
+
+  const candidates = [
+    path.resolve(process.cwd(), 'apps/api/public/uploads', key),
+    path.resolve(process.cwd(), 'dist/apps/api/public/uploads', key),
+    path.resolve(process.cwd(), 'public/uploads', key),
+    path.resolve(process.cwd(), key),
+    path.resolve(__dirname, '../../public/uploads', key),
+    path.resolve(__dirname, '../../../public/uploads', key),
+    path.resolve(__dirname, '../../../../public/uploads', key),
+    path.resolve(__dirname, '../../../../../public/uploads', key),
+    path.resolve(__dirname, '../../../../../apps/api/public/uploads', key),
+    path.resolve('C:/Sunselect-India/solar-crm-api/apps/api/public/uploads', key),
+    path.resolve('C:/Sunselect-India/solar-crm-2/solar-crm-api/apps/api/public/uploads', key)
+  ];
+
+  for (const filePath of candidates) {
+    if (fs.existsSync(filePath)) {
+      try {
+        const buffer = fs.readFileSync(filePath);
+        const ext = path.extname(filePath).toLowerCase().replace('.', '');
+        const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        return `data:${mime};base64,${buffer.toString('base64')}`;
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  return imagePathOrUrl;
+}
+
 export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy, bankDetails } = data;
 
@@ -445,6 +491,9 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   const accountNumber = bankDetails?.accountNumber || '0876543210123';
   const ifscCode = bankDetails?.ifscCode || 'HDFC0001234';
   const branchName = bankDetails?.branchName || franchise.city || 'Navi Mumbai';
+  const upiId = bankDetails?.upiId || null;
+  const rawBankQr = bankDetails?.qrCode || null;
+  const bankQrCodeBase64 = rawBankQr ? resolveImageToBase64Sync(rawBankQr) : null;
 
   const coverBgBase64 = getCoverBgBase64();
   const coverLogoBase64 = getCoverLogoBase64();
@@ -776,52 +825,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     return 'AC Cable:';
   }
 
-  // Helper: resolve local uploads to base64 data URI for offline PDF rendering
-  function resolveImageToBase64Sync(imagePathOrUrl: string | null | undefined): string | null {
-    if (!imagePathOrUrl) return null;
-    if (imagePathOrUrl.startsWith('data:')) return imagePathOrUrl;
-
-    let key = imagePathOrUrl.trim().replace(/\\/g, '/');
-    try {
-      if (key.startsWith('http://') || key.startsWith('https://')) {
-        const parsed = new URL(key);
-        key = parsed.pathname;
-      }
-    } catch {
-      // ignore
-    }
-    key = key.replace(/^\/?public\/uploads\//, '').replace(/^\/+/, '');
-
-    const candidates = [
-      path.resolve(process.cwd(), 'apps/api/public/uploads', key),
-      path.resolve(process.cwd(), 'dist/apps/api/public/uploads', key),
-      path.resolve(process.cwd(), 'public/uploads', key),
-      path.resolve(process.cwd(), key),
-      path.resolve(__dirname, '../../public/uploads', key),
-      path.resolve(__dirname, '../../../public/uploads', key),
-      path.resolve(__dirname, '../../../../public/uploads', key),
-      path.resolve(__dirname, '../../../../../public/uploads', key),
-      path.resolve(__dirname, '../../../../../apps/api/public/uploads', key),
-      path.resolve('C:/Sunselect-India/solar-crm-api/apps/api/public/uploads', key),
-      path.resolve('C:/Sunselect-India/solar-crm-2/solar-crm-api/apps/api/public/uploads', key)
-    ];
-
-    for (const filePath of candidates) {
-      if (fs.existsSync(filePath)) {
-        try {
-          const buffer = fs.readFileSync(filePath);
-          const ext = path.extname(filePath).toLowerCase().replace('.', '');
-          const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-          return `data:${mime};base64,${buffer.toString('base64')}`;
-        } catch {
-          // ignore
-        }
-      }
-    }
-
-    return imagePathOrUrl;
-  }
-
   // ── Panel Section HTML ──
   let bomPanelHtml = '';
   if (bomGroups.panel.length > 0) {
@@ -904,11 +907,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
               <div class="bom-field-label" style="margin-top:2px;">Performance Warranty:</div>
               <div class="bom-field-val-sm">25 Year</div>
             </div>
-            ${p.brandName ? `
-            <div class="bom-brand-logo">
-              <span class="bom-brand-name-blue">${p.brandName}</span>
-              <span class="bom-brand-sub">Solar</span>
-            </div>` : ''}
           </div>
         `;
       }
@@ -987,7 +985,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         const inv = inverterItems[0]!;
         const kwSize = extractKwSize(inv);
         const invWarranty = inv.warranty ? (inv.warranty.toLowerCase().includes('year') ? inv.warranty : `${inv.warranty} Year`) : '5-7 Year';
-        const altInverters = `DEYE ${kwSize || quotation.systemSize + ' kW'} - DEYE - Inverter; SOLAR YAAN ${kwSize || quotation.systemSize + ' kW'} - SOLAR YAAN - Inverter`;
 
         inverterContentHtml = `
           <div class="bom-inverter-top">
@@ -1007,15 +1004,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
               <div class="bom-field-label">Inverter Warranty:</div>
               <div class="bom-field-val">${invWarranty}</div>
             </div>
-            ${inv.brandName ? `
-            <div class="bom-brand-logo">
-              <span class="bom-brand-name-red">${inv.brandName.toUpperCase()}</span>
-            </div>` : ''}
-          </div>
-          <div class="bom-alt-box">
-            <div class="bom-alt-title">ALTERNATIVE PRODUCTS</div>
-            <div class="bom-alt-sub">May be supplied if the primary product is unavailable, with equivalent specification.</div>
-            <div class="bom-alt-items">${altInverters}</div>
           </div>
         `;
       }
@@ -1059,7 +1047,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           <div class="bom-cable-make">${c.brandName || '-'}</div>
           <div class="bom-cable-qty">Qty: ${c.quantity ? `${c.quantity} ${c.unitName || 'Meter'}` : '-'}</div>
           <div class="bom-cable-spec">${c.description || c.productName || '-'}</div>
-          ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
         </div>
       `).join('');
 
@@ -1069,7 +1056,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           <div class="bom-cable-make">${c.brandName || '-'}</div>
           <div class="bom-cable-qty">Qty: ${c.quantity ? `${c.quantity} ${c.unitName || 'Meter'}` : '-'}</div>
           <div class="bom-cable-spec">${c.description || c.productName || '-'}</div>
-          ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
         </div>
       `).join('') : '';
 
@@ -1091,7 +1077,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           </div>
           <div class="bom-card-content">
             <div class="bom-cable-grid-4">${firstRowHtml}</div>
-            ${restRowHtml ? `<div class="bom-cable-grid-2" style="margin-top:4px;">${restRowHtml}</div>` : ''}
+            ${restRowHtml ? `<div class="bom-cable-grid-2" style="margin-top:6px;">${restRowHtml}</div>` : ''}
           </div>
         </div>
         <span class="bom-card-tag">Cables</span>
@@ -1116,21 +1102,18 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                 <div class="bom-cable-make">Polycab / KEI</div>
                 <div class="bom-cable-qty">Qty: 25 Meter</div>
                 <div class="bom-cable-spec">A.C 4.0 SQMM 4 CORE COPPER</div>
-                <div class="bom-cable-brand-badge">POLYCAB</div>
               </div>
               <div class="bom-cable-col">
                 <div class="bom-cable-type">DC Cable:</div>
                 <div class="bom-cable-make">Waaree / Polycab</div>
                 <div class="bom-cable-qty">Qty: 20 Meter</div>
                 <div class="bom-cable-spec">D.C CABLE RED 4.0 SQMM (UV)</div>
-                <div class="bom-cable-brand-badge">WAAREE</div>
               </div>
               <div class="bom-cable-col">
                 <div class="bom-cable-type">DC Cable:</div>
                 <div class="bom-cable-make">Waaree / Polycab</div>
                 <div class="bom-cable-qty">Qty: 20 Meter</div>
                 <div class="bom-cable-spec">D.C CABLE BLACK 4.0 SQMM (UV)</div>
-                <div class="bom-cable-brand-badge">WAAREE</div>
               </div>
               <div class="bom-cable-col">
                 <div class="bom-cable-type">Earthing Cable:</div>
@@ -1139,7 +1122,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                 <div class="bom-cable-spec">COPPER EARTHING 16 SQMM GREEN</div>
               </div>
             </div>
-            <div class="bom-cable-grid-2" style="margin-top:4px;">
+            <div class="bom-cable-grid-2" style="margin-top:6px;">
               <div class="bom-cable-col">
                 <div class="bom-cable-type">LA Cable:</div>
                 <div class="bom-cable-make">Earthcab / Polycab</div>
@@ -1566,10 +1549,10 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   // Calculate total row weight to dynamically choose density class and scale text
   const panelRowsCount = Math.max(1, bomGroups.panel.length);
-  const inverterRowsCount = Math.max(1, bomGroups.inverter.length) + 1; // +1 for alt box
+  const inverterRowsCount = Math.max(1, bomGroups.inverter.length);
   const cablesRowsCount = bomGroups.cables.length > 4 ? 2 : 1;
   const structRowsCount = bomGroups.structure.length > 0 ? bomGroups.structure.length : 3;
-  const accRowsCount = bomGroups.accessories.length > 0 
+  const accRowsCount = bomGroups.accessories.length > 0
     ? bomGroups.accessories.filter(i => !/acdb|dcdb|earthing|arrestor|arrester|lightning|lightening/i.test(i.productName)).length
     : 4;
   const bosRowsCount = 1;
@@ -1581,11 +1564,11 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   const totalBomRows = panelRowsCount + inverterRowsCount + cablesRowsCount + structRowsCount + accRowsCount + bosRowsCount + otherRowsCount;
 
   let bomDensityClass = 'bom-density-normal';
-  if (totalBomRows >= 24) {
+  if (totalBomRows >= 28) {
     bomDensityClass = 'bom-density-micro';
-  } else if (totalBomRows >= 18) {
+  } else if (totalBomRows >= 23) {
     bomDensityClass = 'bom-density-ultra';
-  } else if (totalBomRows >= 12) {
+  } else if (totalBomRows >= 17) {
     bomDensityClass = 'bom-density-compact';
   }
 
@@ -1626,7 +1609,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   const annualSavings = annualGeneration * 8; // Standard average tariff rate: Rs 8 / unit
   const treesSaved = Math.round(systemSizeNum * 50);
   const co2Reduction = Math.max(1, Math.round(systemSizeNum));
-  
+
   const totalCost = grandTotalAmount || Number(quotation.grandTotal) || Number(quotation.subtotal) || (systemSizeNum * 50000);
   const effectiveCost = (subsidy && subsidy.showSubsidy && finalCost > 0)
     ? finalCost
@@ -2318,8 +2301,220 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     font-size:11px;
     color:#64748B;
     margin-top:8px;
-    margin-bottom:20px;
+    margin-bottom:14px;
     padding-left:2px;
+  }
+
+  /* Page 3: Proposal Bottom Section (Bank Details on Left, QR Code on Right) */
+  .proposal-bottom-wrap{
+    display:flex;
+    align-items:stretch;
+    justify-content:space-between;
+    gap:20px;
+    margin-top:16px;
+  }
+
+  .proposal-bank-card{
+    flex:1.45;
+    background:#ffffff;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    padding:14px 18px;
+    box-sizing:border-box;
+    box-shadow:0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  .proposal-bank-header{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:10px;
+    padding-bottom:6px;
+    border-bottom:1px solid #f1f5f9;
+  }
+
+  .proposal-bank-title{
+    font-family:var(--font-heading);
+    font-size:14px;
+    font-weight:700;
+    color:var(--red);
+    margin:0;
+    letter-spacing:0.2px;
+  }
+
+  .proposal-bank-table{
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+  }
+
+  .proposal-bank-row{
+    display:flex;
+    align-items:baseline;
+    font-size:12px;
+    line-height:1.4;
+  }
+
+  .proposal-bank-lbl{
+    width:105px;
+    color:#64748b;
+    font-weight:600;
+    flex-shrink:0;
+  }
+
+  .proposal-bank-val{
+    color:#0f172a;
+    font-weight:600;
+    flex:1;
+  }
+
+  .proposal-qr-card{
+    flex:0.85;
+    background:#ffffff;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    padding:14px 16px;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    box-shadow:0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  .proposal-qr-frame{
+    width:112px;
+    height:112px;
+    background:#ffffff;
+    border:1.5px solid #cbd5e1;
+    border-radius:8px;
+    padding:6px;
+    box-sizing:border-box;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .proposal-qr-img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    display:block;
+  }
+
+  .proposal-qr-text-wrap{
+    margin-top:7px;
+  }
+
+  .proposal-qr-title{
+    font-family:var(--font-heading);
+    font-size:12px;
+    font-weight:700;
+    color:#0f172a;
+    margin:0 0 1px 0;
+  }
+
+  .proposal-qr-sub{
+    font-size:9.5px;
+    font-weight:500;
+    color:#64748b;
+    margin:0;
+  }
+
+  /* ========================================================
+     PAGE 7: TERMS & CONDITIONS (DEDICATED PAGE)
+     ======================================================== */
+  .tc-page .content{
+    display:flex;
+    flex-direction:column;
+  }
+
+  .tc-grid{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:14px;
+    margin-top:10px;
+  }
+
+  .tc-card{
+    background:#ffffff;
+    border:1px solid #e2e8f0;
+    border-radius:8px;
+    padding:12px 14px;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .tc-card-header{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+    padding-bottom:6px;
+    border-bottom:1px solid #f1f5f9;
+  }
+
+  .tc-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(227, 30, 36, 0.08);
+    color:var(--red);
+    font-family:var(--font-heading);
+    font-size:10px;
+    font-weight:800;
+    width:22px;
+    height:22px;
+    border-radius:50%;
+    flex-shrink:0;
+  }
+
+  .tc-title{
+    font-family:var(--font-heading);
+    font-size:12.5px;
+    font-weight:700;
+    color:#0f172a;
+    margin:0;
+    line-height:1.25;
+  }
+
+  .tc-body{
+    font-size:11px;
+    line-height:1.5;
+    color:#334155;
+  }
+
+  .tc-list{
+    margin:0;
+    padding-left:16px;
+  }
+
+  .tc-list li{
+    margin-bottom:4px;
+  }
+  .tc-list li:last-child{
+    margin-bottom:0;
+  }
+
+  .tc-para{
+    margin:0;
+  }
+
+  .tc-notes-box{
+    margin-top:16px;
+    background:#fff7ed;
+    border:1px solid #fed7aa;
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:11.5px;
+    color:#9a3412;
+  }
+
+  .tc-notes-label{
+    font-weight:700;
+    margin-bottom:2px;
   }
 
   /* ========================================================
@@ -2386,18 +2581,18 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     background:#ffffff;
     box-sizing:border-box;
     margin-bottom:0;
-    padding:6.5px 12px 7.5px 12px;
+    padding:8px 14px 10px 14px;
   }
 
   .bom-card-tag{
     position:absolute;
-    bottom:-5.5px;
-    left:18px;
+    bottom:-6px;
+    left:20px;
     background:#ffffff;
-    padding:0 6px;
+    padding:0 7px;
     font-weight:700;
-    font-size:9px;
-    color:#1e293b;
+    font-size:10px;
+    color:#334155;
     line-height:1;
     letter-spacing:0.2px;
   }
@@ -2405,14 +2600,14 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-card-inner{
     display:flex;
     align-items:flex-start;
-    gap:10px;
+    gap:12px;
   }
 
   .bom-card-icon{
     width:28px;
     height:28px;
     flex-shrink:0;
-    margin-top:1.5px;
+    margin-top:2px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -2432,8 +2627,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   /* Shared Typography */
   .bom-th{
-    font-size:6.5px;
-    font-weight:600;
+    font-size:7.5px;
+    font-weight:700;
     color:#64748b;
     text-transform:uppercase;
     letter-spacing:0.3px;
@@ -2442,10 +2637,10 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
 
   .bom-td{
-    font-size:8px;
+    font-size:9.8px;
     font-weight:500;
     color:#1e293b;
-    line-height:1.2;
+    line-height:1.25;
     min-width:0;
   }
 
@@ -2460,99 +2655,39 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   /* Field Styles */
   .bom-field{ min-width:0; }
   .bom-field-label{
-    font-size:7px;
+    font-size:8px;
     font-weight:700;
     color:#475569;
     letter-spacing:0.2px;
-    margin-bottom:1.5px;
+    margin-bottom:2px;
     white-space:nowrap;
   }
   .bom-field-val{
-    font-size:9px;
-    font-weight:700;
-    color:#0f172a;
-    line-height:1.2;
-  }
-  .bom-field-val-sm{
-    font-size:8px;
+    font-size:10.2px;
     font-weight:600;
     color:#0f172a;
-    line-height:1.2;
+    line-height:1.25;
   }
-
-  /* Brand Logos */
-  .bom-brand-logo{
-    display:flex;
-    flex-direction:column;
-    align-items:flex-end;
-    justify-content:center;
-    margin-left:auto;
-    padding-left:8px;
-  }
-  .bom-brand-name-blue{
-    font-size:12px;
-    font-weight:900;
-    color:#0284c7;
-    letter-spacing:0.2px;
-    line-height:1;
-  }
-  .bom-brand-name-red{
-    font-size:12px;
-    font-weight:900;
-    color:var(--red);
-    letter-spacing:0.2px;
-    line-height:1;
-  }
-  .bom-brand-sub{
-    font-size:6.5px;
-    font-weight:700;
-    color:#64748b;
-    letter-spacing:0.5px;
-    text-transform:uppercase;
+  .bom-field-val-sm{
+    font-size:9px;
+    font-weight:500;
+    color:#0f172a;
+    line-height:1.25;
   }
 
   /* Panel Row */
   .bom-panel-row{
     display:flex;
     align-items:flex-start;
-    gap:12px;
+    gap:16px;
     flex-wrap:nowrap;
   }
 
-  /* Inverter Top & Alternative Products Box */
+  /* Inverter Top Row */
   .bom-inverter-top{
     display:flex;
     align-items:flex-start;
-    gap:14px;
-    margin-bottom:4px;
-  }
-  .bom-alt-box{
-    background:#fffbeb;
-    border-left:3px solid #d97706;
-    padding:3.5px 7px;
-    border-radius:0 4px 4px 0;
-    margin-top:3px;
-  }
-  .bom-alt-title{
-    font-size:6.8px;
-    font-weight:800;
-    color:#1e3a8a;
-    letter-spacing:0.3px;
-    margin-bottom:1px;
-    line-height:1.1;
-  }
-  .bom-alt-sub{
-    font-size:5.8px;
-    font-style:italic;
-    color:#71717a;
-    margin-bottom:1px;
-    line-height:1.1;
-  }
-  .bom-alt-items{
-    font-size:6.8px;
-    font-weight:600;
-    color:#27272a;
-    line-height:1.25;
+    gap:18px;
   }
 
   /* Multi-Panel & Multi-Inverter Tables */
@@ -2571,7 +2706,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     margin-bottom:2px;
   }
   .bom-panel-tr, .bom-inverter-tr{
-    padding:1.5px 0;
+    padding:2px 0;
   }
   .bom-panel-tr:not(:last-child), .bom-inverter-tr:not(:last-child){
     border-bottom:1px dashed #f8fafc;
@@ -2585,80 +2720,68 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-cable-grid-4{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
-    gap:4px 8px;
+    gap:6px 12px;
   }
   .bom-cable-grid-2{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
-    gap:4px 8px;
+    gap:6px 12px;
   }
   .bom-cable-col{ min-width:0; }
   .bom-cable-type{
-    font-size:6.8px;
+    font-size:8px;
     font-weight:700;
     color:#475569;
     letter-spacing:0.2px;
-    margin-bottom:1px;
+    margin-bottom:2px;
     line-height:1.1;
   }
   .bom-cable-make{
-    font-size:8.5px;
+    font-size:10px;
     font-weight:600;
     color:#0f172a;
-    margin-bottom:1px;
-    line-height:1.15;
+    margin-bottom:2px;
+    line-height:1.25;
   }
   .bom-cable-qty{
-    font-size:7px;
-    font-weight:400;
+    font-size:8.2px;
+    font-weight:500;
     color:#475569;
-    margin-bottom:1px;
-    line-height:1.1;
-  }
-  .bom-cable-spec{
-    font-size:6.5px;
-    font-weight:400;
-    color:#64748b;
+    margin-bottom:2px;
     line-height:1.15;
   }
-  .bom-cable-brand-badge{
-    display:inline-block;
-    background:#fee2e2;
-    color:#dc2626;
-    font-size:6.5px;
-    font-weight:800;
-    padding:1px 3px;
-    border-radius:2px;
-    letter-spacing:0.3px;
-    margin-top:1.5px;
-    line-height:1;
+  .bom-cable-spec{
+    font-size:7.8px;
+    font-weight:400;
+    color:#64748b;
+    line-height:1.2;
   }
 
   /* Structure, Accessories & Other Categories List */
   .bom-struct-list{
     display:flex;
     flex-direction:column;
-    gap:4px;
+    gap:6px;
     width:100%;
   }
   .bom-struct-grid-row{
     display:grid;
     grid-template-columns:2.4fr 0.8fr 1.6fr;
-    gap:8px;
+    gap:10px;
     align-items:flex-start;
   }
   .bom-struct-lbl{
-    font-size:6.8px;
+    font-size:8px;
     font-weight:700;
     color:#64748b;
-    margin-bottom:1px;
+    margin-bottom:2px;
     line-height:1;
   }
   .bom-struct-v{
-    font-size:8px;
+    font-size:9.8px;
     font-weight:600;
     color:#0f172a;
-    line-height:1.2;
+    line-height:1.25;
     word-break:break-word;
   }
 
@@ -2666,21 +2789,21 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-db-row{
     display:grid;
     grid-template-columns:repeat(5, 1fr);
-    gap:5px 8px;
+    gap:6px 10px;
   }
   .bom-db-col{ min-width:0; }
   .bom-db-lbl{
-    font-size:6.8px;
+    font-size:8px;
     font-weight:700;
     color:#64748b;
-    margin-bottom:1.5px;
+    margin-bottom:2px;
     line-height:1;
   }
   .bom-db-v{
-    font-size:8px;
+    font-size:9.8px;
     font-weight:600;
     color:#0f172a;
-    line-height:1.2;
+    line-height:1.25;
     word-break:break-word;
   }
 
@@ -2688,10 +2811,10 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
      DYNAMIC DENSITY SCALING RULES
      ======================================================== */
 
-  /* Density Tier: Normal (<= 11 rows) */
+  /* Density Tier: Normal (<= 16 rows) - Spacious & Comfortable */
   .bom-density-normal.bom-page .content,
   .bom-density-normal .content{
-    padding:24mm 16mm 10px 16mm;
+    padding:24mm 16mm 12px 16mm;
   }
   .bom-density-normal .header{
     margin-bottom:12px;
@@ -2703,11 +2826,11 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
   .bom-density-normal .bom-cards-wrap{
     justify-content:flex-start;
-    gap:8px;
+    gap:11px;
   }
   .bom-density-normal .bom-card{
     margin-bottom:0;
-    padding:7.5px 14px 8.5px 14px;
+    padding:9px 16px 11px 16px;
     border-radius:8px;
     border:1px solid #d4d4d8;
   }
@@ -2723,7 +2846,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     height:30px;
   }
   .bom-density-normal .bom-card-tag{
-    font-size:9.5px;
+    font-size:10px;
     bottom:-6px;
     left:20px;
     font-weight:700;
@@ -2732,7 +2855,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-density-normal .bom-db-lbl,
   .bom-density-normal .bom-struct-lbl,
   .bom-density-normal .bom-cable-type{
-    font-size:7.2px;
+    font-size:8px;
     letter-spacing:0.2px;
     font-weight:700;
     color:#475569;
@@ -2741,28 +2864,35 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-density-normal .bom-db-v,
   .bom-density-normal .bom-struct-v,
   .bom-density-normal .bom-cable-make{
-    font-size:9px;
+    font-size:10.2px;
     font-weight:600;
     color:#0f172a;
-    line-height:1.25;
+    line-height:1.3;
   }
   .bom-density-normal .bom-cable-qty,
-  .bom-density-normal .bom-cable-spec{
-    font-size:7.5px;
+  .bom-density-normal .bom-cable-spec,
+  .bom-density-normal .bom-field-val-sm{
+    font-size:8.5px;
     font-weight:500;
     color:#334155;
   }
+  .bom-density-normal .bom-th{
+    font-size:7.5px;
+  }
+  .bom-density-normal .bom-td{
+    font-size:9.8px;
+  }
   .bom-density-normal .bom-struct-list{
-    gap:4.5px;
+    gap:6px;
   }
 
-  /* Density Tier: Compact (12 to 17 rows) */
+  /* Density Tier: Compact (17 to 22 rows) */
   .bom-density-compact.bom-page .content,
   .bom-density-compact .content{
-    padding:22mm 16mm 6px 16mm;
+    padding:22mm 16mm 8px 16mm;
   }
   .bom-density-compact .header{
-    margin-bottom:8px;
+    margin-bottom:10px;
   }
   .bom-density-compact .proposal-title{
     font-size:28px;
@@ -2771,54 +2901,61 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
   .bom-density-compact .bom-cards-wrap{
     justify-content:flex-start;
-    gap:6px;
+    gap:8.5px;
   }
   .bom-density-compact .bom-card{
     margin-bottom:0;
-    padding:5.5px 11px 6.5px 11px;
-    border-radius:6.5px;
+    padding:7px 13px 8.5px 13px;
+    border-radius:7px;
     border:1px solid #d4d4d8;
   }
   .bom-density-compact .bom-card-inner{
-    gap:10px;
+    gap:11px;
   }
   .bom-density-compact .bom-card-icon{
-    width:26px;
-    height:26px;
+    width:28px;
+    height:28px;
   }
   .bom-density-compact .bom-category-img{
-    width:26px;
-    height:26px;
+    width:28px;
+    height:28px;
   }
   .bom-density-compact .bom-card-tag{
-    font-size:8.5px;
-    bottom:-5px;
+    font-size:9px;
+    bottom:-5.5px;
   }
   .bom-density-compact .bom-field-label,
   .bom-density-compact .bom-db-lbl,
   .bom-density-compact .bom-struct-lbl,
   .bom-density-compact .bom-cable-type{
-    font-size:6.6px;
+    font-size:7.2px;
   }
   .bom-density-compact .bom-field-val,
   .bom-density-compact .bom-db-v,
   .bom-density-compact .bom-struct-v,
   .bom-density-compact .bom-cable-make{
-    font-size:8.2px;
-    line-height:1.2;
+    font-size:9px;
+    line-height:1.25;
   }
   .bom-density-compact .bom-cable-qty,
-  .bom-density-compact .bom-cable-spec{
+  .bom-density-compact .bom-cable-spec,
+  .bom-density-compact .bom-field-val-sm{
+    font-size:7.6px;
+  }
+  .bom-density-compact .bom-th{
     font-size:6.8px;
   }
+  .bom-density-compact .bom-td{
+    font-size:8.8px;
+  }
   .bom-density-compact .bom-struct-list{
-    gap:3.5px;
+    gap:4.5px;
   }
 
-  /* Density Tier: Ultra-Compact (18 to 23 rows) */
+  /* Density Tier: Ultra-Compact (23 to 27 rows) */
   .bom-density-ultra.bom-page .content,
   .bom-density-ultra .content{
-    padding:20mm 16mm 4px 16mm;
+    padding:20mm 16mm 6px 16mm;
   }
   .bom-density-ultra .header{
     margin-bottom:6px;
@@ -2830,58 +2967,65 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
   .bom-density-ultra .bom-cards-wrap{
     justify-content:flex-start;
-    gap:4.5px;
+    gap:6px;
   }
   .bom-density-ultra .bom-card{
     margin-bottom:0;
-    padding:4px 9px 5px 9px;
-    border-radius:5.5px;
+    padding:5px 10px 6px 10px;
+    border-radius:6px;
     border:1px solid #d4d4d8;
   }
   .bom-density-ultra .bom-card-inner{
-    gap:8px;
+    gap:9px;
   }
   .bom-density-ultra .bom-card-icon{
-    width:22px;
-    height:22px;
+    width:24px;
+    height:24px;
     margin-top:1px;
   }
   .bom-density-ultra .bom-category-img{
-    width:22px;
-    height:22px;
+    width:24px;
+    height:24px;
   }
   .bom-density-ultra .bom-card-tag{
-    font-size:7.5px;
-    bottom:-4.5px;
+    font-size:8px;
+    bottom:-5px;
     padding:0 5px;
   }
   .bom-density-ultra .bom-field-label,
   .bom-density-ultra .bom-db-lbl,
   .bom-density-ultra .bom-struct-lbl,
   .bom-density-ultra .bom-cable-type{
-    font-size:6px;
+    font-size:6.5px;
     letter-spacing:0.15px;
   }
   .bom-density-ultra .bom-field-val,
   .bom-density-ultra .bom-db-v,
   .bom-density-ultra .bom-struct-v,
   .bom-density-ultra .bom-cable-make{
-    font-size:7.5px;
-    line-height:1.15;
+    font-size:8px;
+    line-height:1.2;
   }
   .bom-density-ultra .bom-cable-qty,
-  .bom-density-ultra .bom-cable-spec{
-    font-size:6.2px;
+  .bom-density-ultra .bom-cable-spec,
+  .bom-density-ultra .bom-field-val-sm{
+    font-size:6.8px;
     line-height:1.15;
   }
+  .bom-density-ultra .bom-th{
+    font-size:6.2px;
+  }
+  .bom-density-ultra .bom-td{
+    font-size:7.8px;
+  }
   .bom-density-ultra .bom-struct-list{
-    gap:2.5px;
+    gap:3.2px;
   }
 
-  /* Density Tier: Micro (>= 24 rows) */
+  /* Density Tier: Micro (>= 28 rows) */
   .bom-density-micro.bom-page .content,
   .bom-density-micro .content{
-    padding:18mm 14mm 2px 14mm;
+    padding:18mm 14mm 4px 14mm;
   }
   .bom-density-micro .header{
     margin-bottom:4px;
@@ -2893,28 +3037,28 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
   .bom-density-micro .bom-cards-wrap{
     justify-content:flex-start;
-    gap:3px;
+    gap:4px;
   }
   .bom-density-micro .bom-card{
     margin-bottom:0;
-    padding:3px 7px 4px 7px;
-    border-radius:4.5px;
+    padding:3.5px 8px 4.5px 8px;
+    border-radius:5px;
     border:1px solid #d4d4d8;
   }
   .bom-density-micro .bom-card-inner{
-    gap:6px;
+    gap:7px;
   }
   .bom-density-micro .bom-card-icon{
-    width:18px;
-    height:18px;
+    width:20px;
+    height:20px;
     margin-top:0.5px;
   }
   .bom-density-micro .bom-category-img{
-    width:18px;
-    height:18px;
+    width:20px;
+    height:20px;
   }
   .bom-density-micro .bom-card-tag{
-    font-size:6.8px;
+    font-size:7px;
     bottom:-4px;
     padding:0 4px;
   }
@@ -2922,37 +3066,30 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-density-micro .bom-db-lbl,
   .bom-density-micro .bom-struct-lbl,
   .bom-density-micro .bom-cable-type{
-    font-size:5.2px;
+    font-size:5.8px;
     letter-spacing:0.1px;
   }
   .bom-density-micro .bom-field-val,
   .bom-density-micro .bom-db-v,
   .bom-density-micro .bom-struct-v,
   .bom-density-micro .bom-cable-make{
-    font-size:6.5px;
-    line-height:1.1;
+    font-size:7px;
+    line-height:1.15;
   }
   .bom-density-micro .bom-cable-qty,
-  .bom-density-micro .bom-cable-spec{
-    font-size:5.5px;
+  .bom-density-micro .bom-cable-spec,
+  .bom-density-micro .bom-field-val-sm{
+    font-size:6px;
     line-height:1.1;
   }
+  .bom-density-micro .bom-th{
+    font-size:5.5px;
+  }
+  .bom-density-micro .bom-td{
+    font-size:6.8px;
+  }
   .bom-density-micro .bom-struct-list{
-    gap:1.8px;
-  }
-  .bom-density-micro .bom-alt-box{
-    padding:2px 4px;
-    margin-top:2px;
-  }
-  .bom-density-micro .bom-alt-title{
-    font-size:5.5px;
-  }
-  .bom-density-micro .bom-alt-sub{
-    font-size:5px;
-  }
-  .bom-density-micro .bom-alt-items{
-    font-size:5.5px;
-    line-height:1.15;
+    gap:2.2px;
   }
 
   /* ========================================================
@@ -3189,16 +3326,16 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     margin:0;
   }
 
-  /* Sun Watermark glowing on right edge of Contact Card */
+  /* Sun Watermark inside Contact Card */
   .closing-sun-watermark{
     position:absolute;
-    left:88mm;
-    top:144mm;
+    left:78mm;
+    top:136mm;
     width:48mm;
     height:48mm;
     z-index:12;
     pointer-events:none;
-    opacity:0.55;
+    opacity:0.5;
   }
 
   /* Dynamic Contact Us Card Overlay */
@@ -3650,29 +3787,81 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         </tbody>
       </table>
 
-      <div class="cols" style="align-items: flex-start; margin-top: 20px;">
-         <div class="col" style="flex: 1.4; padding-right: 15px;">
-             ${termsConditions.length > 0 ? termsConditions.map((tc) => `
-                 <h3 style="color: var(--red); margin: 6px 0 4px 0;">${tc.title}</h3>
-                 <ul style="margin: 0 0 8px 0; padding-left: 18px; font-size: 12.5px; line-height: 1.45; color: var(--text);">
-                     ${Array.isArray(tc.description)
-      ? tc.description.map(d => `<li style="margin-bottom: 3px;">${d}</li>`).join('')
-      : `<li style="margin-bottom: 3px;">${tc.description}</li>`}
-                 </ul>
-             `).join("") : '<div style="font-size: 12.5px; color: var(--text);">No specific terms defined.</div>'}
-         </div>
-         <div class="col" style="flex: 1;">
-             <h3 style="color: var(--red); margin: 6px 0 4px 0;">Bank Details</h3>
-             <table style="width: 100%; border: none; font-size: 12.5px; line-height: 1.5; color: var(--text); border-collapse: collapse;">
-                 <tbody>
-                     <tr><td style="padding: 2px 0; width: 85px; border: none; vertical-align: top;">Bank Name:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${bankName}</td></tr>
-                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">Name:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${accountHolderName}</td></tr>
-                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">Account No:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${accountNumber}</td></tr>
-                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">IFSC Code:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${ifscCode}</td></tr>
-                     <tr><td style="padding: 2px 0; border: none; vertical-align: top;">Branch:</td><td style="padding: 2px 0; border: none; font-weight: 500;">${branchName}</td></tr>
-                 </tbody>
-             </table>
-         </div>
+      <!-- Bottom Section: Bank Details on Left, Scan to Pay QR on Right -->
+      <div class="proposal-bottom-wrap">
+        <div class="proposal-bank-card">
+          <div class="proposal-bank-header">
+            <h3 class="proposal-bank-title">Bank Details</h3>
+          </div>
+          <div class="proposal-bank-table">
+            <div class="proposal-bank-row">
+              <span class="proposal-bank-lbl">Bank Name:</span>
+              <span class="proposal-bank-val">${bankName}</span>
+            </div>
+            <div class="proposal-bank-row">
+              <span class="proposal-bank-lbl">Account Name:</span>
+              <span class="proposal-bank-val">${accountHolderName}</span>
+            </div>
+            <div class="proposal-bank-row">
+              <span class="proposal-bank-lbl">Account No:</span>
+              <span class="proposal-bank-val">${accountNumber}</span>
+            </div>
+            <div class="proposal-bank-row">
+              <span class="proposal-bank-lbl">IFSC Code:</span>
+              <span class="proposal-bank-val">${ifscCode}</span>
+            </div>
+            <div class="proposal-bank-row">
+              <span class="proposal-bank-lbl">Branch:</span>
+              <span class="proposal-bank-val">${branchName}</span>
+            </div>
+            ${upiId ? `
+            <div class="proposal-bank-row">
+              <span class="proposal-bank-lbl">UPI ID:</span>
+              <span class="proposal-bank-val">${upiId}</span>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <div class="proposal-qr-card">
+          <div class="proposal-qr-frame">
+            ${bankQrCodeBase64 ? `
+              <img src="${bankQrCodeBase64}" alt="Bank Payment QR" class="proposal-qr-img" />
+            ` : `
+              <svg class="proposal-qr-svg" viewBox="0 0 100 100" width="100%" height="100%" fill="#1e293b">
+                <rect x="8" y="8" width="28" height="28" rx="4" fill="none" stroke="#1e293b" stroke-width="4"/>
+                <rect x="16" y="16" width="12" height="12" rx="2" fill="#1e293b"/>
+                <rect x="64" y="8" width="28" height="28" rx="4" fill="none" stroke="#1e293b" stroke-width="4"/>
+                <rect x="72" y="16" width="12" height="12" rx="2" fill="#1e293b"/>
+                <rect x="8" y="64" width="28" height="28" rx="4" fill="none" stroke="#1e293b" stroke-width="4"/>
+                <rect x="16" y="72" width="12" height="12" rx="2" fill="#1e293b"/>
+                <rect x="42" y="12" width="6" height="6" rx="1"/>
+                <rect x="52" y="12" width="6" height="6" rx="1"/>
+                <rect x="42" y="24" width="6" height="6" rx="1"/>
+                <rect x="52" y="24" width="6" height="6" rx="1"/>
+                <rect x="12" y="42" width="6" height="6" rx="1"/>
+                <rect x="24" y="42" width="6" height="6" rx="1"/>
+                <rect x="12" y="52" width="6" height="6" rx="1"/>
+                <rect x="24" y="52" width="6" height="6" rx="1"/>
+                <rect x="42" y="42" width="16" height="16" rx="3" fill="#E31E24"/>
+                <circle cx="50" cy="50" r="4" fill="#ffffff"/>
+                <rect x="64" y="42" width="6" height="6" rx="1"/>
+                <rect x="76" y="42" width="6" height="6" rx="1"/>
+                <rect x="84" y="52" width="8" height="6" rx="1"/>
+                <rect x="42" y="64" width="6" height="6" rx="1"/>
+                <rect x="52" y="72" width="6" height="6" rx="1"/>
+                <rect x="42" y="80" width="8" height="6" rx="1"/>
+                <rect x="64" y="64" width="8" height="6" rx="1"/>
+                <rect x="78" y="72" width="6" height="6" rx="1"/>
+                <rect x="68" y="82" width="18" height="6" rx="1"/>
+              </svg>
+            `}
+          </div>
+          <div class="proposal-qr-text-wrap">
+            <p class="proposal-qr-title">Scan to Pay</p>
+            <p class="proposal-qr-sub">Scan via any UPI App</p>
+          </div>
+        </div>
       </div>
 
       ${quotation.notes ? `<p class="notice">Note: ${quotation.notes}</p>` : ''}
@@ -3895,6 +4084,81 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         <span>${franchise.email || 'info@sunselect.in'}</span>
       </div>
       <div class="page-no">6</div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- PAGE 7: TERMS & CONDITIONS                   -->
+  <!-- ============================================ -->
+  <div class="page content-page tc-page">
+    <!-- Same logo position as other pages -->
+    <div class="cover-logo-wrapper">
+      ${page2LogoHtml}
+    </div>
+
+    <!-- Watermark Graphic (Asset 11) -->
+    <div class="bg-watermark">
+      ${watermarkLogoBase64 ? `<img src="${watermarkLogoBase64}" alt="" class="page-watermark-img" />` : ''}
+    </div>
+
+    <div class="content">
+      <div class="header">
+        <h1 class="proposal-title">TERMS & CONDITIONS</h1>
+      </div>
+
+      <div class="tc-grid">
+        ${termsConditions.length > 0 ? termsConditions.map((tc, idx) => `
+          <div class="tc-card">
+            <div class="tc-card-header">
+              <span class="tc-badge">${String(idx + 1).padStart(2, '0')}</span>
+              <h3 class="tc-title">${tc.title}</h3>
+            </div>
+            <div class="tc-body">
+              ${Array.isArray(tc.description) ? `
+                <ul class="tc-list">
+                  ${tc.description.map(d => `<li>${d}</li>`).join('')}
+                </ul>
+              ` : `
+                <p class="tc-para">${tc.description}</p>
+              `}
+            </div>
+          </div>
+        `).join('') : `
+          <div class="tc-empty">
+            <p>Standard terms and conditions apply.</p>
+          </div>
+        `}
+      </div>
+
+      ${quotation.notes ? `
+        <div class="tc-notes-box">
+          <div class="tc-notes-label">Special Notes:</div>
+          <div class="tc-notes-val">${quotation.notes}</div>
+        </div>
+      ` : ''}
+    </div>
+
+    <!-- Footer for Page 7 -->
+    <div class="footer">
+      <div class="brand">
+        ${footerLogoHtml}
+      </div>
+      <div class="item">
+        <svg class="footer-icon" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <span>sunselect.in</span>
+      </div>
+      <div class="item">
+        <svg class="footer-icon" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+          <polyline points="22,6 12,13 2,6"></polyline>
+        </svg>
+        <span>${franchise.email || 'info@sunselect.in'}</span>
+      </div>
+      <div class="page-no">7</div>
     </div>
   </div>
 

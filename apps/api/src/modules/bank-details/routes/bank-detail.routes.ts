@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import { BankDetailController } from "../controllers/bank-detail.controller.js";
 import { BankDetailService } from "../services/bank-detail.service.js";
 import { BankDetailRepository } from "../repositories/bank-detail.repository.js";
@@ -6,6 +7,11 @@ import { createBankDetailSchema, updateBankDetailSchema, validateBankDetailReque
 import { authenticate, authorizeRoleName } from "../../auth/middleware/auth.middleware.js";
 import pool from "@packages/connection.js";
 import { requirePermission } from "../../../middlewares/permission.middleware.js";
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
 
 export function createBankDetailRouter(): Router {
     const router = Router();
@@ -37,6 +43,7 @@ export function createBankDetailRouter(): Router {
         "/",
         requirePermission("BANK_DETAILS", "can_create"),
         authorizeRoleName("Master"),
+        upload.single("qrCode"),
         validateBankDetailRequest(createBankDetailSchema),
         controller.create
     );
@@ -46,6 +53,7 @@ export function createBankDetailRouter(): Router {
         "/:uid",
         requirePermission("BANK_DETAILS", "can_edit"),
         authorizeRoleName("Master"),
+        upload.single("qrCode"),
         validateBankDetailRequest(updateBankDetailSchema),
         controller.update
     );

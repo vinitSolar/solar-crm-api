@@ -3,6 +3,8 @@ import type { IBankDetailSafe, ICreateBankDetail, IUpdateBankDetail } from "../i
 import { toBankDetailSafe } from "../dto/bank-detail.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { safeCacheGet, safeCacheSet, safeCacheDelPattern } from "@packages/redis/index.js";
+import { storageService } from "@packages/storage/index.js";
+import { logger } from "@packages/logger/index.js";
 
 export class BankDetailService {
     private readonly repository: BankDetailRepository;
@@ -11,7 +13,12 @@ export class BankDetailService {
         this.repository = repository;
     }
 
-    async createBankDetail(tenantUid: string, data: ICreateBankDetail, createdBy: string): Promise<IBankDetailSafe> {
+    async createBankDetail(
+        tenantUid: string,
+        data: ICreateBankDetail,
+        file: Express.Multer.File | undefined,
+        createdBy: string
+    ): Promise<IBankDetailSafe> {
         const isHeadOffice = await this.repository.isHeadOffice(tenantUid);
         if (!isHeadOffice) {
             throw new CustomError("Only head office can manage bank details", 403);
@@ -22,7 +29,22 @@ export class BankDetailService {
             throw new CustomError("Bank details already exist for this tenant", 409);
         }
 
-        const result = await this.repository.create(tenantUid, data, createdBy);
+        let qrCodePath = data.qrCode || null;
+        if (file) {
+            try {
+                qrCodePath = await storageService.uploadFile(
+                    file.buffer,
+                    file.originalname,
+                    file.mimetype,
+                    `bank-details/${tenantUid}`
+                );
+            } catch (error) {
+                logger.error("Failed to upload bank QR code", { error });
+                throw new CustomError("Failed to upload QR code image", 500);
+            }
+        }
+
+        const result = await this.repository.create(tenantUid, { ...data, qrCode: qrCodePath }, createdBy);
         await safeCacheDelPattern(`cache:bank-details:*:${tenantUid}*`);
         return toBankDetailSafe(result);
     }
@@ -54,13 +76,40 @@ export class BankDetailService {
         return safeList;
     }
 
-    async updateBankDetail(uid: string, tenantUid: string, data: IUpdateBankDetail, updatedBy: string): Promise<IBankDetailSafe | null> {
+    async updateBankDetail(
+        uid: string,
+        tenantUid: string,
+        data: IUpdateBankDetail,
+        file: Express.Multer.File | undefined,
+        updatedBy: string
+    ): Promise<IBankDetailSafe | null> {
         const isHeadOffice = await this.repository.isHeadOffice(tenantUid);
         if (!isHeadOffice) {
             throw new CustomError("Only head office can manage bank details", 403);
         }
 
-        const result = await this.repository.update(tenantUid, uid, data, updatedBy);
+        const existing = await this.repository.getByUid(tenantUid, uid);
+        if (!existing) {
+            throw new CustomError("Bank details not found", 404);
+        }
+
+        const updateData: IUpdateBankDetail = { ...data };
+
+        if (file) {
+            try {
+                updateData.qrCode = await storageService.uploadFile(
+                    file.buffer,
+                    file.originalname,
+                    file.mimetype,
+                    `bank-details/${tenantUid}`
+                );
+            } catch (error) {
+                logger.error("Failed to upload bank QR code", { error });
+                throw new CustomError("Failed to upload QR code image", 500);
+            }
+        }
+
+        const result = await this.repository.update(tenantUid, uid, updateData, updatedBy);
         if (!result) return null;
 
         await safeCacheDelPattern(`cache:bank-details:*:${tenantUid}*`);

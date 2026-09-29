@@ -77,6 +77,8 @@ export interface IQuotationPdfData {
         accountNumber?: string | null;
         ifscCode?: string | null;
         branchName?: string | null;
+        upiId?: string | null;
+        qrCode?: string | null;
     } | null;
 }
 

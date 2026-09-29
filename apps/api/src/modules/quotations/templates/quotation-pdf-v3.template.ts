@@ -1171,12 +1171,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             <div class="bom-struct-v">${item.productName || '-'}</div>
           </div>
           <div>
-            <div class="bom-struct-lbl">Qty:</div>
-            <div class="bom-struct-v">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
-          </div>
-          <div>
             <div class="bom-struct-lbl">Make:</div>
-            <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+            <div class="bom-struct-v">${item.brandName || 'As per Industry standards'}</div>
           </div>
         </div>
       `).join('');
@@ -1229,10 +1225,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                   <div class="bom-struct-v">Galvanized Iron Structure 80 Micron (HDGI) - ${totalPanels} Modules</div>
                 </div>
                 <div>
-                  <div class="bom-struct-lbl">Qty:</div>
-                  <div class="bom-struct-v">1 Set</div>
-                </div>
-                <div>
                   <div class="bom-struct-lbl">Make:</div>
                   <div class="bom-struct-v">SunSelect Standard Heavy Duty Galvanized</div>
                 </div>
@@ -1241,10 +1233,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                 <div>
                   <div class="bom-struct-lbl">Product:</div>
                   <div class="bom-struct-v">Aluminium Mid Clamps & End Clamps with SS304 Hardware</div>
-                </div>
-                <div>
-                  <div class="bom-struct-lbl">Qty:</div>
-                  <div class="bom-struct-v">${totalPanels * 4} Nos</div>
                 </div>
                 <div>
                   <div class="bom-struct-lbl">Make:</div>
@@ -1285,12 +1273,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
               <div class="bom-struct-v">${item.productName || '-'}</div>
             </div>
             <div>
-              <div class="bom-struct-lbl">Qty:</div>
-              <div class="bom-struct-v">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
-            </div>
-            <div>
               <div class="bom-struct-lbl">Make:</div>
-              <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+              <div class="bom-struct-v">${item.brandName || 'As per Industry standards'}</div>
             </div>
           </div>
         `).join('');
@@ -1408,10 +1392,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                   <div class="bom-struct-v">MC4 Connectors (1000V DC / 1500V DC IP68 Rated)</div>
                 </div>
                 <div>
-                  <div class="bom-struct-lbl">Qty:</div>
-                  <div class="bom-struct-v">4 Pairs</div>
-                </div>
-                <div>
                   <div class="bom-struct-lbl">Make:</div>
                   <div class="bom-struct-v">Waaree / Staubli Multi-Contact</div>
                 </div>
@@ -1420,10 +1400,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                 <div>
                   <div class="bom-struct-lbl">Product:</div>
                   <div class="bom-struct-v">Copper Bonded Chemical Earthing Rods (17.2mm Dia x 3m Length)</div>
-                </div>
-                <div>
-                  <div class="bom-struct-lbl">Qty:</div>
-                  <div class="bom-struct-v">2 Sets</div>
                 </div>
                 <div>
                   <div class="bom-struct-lbl">Make:</div>
@@ -1436,10 +1412,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                   <div class="bom-struct-v">Conventional Lightning Arrester 1-Meter Pure Copper Spike</div>
                 </div>
                 <div>
-                  <div class="bom-struct-lbl">Qty:</div>
-                  <div class="bom-struct-v">1 Nos</div>
-                </div>
-                <div>
                   <div class="bom-struct-lbl">Make:</div>
                   <div class="bom-struct-v">SunSelect Standard Copper Spike with Base</div>
                 </div>
@@ -1448,10 +1420,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                 <div>
                   <div class="bom-struct-lbl">Product:</div>
                   <div class="bom-struct-v">PVC UV-Resistant Conduits, Cable Trays & SS304 Fasteners</div>
-                </div>
-                <div>
-                  <div class="bom-struct-lbl">Qty:</div>
-                  <div class="bom-struct-v">1 Lot</div>
                 </div>
                 <div>
                   <div class="bom-struct-lbl">Make:</div>
@@ -1515,12 +1483,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           <div class="bom-struct-v">${item.productName || '-'}</div>
         </div>
         <div>
-          <div class="bom-struct-lbl">Qty:</div>
-          <div class="bom-struct-v">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
-        </div>
-        <div>
           <div class="bom-struct-lbl">Make:</div>
-          <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+          <div class="bom-struct-v">${item.brandName || 'As per Industry standards'}</div>
         </div>
       </div>
     `).join('');
@@ -2813,8 +2777,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
   .bom-struct-grid-row{
     display:grid;
-    grid-template-columns:2.4fr 0.8fr 1.6fr;
-    gap:10px;
+    grid-template-columns:3.2fr 1.8fr;
+    gap:14px;
     align-items:flex-start;
   }
   .bom-struct-lbl{

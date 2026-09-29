@@ -21,7 +21,7 @@ let cachedCo2IconBase64: string | null = null;
 let cachedManImageBase64: string | null = null;
 let cachedFinalPageImageBase64: string | null = null;
 let cachedLastPageSkyBase64: string | null = null;
-let cachedClosingPageBgBase64: string | null = null;
+
 
 function loadAssetBase64(fileName: string): string {
   const candidates = [
@@ -341,12 +341,6 @@ function getLastPageSkyBase64(): string {
   return cachedLastPageSkyBase64;
 }
 
-function getClosingPageBgBase64(): string {
-  if (!cachedClosingPageBgBase64) {
-    cachedClosingPageBgBase64 = loadAssetBase64('closing-page-bg.png');
-  }
-  return cachedClosingPageBgBase64;
-}
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // Monthly solar generation yield factors (kWh / kW capacity / month) in India:
@@ -460,7 +454,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   const watermarkLogoBase64 = getWatermarkLogoBase64();
   const finalPageImageBase64 = getFinalPageImageBase64();
   const lastPageSkyBase64 = getLastPageSkyBase64();
-  const closingPageBgBase64 = getClosingPageBgBase64();
 
   const footerLogoHtml = whiteLogoBase64
     ? `<img src="${whiteLogoBase64}" alt="Sunselect" class="footer-logo" />`
@@ -2959,53 +2952,138 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     height:297mm;
     overflow:hidden;
     background-color:#ffffff;
-    ${closingPageBgBase64 ? `background-image:url('${closingPageBgBase64}');` : (lastPageSkyBase64 ? `background-image:url('${lastPageSkyBase64}');` : '')}
+    ${lastPageSkyBase64 ? `background-image:url('${lastPageSkyBase64}');` : ''}
     background-size:cover;
     background-position:center top;
     background-repeat:no-repeat;
+    font-family:var(--font);
   }
 
-  /* Sun watermark glowing behind the right edge of the card */
+  /* House, Family & Footer Banner from finalpage.png */
+  .closing-foreground-img{
+    position:absolute;
+    bottom:0;
+    left:0;
+    width:100%;
+    height:163mm;
+    object-fit:fill;
+    display:block;
+    z-index:2;
+    pointer-events:none;
+  }
+
+  /* Top Right Logo */
+  .closing-logo-wrap{
+    position:absolute;
+    top:10.5mm;
+    right:11mm;
+    z-index:10;
+  }
+
+  .closing-logo-wrap img{
+    height:16.5mm;
+    max-width:68mm;
+    object-fit:contain;
+    display:block;
+  }
+
+  /* Top Left Red Accent Bar */
+  .closing-accent-bar{
+    position:absolute;
+    top:28mm;
+    left:12mm;
+    width:24mm;
+    height:3.5px;
+    background:var(--red);
+    border-radius:2px;
+    z-index:10;
+  }
+
+  /* Thank You Section */
+  .closing-header-wrap{
+    position:absolute;
+    top:36mm;
+    left:12mm;
+    width:135mm;
+    z-index:10;
+  }
+
+  .closing-title{
+    font-family:var(--font-heading);
+    font-size:38pt;
+    font-weight:800;
+    line-height:1.05;
+    letter-spacing:-0.6px;
+    color:#0A192F;
+    margin:0 0 4.5mm 0;
+  }
+
+  .closing-title span{
+    color:var(--red);
+  }
+
+  .closing-subtitle{
+    font-family:var(--font-heading);
+    font-size:14pt;
+    font-weight:700;
+    color:#2D3748;
+    line-height:1.35;
+    margin:0 0 3.5mm 0;
+    letter-spacing:-0.2px;
+  }
+
+  .closing-desc{
+    font-family:var(--font);
+    font-size:10.5pt;
+    font-weight:500;
+    color:#4A5568;
+    line-height:1.45;
+    margin:0;
+  }
+
+  /* Sun Watermark glowing on right edge of Contact Card */
   .closing-sun-watermark{
     position:absolute;
     left:88mm;
-    top:132mm;
+    top:144mm;
     width:48mm;
     height:48mm;
-    z-index:5;
+    z-index:3;
     pointer-events:none;
     opacity:0.45;
   }
 
+  /* Dynamic Contact Us Card Overlay */
   .closing-contact-wrap{
     position:absolute;
-    top:97.5mm;
-    left:11.2mm;
-    width:107.5mm;
-    height:91.5mm;
+    top:94mm;
+    left:10.5mm;
+    width:108mm;
+    height:94mm;
     background-color:var(--red);
-    border-radius:20px;
-    padding:16px 20px 18px 20px;
+    border-radius:18px;
+    padding:18px 22px 18px 22px;
     color:#ffffff;
     box-sizing:border-box;
     z-index:10;
+    box-shadow:0 10px 25px rgba(227, 30, 36, 0.25);
     display:flex;
     flex-direction:column;
   }
 
   .closing-contact-card-title{
     font-family:var(--font-heading);
-    font-size:19pt;
+    font-size:18.5pt;
     font-weight:800;
-    margin:0 0 14px 0;
-    letter-spacing:0.2px;
+    margin:0 0 12px 0;
+    letter-spacing:0.1px;
     color:#ffffff;
   }
 
   .closing-contact-list{
     display:flex;
     flex-direction:column;
-    gap:12px;
+    gap:10px;
     flex:1;
     justify-content:space-around;
   }
@@ -3036,7 +3114,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   .closing-contact-field-label{
     font-family:var(--font-heading);
-    font-size:9.5pt;
+    font-size:8.5pt;
     font-weight:700;
     color:#ffffff;
     line-height:1.2;
@@ -3045,7 +3123,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   .closing-contact-field-value{
     font-family:var(--font);
-    font-size:10pt;
+    font-size:9.5pt;
     font-weight:500;
     color:#ffffff;
     line-height:1.25;
@@ -3676,18 +3754,36 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   <!-- PAGE 7: THANK YOU & CONTACT US (CLOSING)     -->
   <!-- ============================================ -->
   <div class="page closing-page">
-    <!-- Sun Watermark glowing on right border of Contact Card -->
+    <!-- Foreground House, Family & Footer Banner -->
+    ${finalPageImageBase64 ? `<img class="closing-foreground-img" src="${finalPageImageBase64}" alt="" />` : ''}
+
+    <!-- Sun Watermark glowing on right edge of Contact Card -->
     <svg class="closing-sun-watermark" viewBox="0 0 120 120" fill="none">
       <circle cx="60" cy="60" r="32" fill="#E31E24" />
       <g fill="#E31E24">
-        <rect x="56" y="10" width="8" height="14" rx="4" transform="rotate(-60 60 60)" />
-        <rect x="56" y="10" width="8" height="14" rx="4" transform="rotate(-30 60 60)" />
-        <rect x="56" y="10" width="8" height="14" rx="4" transform="rotate(0 60 60)" />
-        <rect x="56" y="10" width="8" height="14" rx="4" transform="rotate(30 60 60)" />
-        <rect x="56" y="10" width="8" height="14" rx="4" transform="rotate(60 60 60)" />
-        <rect x="56" y="10" width="8" height="14" rx="4" transform="rotate(90 60 60)" />
+        <rect x="56" y="8" width="8" height="15" rx="4" transform="rotate(-60 60 60)" />
+        <rect x="56" y="8" width="8" height="15" rx="4" transform="rotate(-30 60 60)" />
+        <rect x="56" y="8" width="8" height="15" rx="4" transform="rotate(0 60 60)" />
+        <rect x="56" y="8" width="8" height="15" rx="4" transform="rotate(30 60 60)" />
+        <rect x="56" y="8" width="8" height="15" rx="4" transform="rotate(60 60 60)" />
+        <rect x="56" y="8" width="8" height="15" rx="4" transform="rotate(90 60 60)" />
       </g>
     </svg>
+
+    <!-- Top Right Logo -->
+    <div class="closing-logo-wrap">
+      ${otherPagesLogoBase64 ? `<img src="${otherPagesLogoBase64}" alt="Sunselect" />` : (franchise.logo ? `<img src="${franchise.logo}" alt="${franchise.name}" />` : '')}
+    </div>
+
+    <!-- Top Left Red Accent Bar -->
+    <div class="closing-accent-bar"></div>
+
+    <!-- Thank You Section -->
+    <div class="closing-header-wrap">
+      <h1 class="closing-title">Thank <span>You</span></h1>
+      <p class="closing-subtitle">For choosing a cleaner, brighter<br>and smarter tomorrow with us.</p>
+      <p class="closing-desc">We look forward to a long-term relationship<br>and are always here to assist you.</p>
+    </div>
 
     <!-- Dynamic Contact Us Card Overlay -->
     <div class="closing-contact-wrap">

@@ -542,35 +542,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     grossPackagePrice = packageItems.reduce((sum, i) => sum + (Number(i.lineTotal) || 0), 0);
   }
 
-  // 4. Determine if GST is applied:
-  const isPackageGstApplied = Boolean(
-    (quotation.packageGst !== null && quotation.packageGst !== undefined && Number(quotation.packageGst) > 0) ||
-    (quotation.gstAmount !== null && quotation.gstAmount !== undefined && Number(quotation.gstAmount) > 0) ||
-    (extraItems.some(i => Number(i.gstPercentage) > 0)) ||
-    (quotation.extra && Boolean(quotation.extra.isGstApplied))
-  );
-
-  const packageGstPct = Number(
-    quotation.packageGst ?? (quotation.gstAmount && grossPackagePrice > 0 ? Math.round((Number(quotation.gstAmount) / grossPackagePrice) * 100) : 18)
-  );
-
-  let displayedPackageAmount: number;
-  let packageGstAmount: number;
-
-  if (isPackageGstApplied && packageGstPct > 0) {
-    // Deduct GST from package and show base price
-    displayedPackageAmount = Math.round(grossPackagePrice / (1 + (packageGstPct / 100)));
-    packageGstAmount = grossPackagePrice - displayedPackageAmount;
-  } else {
-    // If GST is not applied, do not deduct anything
-    displayedPackageAmount = grossPackagePrice;
-    packageGstAmount = 0;
-  }
-
-  const systemTitle = quotation.packageName
-    ? quotation.packageName
-    : (quotation.systemSize ? `${quotation.systemSize} kW Rooftop ON-Grid Solar Power Plant System` : `Rooftop ON-Grid Solar Power Plant System`);
-
   interface IPricingRow {
     description: string;
     subDescription?: string | undefined;
@@ -582,37 +553,27 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     isBoldText?: boolean | undefined;
   }
 
-  const pricingRows: IPricingRow[] = [];
-
-  // 1. Package Row (Shows only the isolated package price)
-  pricingRows.push({
-    description: systemTitle,
-    subDescription: quotation.packageDescription || undefined,
-    amount: formatPrice(displayedPackageAmount)
-  });
-
-  // Track extra amounts and extra GST
+  // First process extra items and extra charge to know their base amounts and extra GST
   let totalExtraAmount = 0;
   let totalExtraGst = 0;
   const extraTitlesAdded = new Set<string>();
   let hasNetMeteringItem = false;
+  const extraPricingRows: IPricingRow[] = [];
 
-  // 2. Extra items from quotation items array - each as a separate row below package
+  // Extra items from quotation items array
   extraItems.forEach(item => {
     extraTitlesAdded.add(item.productName.trim().toLowerCase());
     if (/net[\s-]?meter/i.test(item.productName) || /net[\s-]?meter/i.test(item.description || '')) {
       hasNetMeteringItem = true;
     }
 
-    const itemGstPct = Number(item.gstPercentage) > 0
-      ? Number(item.gstPercentage)
-      : (isPackageGstApplied ? packageGstPct : 0);
+    // Only apply GST to extra item if its own gstPercentage is specified and > 0 (NEVER inherit package GST)
+    const itemGstPct = Number(item.gstPercentage) > 0 ? Number(item.gstPercentage) : 0;
 
     let itemBaseAmount: number;
     let itemGst: number;
 
-    if (itemGstPct > 0 && (isPackageGstApplied || Number(item.gstPercentage) > 0)) {
-      // If GST is applied, deduct GST from the extra product and add to GST row
+    if (itemGstPct > 0) {
       itemBaseAmount = Math.round(item.lineTotal / (1 + (itemGstPct / 100)));
       itemGst = item.lineTotal - itemBaseAmount;
     } else {
@@ -625,7 +586,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
     const subDesc = item.description || (item.quantity && item.quantity > 1 ? `Qty: ${item.quantity} ${item.unitName || 'Nos'}` : undefined);
 
-    pricingRows.push({
+    extraPricingRows.push({
       description: item.productName,
       subDescription: subDesc,
       amount: formatPrice(itemBaseAmount)
@@ -643,8 +604,9 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     }
 
     if (!alreadyAdded && !isNaN(extraVal) && extraVal > 0) {
-      const isExtraGstApplied = Boolean(quotation.extra.isGstApplied) || (isPackageGstApplied && quotation.extra.isGstApplied !== false);
-      const extraGstPct = Number(quotation.extra.gstPercentage ?? (isPackageGstApplied ? packageGstPct : 18));
+      // ONLY apply GST to extra charge if quotation.extra.isGstApplied is explicitly true (NEVER inherit package GST)
+      const isExtraGstApplied = Boolean(quotation.extra.isGstApplied);
+      const extraGstPct = isExtraGstApplied ? Number(quotation.extra.gstPercentage || 18) : 0;
 
       let displayedExtraAmount: number;
       let extraGstAmount: number;
@@ -662,13 +624,59 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
       const title = quotation.extra.title || 'Extra Charges';
 
-      pricingRows.push({
+      extraPricingRows.push({
         description: title,
         subDescription: quotation.extra.description || undefined,
         amount: formatPrice(displayedExtraAmount)
       });
     }
   }
+
+  // 4. Determine Package GST:
+  // Package GST is applied if quotation.packageGst > 0 OR quotation.gstAmount > 0
+  const isPackageGstApplied = Boolean(
+    (quotation.packageGst !== null && quotation.packageGst !== undefined && Number(quotation.packageGst) > 0) ||
+    (quotation.gstAmount !== null && quotation.gstAmount !== undefined && Number(quotation.gstAmount) > 0)
+  );
+
+  let displayedPackageAmount: number;
+  let packageGstAmount: number;
+
+  if (isPackageGstApplied) {
+    if (quotation.packageGst !== null && quotation.packageGst !== undefined && Number(quotation.packageGst) > 0) {
+      const packageGstPct = Number(quotation.packageGst);
+      displayedPackageAmount = Math.round(grossPackagePrice / (1 + (packageGstPct / 100)));
+      packageGstAmount = grossPackagePrice - displayedPackageAmount;
+    } else if (quotation.gstAmount !== null && quotation.gstAmount !== undefined && Number(quotation.gstAmount) > 0) {
+      // If total quotation.gstAmount is recorded in DB:
+      // Package GST is total quotation.gstAmount minus any extra charges GST
+      const knownTotalGst = Number(quotation.gstAmount);
+      packageGstAmount = Math.max(0, knownTotalGst - totalExtraGst);
+      displayedPackageAmount = Math.max(0, grossPackagePrice - packageGstAmount);
+    } else {
+      displayedPackageAmount = grossPackagePrice;
+      packageGstAmount = 0;
+    }
+  } else {
+    displayedPackageAmount = grossPackagePrice;
+    packageGstAmount = 0;
+  }
+
+  const systemTitle = quotation.packageName
+    ? quotation.packageName
+    : (quotation.systemSize ? `${quotation.systemSize} kW Rooftop ON-Grid Solar Power Plant System` : `Rooftop ON-Grid Solar Power Plant System`);
+
+  const pricingRows: IPricingRow[] = [];
+
+  // 1. Package Row (Shows only the isolated package price)
+  pricingRows.push({
+    description: systemTitle,
+    subDescription: quotation.packageDescription || undefined,
+    amount: formatPrice(displayedPackageAmount)
+  });
+
+  // 2. Extra items rows
+  pricingRows.push(...extraPricingRows);
 
   // 3. Net-Metering Cost (Rendered as As Actual To Be Paid By The Customer)
   if (!hasNetMeteringItem) {
@@ -1653,6 +1661,83 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     customerAddressHtml = [customer.address, customer.city, customer.state, customer.pinCode].filter(Boolean).join(', ');
   }
 
+  // --- Page 7: Terms & Conditions Dynamic Calculations & Formatting ---
+  // Calculates total text volume and count to dynamically adjust font size so it strictly fits on one page without extending
+  const totalTcLength = (termsConditions || []).reduce((sum, tc) => {
+    const desc = Array.isArray(tc.description) ? tc.description.join(' ') : String(tc.description || '');
+    return sum + (tc.title?.length || 0) + desc.length;
+  }, 0);
+  const tcCount = (termsConditions || []).length;
+
+  let tcFontSize = "8.5pt";
+  let tcTitleSize = "9.5pt";
+  let tcLineHeight = "1.35";
+  let tcItemMargin = "10px";
+  let tcListMargin = "3px";
+
+  if (totalTcLength > 3500 || tcCount >= 13) {
+    tcFontSize = "5.5pt";
+    tcTitleSize = "6.5pt";
+    tcLineHeight = "1.12";
+    tcItemMargin = "3.5px";
+    tcListMargin = "1px";
+  } else if (totalTcLength > 2200 || tcCount >= 10) {
+    tcFontSize = "6.5pt";
+    tcTitleSize = "7.5pt";
+    tcLineHeight = "1.18";
+    tcItemMargin = "5px";
+    tcListMargin = "1.5px";
+  } else if (totalTcLength > 1100 || tcCount >= 7) {
+    tcFontSize = "7.5pt";
+    tcTitleSize = "8.5pt";
+    tcLineHeight = "1.25";
+    tcItemMargin = "7px";
+    tcListMargin = "2px";
+  }
+
+  const tcHtml = (termsConditions && termsConditions.length > 0)
+    ? termsConditions.map((tc, idx) => {
+        const rawTitle = (tc.title || '').trim();
+        const displayTitle = /^\d+[\.\)]/.test(rawTitle)
+          ? (rawTitle.endsWith(':') ? rawTitle : `${rawTitle}:`)
+          : `${idx + 1}. ${rawTitle.endsWith(':') ? rawTitle : `${rawTitle}:`}`;
+
+        let descContent = '';
+        if (Array.isArray(tc.description)) {
+          const lines = tc.description.map(s => String(s || '').trim()).filter(Boolean);
+          if (lines.length === 1) {
+            descContent = `<div class="tc-sub-text">${lines[0]}</div>`;
+          } else {
+            descContent = lines.map((line, lIdx) => {
+              const hasBulletOrNum = /^(\d+[\.\)]|[-•*])\s*/.test(line);
+              const prefix = hasBulletOrNum ? '' : `${lIdx + 1}. `;
+              return `<div class="tc-sub-text">${prefix}${line}</div>`;
+            }).join('');
+          }
+        } else if (typeof tc.description === 'string' && tc.description.trim()) {
+          const lines = tc.description.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+          if (lines.length <= 1) {
+            descContent = `<div class="tc-sub-text">${tc.description.trim()}</div>`;
+          } else {
+            descContent = lines.map((line, lIdx) => {
+              const hasBulletOrNum = /^(\d+[\.\)]|[-•*])\s*/.test(line);
+              const prefix = hasBulletOrNum ? '' : `${lIdx + 1}. `;
+              return `<div class="tc-sub-text">${prefix}${line}</div>`;
+            }).join('');
+          }
+        }
+
+        return `
+          <div class="tc-item">
+            <div class="tc-item-title">${displayTitle}</div>
+            <div class="tc-item-body">
+              ${descContent}
+            </div>
+          </div>
+        `;
+      }).join('')
+    : `<div class="tc-item"><div class="tc-item-body">Standard terms and conditions apply.</div></div>`;
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -2308,29 +2393,18 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   /* Page 3: Proposal Bottom Section (Bank Details on Left, QR Code on Right) */
   .proposal-bottom-wrap{
     display:flex;
-    align-items:stretch;
+    align-items:flex-start;
     justify-content:space-between;
-    gap:20px;
-    margin-top:16px;
+    gap:24px;
+    margin-top:20px;
   }
 
-  .proposal-bank-card{
+  .proposal-bank-col{
     flex:1.45;
-    background:#ffffff;
-    border:1px solid #e2e8f0;
-    border-radius:10px;
-    padding:14px 18px;
-    box-sizing:border-box;
-    box-shadow:0 1px 3px rgba(0,0,0,0.02);
   }
 
   .proposal-bank-header{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    margin-bottom:10px;
-    padding-bottom:6px;
-    border-bottom:1px solid #f1f5f9;
+    margin-bottom:8px;
   }
 
   .proposal-bank-title{
@@ -2345,7 +2419,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .proposal-bank-table{
     display:flex;
     flex-direction:column;
-    gap:5px;
+    gap:6px;
   }
 
   .proposal-bank-row{
@@ -2356,7 +2430,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
 
   .proposal-bank-lbl{
-    width:105px;
+    width:110px;
     color:#64748b;
     font-weight:600;
     flex-shrink:0;
@@ -2364,33 +2438,22 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   .proposal-bank-val{
     color:#0f172a;
-    font-weight:600;
+    font-weight:700;
     flex:1;
   }
 
-  .proposal-qr-card{
+  .proposal-qr-col{
     flex:0.85;
-    background:#ffffff;
-    border:1px solid #e2e8f0;
-    border-radius:10px;
-    padding:14px 16px;
-    box-sizing:border-box;
     display:flex;
     flex-direction:column;
     align-items:center;
-    justify-content:center;
+    justify-content:flex-start;
     text-align:center;
-    box-shadow:0 1px 3px rgba(0,0,0,0.02);
   }
 
   .proposal-qr-frame{
     width:112px;
     height:112px;
-    background:#ffffff;
-    border:1.5px solid #cbd5e1;
-    border-radius:8px;
-    padding:6px;
-    box-sizing:border-box;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -2404,7 +2467,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
 
   .proposal-qr-text-wrap{
-    margin-top:7px;
+    margin-top:6px;
   }
 
   .proposal-qr-title{
@@ -2424,96 +2487,80 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   /* ========================================================
      PAGE 7: TERMS & CONDITIONS (DEDICATED PAGE)
+     Clean, borderless 2-column document layout (Reference based)
+     Dynamically scales font size to strictly fit single page
      ======================================================== */
   .tc-page .content{
     display:flex;
     flex-direction:column;
-  }
-
-  .tc-grid{
-    display:grid;
-    grid-template-columns:repeat(2, 1fr);
-    gap:14px;
-    margin-top:10px;
-  }
-
-  .tc-card{
-    background:#ffffff;
-    border:1px solid #e2e8f0;
-    border-radius:8px;
-    padding:12px 14px;
+    height:100%;
     box-sizing:border-box;
-    display:flex;
-    flex-direction:column;
+    padding-bottom:12px;
   }
 
-  .tc-card-header{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    margin-bottom:8px;
-    padding-bottom:6px;
-    border-bottom:1px solid #f1f5f9;
-  }
-
-  .tc-badge{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    background:rgba(227, 30, 36, 0.08);
-    color:var(--red);
-    font-family:var(--font-heading);
-    font-size:10px;
-    font-weight:800;
-    width:22px;
-    height:22px;
-    border-radius:50%;
+  .tc-page .header{
+    margin-bottom:12px;
     flex-shrink:0;
   }
 
-  .tc-title{
-    font-family:var(--font-heading);
-    font-size:12.5px;
-    font-weight:700;
-    color:#0f172a;
-    margin:0;
-    line-height:1.25;
+  .tc-page .proposal-title{
+    font-size:28px;
+    padding-bottom:4px;
+    border-bottom:4px solid var(--red);
+    display:inline-block;
   }
 
-  .tc-body{
-    font-size:11px;
-    line-height:1.5;
+  .tc-flow-container{
+    column-count:2;
+    column-gap:14mm;
+    column-fill:balance;
+    width:100%;
+    flex:1;
+    font-size:var(--tc-font-size, 8.5pt);
+    line-height:var(--tc-line-height, 1.35);
+    color:#334155;
+    text-align:justify;
+  }
+
+  .tc-item{
+    break-inside:auto;
+    margin-bottom:var(--tc-item-margin, 8px);
+  }
+
+  .tc-item-title{
+    font-family:var(--font-heading);
+    font-size:var(--tc-title-size, 9.5pt);
+    font-weight:700;
+    color:#0f172a;
+    margin-bottom:var(--tc-list-margin, 2px);
+    line-height:1.25;
+    break-after:avoid;
+  }
+
+  .tc-item-body{
+    font-size:var(--tc-font-size, 8.5pt);
+    line-height:var(--tc-line-height, 1.35);
     color:#334155;
   }
 
-  .tc-list{
-    margin:0;
-    padding-left:16px;
+  .tc-sub-text{
+    margin-bottom:var(--tc-list-margin, 2px);
+    break-inside:avoid;
+    line-height:inherit;
   }
 
-  .tc-list li{
-    margin-bottom:4px;
-  }
-  .tc-list li:last-child{
-    margin-bottom:0;
-  }
-
-  .tc-para{
-    margin:0;
-  }
-
-  .tc-notes-box{
-    margin-top:16px;
-    background:#fff7ed;
-    border:1px solid #fed7aa;
-    border-radius:8px;
-    padding:10px 14px;
-    font-size:11.5px;
-    color:#9a3412;
+  .tc-notes-section{
+    break-inside:avoid;
+    margin-top:var(--tc-item-margin, 8px);
+    font-size:var(--tc-font-size, 8.5pt);
+    line-height:var(--tc-line-height, 1.35);
   }
 
   .tc-notes-label{
+    font-family:var(--font-heading);
+    font-size:var(--tc-title-size, 9.5pt);
     font-weight:700;
+    color:var(--red);
     margin-bottom:2px;
   }
 
@@ -3285,6 +3332,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
 
   /* Thank You Section */
+
   .closing-header-wrap{
     position:absolute;
     top:36mm;
@@ -3293,6 +3341,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     z-index:10;
   }
 
+  
   .closing-title{
     font-family:var(--font-heading);
     font-size:38pt;
@@ -3329,7 +3378,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   /* Sun Watermark inside Contact Card */
   .closing-sun-watermark{
     position:absolute;
-    left:78mm;
+    left:75mm;
     top:136mm;
     width:48mm;
     height:48mm;
@@ -3375,7 +3424,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   .closing-contact-row{
     display:flex;
-    align-items:center;
+    align-items:flex-start;
   }
 
   .closing-contact-icon-circle{
@@ -3387,14 +3436,18 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     display:flex;
     align-items:center;
     justify-content:center;
-    margin-right:14px;
+    margin-right:12px;
     flex-shrink:0;
+    margin-top:2px;
   }
 
   .closing-contact-text{
     display:flex;
     flex-direction:column;
     justify-content:center;
+    flex:1;
+    min-width:0;
+    max-width:54mm;
   }
 
   .closing-contact-field-label{
@@ -3408,11 +3461,15 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   .closing-contact-field-value{
     font-family:var(--font);
-    font-size:9.5pt;
+    font-size:8.8pt;
     font-weight:500;
     color:#ffffff;
-    line-height:1.25;
+    line-height:1.3;
     opacity:0.98;
+    white-space:normal;
+    word-break:break-word;
+    overflow-wrap:break-word;
+    max-width:54mm;
   }
 
   /* Dynamic SOW Table & Badges */
@@ -3789,7 +3846,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
       <!-- Bottom Section: Bank Details on Left, Scan to Pay QR on Right -->
       <div class="proposal-bottom-wrap">
-        <div class="proposal-bank-card">
+        <div class="proposal-bank-col">
           <div class="proposal-bank-header">
             <h3 class="proposal-bank-title">Bank Details</h3>
           </div>
@@ -3823,7 +3880,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           </div>
         </div>
 
-        <div class="proposal-qr-card">
+        <div class="proposal-qr-col">
           <div class="proposal-qr-frame">
             ${bankQrCodeBase64 ? `
               <img src="${bankQrCodeBase64}" alt="Bank Payment QR" class="proposal-qr-img" />
@@ -4106,36 +4163,15 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         <h1 class="proposal-title">TERMS & CONDITIONS</h1>
       </div>
 
-      <div class="tc-grid">
-        ${termsConditions.length > 0 ? termsConditions.map((tc, idx) => `
-          <div class="tc-card">
-            <div class="tc-card-header">
-              <span class="tc-badge">${String(idx + 1).padStart(2, '0')}</span>
-              <h3 class="tc-title">${tc.title}</h3>
-            </div>
-            <div class="tc-body">
-              ${Array.isArray(tc.description) ? `
-                <ul class="tc-list">
-                  ${tc.description.map(d => `<li>${d}</li>`).join('')}
-                </ul>
-              ` : `
-                <p class="tc-para">${tc.description}</p>
-              `}
-            </div>
+      <div class="tc-flow-container" style="--tc-font-size:${tcFontSize}; --tc-title-size:${tcTitleSize}; --tc-line-height:${tcLineHeight}; --tc-item-margin:${tcItemMargin}; --tc-list-margin:${tcListMargin};">
+        ${tcHtml}
+        ${quotation.notes ? `
+          <div class="tc-notes-section">
+            <div class="tc-notes-label">Special Notes:</div>
+            <div class="tc-sub-text">${quotation.notes}</div>
           </div>
-        `).join('') : `
-          <div class="tc-empty">
-            <p>Standard terms and conditions apply.</p>
-          </div>
-        `}
+        ` : ''}
       </div>
-
-      ${quotation.notes ? `
-        <div class="tc-notes-box">
-          <div class="tc-notes-label">Special Notes:</div>
-          <div class="tc-notes-val">${quotation.notes}</div>
-        </div>
-      ` : ''}
     </div>
 
     <!-- Footer for Page 7 -->

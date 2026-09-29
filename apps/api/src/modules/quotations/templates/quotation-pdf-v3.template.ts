@@ -2968,7 +2968,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     height:163mm;
     object-fit:fill;
     display:block;
-    z-index:2;
+    z-index:15;
     pointer-events:none;
   }
 

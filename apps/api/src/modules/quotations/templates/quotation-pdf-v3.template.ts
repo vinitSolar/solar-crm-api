@@ -827,14 +827,14 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   if (bomGroups.panel.length > 0) {
     const panelsByCategory = new Map<string, typeof items>();
     bomGroups.panel.forEach(p => {
-      const catKey = (p.categoryName || 'Solar Panels').trim();
+      const catKey = (p.categoryName || 'Panel').trim();
       if (!panelsByCategory.has(catKey)) {
         panelsByCategory.set(catKey, []);
       }
       panelsByCategory.get(catKey)!.push(p);
     });
 
-    bomPanelHtml = Array.from(panelsByCategory.entries()).map(([catLabel, panelItems]) => {
+    bomPanelHtml = Array.from(panelsByCategory.entries()).map(([_, panelItems]) => {
       const rawCatImg = panelItems.find(p => p.categoryImage)?.categoryImage || null;
       const catImg = resolveImageToBase64Sync(rawCatImg);
       const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
@@ -879,6 +879,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       } else {
         const p = panelItems[0]!;
         const wattPeak = extractWattPeak(p);
+        const warrantyVal = p.warranty ? (p.warranty.toLowerCase().includes('year') ? p.warranty : `${p.warranty} Year`) : '12 Year';
         panelContentHtml = `
           <div class="bom-panel-row">
             <div class="bom-field">
@@ -899,8 +900,15 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </div>
             <div class="bom-field">
               <div class="bom-field-label">Panel Warranty:</div>
-              <div class="bom-field-val">${p.warranty || '-'}</div>
+              <div class="bom-field-val-sm">${warrantyVal}</div>
+              <div class="bom-field-label" style="margin-top:2px;">Performance Warranty:</div>
+              <div class="bom-field-val-sm">25 Year</div>
             </div>
+            ${p.brandName ? `
+            <div class="bom-brand-logo">
+              <span class="bom-brand-name-blue">${p.brandName}</span>
+              <span class="bom-brand-sub">Solar</span>
+            </div>` : ''}
           </div>
         `;
       }
@@ -915,7 +923,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             ${panelContentHtml}
           </div>
         </div>
-        <span class="bom-card-tag">${catLabel}</span>
+        <span class="bom-card-tag">Panel</span>
       </div>
       `;
     }).join('');
@@ -926,14 +934,14 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   if (bomGroups.inverter.length > 0) {
     const invertersByCategory = new Map<string, typeof items>();
     bomGroups.inverter.forEach(inv => {
-      const catKey = (inv.categoryName || 'Inverters').trim();
+      const catKey = (inv.categoryName || 'Inverter').trim();
       if (!invertersByCategory.has(catKey)) {
         invertersByCategory.set(catKey, []);
       }
       invertersByCategory.get(catKey)!.push(inv);
     });
 
-    bomInverterHtml = Array.from(invertersByCategory.entries()).map(([catLabel, inverterItems]) => {
+    bomInverterHtml = Array.from(invertersByCategory.entries()).map(([_, inverterItems]) => {
       const rawCatImg = inverterItems.find(inv => inv.categoryImage)?.categoryImage || null;
       const catImg = resolveImageToBase64Sync(rawCatImg);
       const fallbackSvg = `<svg viewBox="0 0 32 32" width="32" height="32" fill="none">
@@ -978,6 +986,9 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       } else {
         const inv = inverterItems[0]!;
         const kwSize = extractKwSize(inv);
+        const invWarranty = inv.warranty ? (inv.warranty.toLowerCase().includes('year') ? inv.warranty : `${inv.warranty} Year`) : '5-7 Year';
+        const altInverters = `DEYE ${kwSize || quotation.systemSize + ' kW'} - DEYE - Inverter; SOLAR YAAN ${kwSize || quotation.systemSize + ' kW'} - SOLAR YAAN - Inverter`;
+
         inverterContentHtml = `
           <div class="bom-inverter-top">
             <div class="bom-field">
@@ -994,8 +1005,17 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </div>
             <div class="bom-field">
               <div class="bom-field-label">Inverter Warranty:</div>
-              <div class="bom-field-val">${inv.warranty || '-'}</div>
+              <div class="bom-field-val">${invWarranty}</div>
             </div>
+            ${inv.brandName ? `
+            <div class="bom-brand-logo">
+              <span class="bom-brand-name-red">${inv.brandName.toUpperCase()}</span>
+            </div>` : ''}
+          </div>
+          <div class="bom-alt-box">
+            <div class="bom-alt-title">ALTERNATIVE PRODUCTS</div>
+            <div class="bom-alt-sub">May be supplied if the primary product is unavailable, with equivalent specification.</div>
+            <div class="bom-alt-items">${altInverters}</div>
           </div>
         `;
       }
@@ -1010,7 +1030,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             ${inverterContentHtml}
           </div>
         </div>
-        <span class="bom-card-tag">${catLabel}</span>
+        <span class="bom-card-tag">Inverter</span>
       </div>
       `;
     }).join('');
@@ -1021,14 +1041,14 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   if (bomGroups.cables.length > 0) {
     const cablesByCategory = new Map<string, typeof items>();
     bomGroups.cables.forEach(c => {
-      const catKey = (c.categoryName || 'Cables & Wires').trim();
+      const catKey = (c.categoryName || 'Cables').trim();
       if (!cablesByCategory.has(catKey)) {
         cablesByCategory.set(catKey, []);
       }
       cablesByCategory.get(catKey)!.push(c);
     });
 
-    bomCablesHtml = Array.from(cablesByCategory.entries()).map(([cablesCatLabel, cableItems]) => {
+    bomCablesHtml = Array.from(cablesByCategory.entries()).map(([_, cableItems]) => {
       const allCards = cableItems;
       const firstRowCards = allCards.slice(0, 4);
       const restCards = allCards.slice(4);
@@ -1039,6 +1059,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           <div class="bom-cable-make">${c.brandName || '-'}</div>
           <div class="bom-cable-qty">Qty: ${c.quantity ? `${c.quantity} ${c.unitName || 'Meter'}` : '-'}</div>
           <div class="bom-cable-spec">${c.description || c.productName || '-'}</div>
+          ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
         </div>
       `).join('');
 
@@ -1048,6 +1069,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           <div class="bom-cable-make">${c.brandName || '-'}</div>
           <div class="bom-cable-qty">Qty: ${c.quantity ? `${c.quantity} ${c.unitName || 'Meter'}` : '-'}</div>
           <div class="bom-cable-spec">${c.description || c.productName || '-'}</div>
+          ${c.brandName ? `<div class="bom-cable-brand-badge">${c.brandName.toUpperCase()}</div>` : ''}
         </div>
       `).join('') : '';
 
@@ -1069,10 +1091,10 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           </div>
           <div class="bom-card-content">
             <div class="bom-cable-grid-4">${firstRowHtml}</div>
-            ${restRowHtml ? `<div class="bom-cable-grid-2" style="margin-top:6px;">${restRowHtml}</div>` : ''}
+            ${restRowHtml ? `<div class="bom-cable-grid-2" style="margin-top:4px;">${restRowHtml}</div>` : ''}
           </div>
         </div>
-        <span class="bom-card-tag">${cablesCatLabel}</span>
+        <span class="bom-card-tag">Cables</span>
       </div>
       `;
     }).join('');
@@ -1094,18 +1116,21 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                 <div class="bom-cable-make">Polycab / KEI</div>
                 <div class="bom-cable-qty">Qty: 25 Meter</div>
                 <div class="bom-cable-spec">A.C 4.0 SQMM 4 CORE COPPER</div>
+                <div class="bom-cable-brand-badge">POLYCAB</div>
               </div>
               <div class="bom-cable-col">
                 <div class="bom-cable-type">DC Cable:</div>
                 <div class="bom-cable-make">Waaree / Polycab</div>
                 <div class="bom-cable-qty">Qty: 20 Meter</div>
                 <div class="bom-cable-spec">D.C CABLE RED 4.0 SQMM (UV)</div>
+                <div class="bom-cable-brand-badge">WAAREE</div>
               </div>
               <div class="bom-cable-col">
                 <div class="bom-cable-type">DC Cable:</div>
                 <div class="bom-cable-make">Waaree / Polycab</div>
                 <div class="bom-cable-qty">Qty: 20 Meter</div>
                 <div class="bom-cable-spec">D.C CABLE BLACK 4.0 SQMM (UV)</div>
+                <div class="bom-cable-brand-badge">WAAREE</div>
               </div>
               <div class="bom-cable-col">
                 <div class="bom-cable-type">Earthing Cable:</div>
@@ -1114,7 +1139,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
                 <div class="bom-cable-spec">COPPER EARTHING 16 SQMM GREEN</div>
               </div>
             </div>
-            <div class="bom-cable-grid-2">
+            <div class="bom-cable-grid-2" style="margin-top:4px;">
               <div class="bom-cable-col">
                 <div class="bom-cable-type">LA Cable:</div>
                 <div class="bom-cable-make">Earthcab / Polycab</div>
@@ -1130,7 +1155,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </div>
           </div>
         </div>
-        <span class="bom-card-tag">Cables & Wires</span>
+        <span class="bom-card-tag">Cables</span>
       </div>
     `;
   }
@@ -1140,19 +1165,28 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   if (bomGroups.structure.length > 0) {
     const structureByCategory = new Map<string, typeof items>();
     bomGroups.structure.forEach(s => {
-      const catKey = (s.categoryName || 'Mounting Structures').trim();
+      const catKey = (s.categoryName || 'Structure').trim();
       if (!structureByCategory.has(catKey)) {
         structureByCategory.set(catKey, []);
       }
       structureByCategory.get(catKey)!.push(s);
     });
 
-    bomStructureHtml = Array.from(structureByCategory.entries()).map(([structureCatLabel, structItems]) => {
+    bomStructureHtml = Array.from(structureByCategory.entries()).map(([_, structItems]) => {
       const rowsHtml = structItems.map(item => `
-        <div class="bom-struct-row">
-          <div class="bom-col-prod bom-txt-name">${item.productName || '-'}</div>
-          <div class="bom-col-qty bom-txt-qty">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
-          <div class="bom-col-make bom-txt-make">${item.brandName || 'As per Industry standards'}</div>
+        <div class="bom-struct-grid-row">
+          <div>
+            <div class="bom-struct-lbl">Product:</div>
+            <div class="bom-struct-v">${item.productName || '-'}</div>
+          </div>
+          <div>
+            <div class="bom-struct-lbl">Qty:</div>
+            <div class="bom-struct-v">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
+          </div>
+          <div>
+            <div class="bom-struct-lbl">Make:</div>
+            <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+          </div>
         </div>
       `).join('');
 
@@ -1174,19 +1208,12 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             ${structureIconHtml}
           </div>
           <div class="bom-card-content">
-            <div class="bom-struct-table">
-              <div class="bom-struct-head">
-                <div class="bom-col-prod bom-th">Product</div>
-                <div class="bom-col-qty bom-th">Qty</div>
-                <div class="bom-col-make bom-th">Make / Specification</div>
-              </div>
-              <div class="bom-struct-body">
-                ${rowsHtml}
-              </div>
+            <div class="bom-struct-list">
+              ${rowsHtml}
             </div>
           </div>
         </div>
-        <span class="bom-card-tag">${structureCatLabel}</span>
+        <span class="bom-card-tag">Structure</span>
       </div>
       `;
     }).join('');
@@ -1204,28 +1231,39 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </svg>
           </div>
           <div class="bom-card-content">
-            <div class="bom-struct-table">
-              <div class="bom-struct-head">
-                <div class="bom-col-prod bom-th">Product</div>
-                <div class="bom-col-qty bom-th">Qty</div>
-                <div class="bom-col-make bom-th">Make / Specification</div>
-              </div>
-              <div class="bom-struct-body">
-                <div class="bom-struct-row">
-                  <div class="bom-col-prod bom-txt-name">Galvanized Iron Structure 80 Micron (HDGI) - ${totalPanels} Modules</div>
-                  <div class="bom-col-qty bom-txt-qty">1 Set</div>
-                  <div class="bom-col-make bom-txt-make">SunSelect Standard Heavy Duty Galvanized</div>
+            <div class="bom-struct-list">
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">Galvanized Iron Structure 80 Micron (HDGI) - ${totalPanels} Modules</div>
                 </div>
-                <div class="bom-struct-row">
-                  <div class="bom-col-prod bom-txt-name">Aluminium Mid Clamps & End Clamps with SS304 Hardware</div>
-                  <div class="bom-col-qty bom-txt-qty">${totalPanels * 4} Nos</div>
-                  <div class="bom-col-make bom-txt-make">Anodized High Grade Aluminium AL6005-T5</div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">1 Set</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">SunSelect Standard Heavy Duty Galvanized</div>
+                </div>
+              </div>
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">Aluminium Mid Clamps & End Clamps with SS304 Hardware</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">${totalPanels * 4} Nos</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">Anodized High Grade Aluminium AL6005-T5</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <span class="bom-card-tag">Mounting Structures</span>
+        <span class="bom-card-tag">Structure</span>
       </div>
     `;
   }
@@ -1248,12 +1286,21 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         accessoriesByCategory.get(catKey)!.push(a);
       });
 
-      nonDbCardHtml = Array.from(accessoriesByCategory.entries()).map(([accessoriesCatLabel, accItems]) => {
+      nonDbCardHtml = Array.from(accessoriesByCategory.entries()).map(([_, accItems]) => {
         const rowsHtml = accItems.map(item => `
-          <div class="bom-struct-row">
-            <div class="bom-col-prod bom-txt-name">${item.productName || '-'}</div>
-            <div class="bom-col-qty bom-txt-qty">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
-            <div class="bom-col-make bom-txt-make">${item.brandName || 'As per Industry standards'}</div>
+          <div class="bom-struct-grid-row">
+            <div>
+              <div class="bom-struct-lbl">Product:</div>
+              <div class="bom-struct-v">${item.productName || '-'}</div>
+            </div>
+            <div>
+              <div class="bom-struct-lbl">Qty:</div>
+              <div class="bom-struct-v">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
+            </div>
+            <div>
+              <div class="bom-struct-lbl">Make:</div>
+              <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+            </div>
           </div>
         `).join('');
 
@@ -1276,19 +1323,12 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
               ${accessoriesIconHtml}
             </div>
             <div class="bom-card-content">
-              <div class="bom-struct-table">
-                <div class="bom-struct-head">
-                  <div class="bom-col-prod bom-th">Product</div>
-                  <div class="bom-col-qty bom-th">Qty</div>
-                  <div class="bom-col-make bom-th">Make / Specification</div>
-                </div>
-                <div class="bom-struct-body">
-                  ${rowsHtml}
-                </div>
+              <div class="bom-struct-list">
+                ${rowsHtml}
               </div>
             </div>
           </div>
-          <span class="bom-card-tag">${accessoriesCatLabel}</span>
+          <span class="bom-card-tag">Accessories</span>
         </div>
         `;
       }).join('');
@@ -1329,29 +1369,29 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         <div class="bom-card-content">
           <div class="bom-db-row">
             <div class="bom-db-col">
-              <div class="bom-db-lbl">ACDB</div>
+              <div class="bom-db-lbl">ACDB:</div>
               <div class="bom-db-v">${acdbVal}</div>
             </div>
             <div class="bom-db-col">
-              <div class="bom-db-lbl">DCDB</div>
+              <div class="bom-db-lbl">DCDB:</div>
               <div class="bom-db-v">${dcdbVal}</div>
             </div>
             <div class="bom-db-col">
-              <div class="bom-db-lbl">Earthing</div>
+              <div class="bom-db-lbl">Earthing:</div>
               <div class="bom-db-v">${earthingVal}</div>
             </div>
             <div class="bom-db-col">
-              <div class="bom-db-lbl">Lightning Arrester</div>
+              <div class="bom-db-lbl">Lightening Arrestor:</div>
               <div class="bom-db-v">${laVal}</div>
             </div>
             <div class="bom-db-col">
-              <div class="bom-db-lbl">Miscellaneous</div>
+              <div class="bom-db-lbl">Miscellaneous:</div>
               <div class="bom-db-v">${miscVal}</div>
             </div>
           </div>
         </div>
       </div>
-      <span class="bom-card-tag">Distribution & Protection</span>
+      <span class="bom-card-tag">Balance of System</span>
     </div>
     `;
 
@@ -1370,32 +1410,61 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </svg>
           </div>
           <div class="bom-card-content">
-            <div class="bom-struct-table">
-              <div class="bom-struct-head">
-                <div class="bom-col-prod bom-th">Product</div>
-                <div class="bom-col-qty bom-th">Qty</div>
-                <div class="bom-col-make bom-th">Make / Specification</div>
+            <div class="bom-struct-list">
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">MC4 Connectors (1000V DC / 1500V DC IP68 Rated)</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">4 Pairs</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">Waaree / Staubli Multi-Contact</div>
+                </div>
               </div>
-              <div class="bom-struct-body">
-                <div class="bom-struct-row">
-                  <div class="bom-col-prod bom-txt-name">MC4 Connectors (1000V DC / 1500V DC IP68 Rated)</div>
-                  <div class="bom-col-qty bom-txt-qty">4 Pairs</div>
-                  <div class="bom-col-make bom-txt-make">Waaree / Staubli Multi-Contact</div>
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">Copper Bonded Chemical Earthing Rods (17.2mm Dia x 3m Length)</div>
                 </div>
-                <div class="bom-struct-row">
-                  <div class="bom-col-prod bom-txt-name">Copper Bonded Chemical Earthing Rods (17.2mm Dia x 3m Length)</div>
-                  <div class="bom-col-qty bom-txt-qty">2 Sets</div>
-                  <div class="bom-col-make bom-txt-make">Earthcab / SunSelect Certified (250 Micron)</div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">2 Sets</div>
                 </div>
-                <div class="bom-struct-row">
-                  <div class="bom-col-prod bom-txt-name">Conventional Lightning Arrester 1-Meter Pure Copper Spike</div>
-                  <div class="bom-col-qty bom-txt-qty">1 Nos</div>
-                  <div class="bom-col-make bom-txt-make">SunSelect Standard Copper Spike with Base</div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">Earthcab / SunSelect Certified (250 Micron)</div>
                 </div>
-                <div class="bom-struct-row">
-                  <div class="bom-col-prod bom-txt-name">PVC UV-Resistant Conduits, Cable Trays & SS304 Fasteners</div>
-                  <div class="bom-col-qty bom-txt-qty">1 Lot</div>
-                  <div class="bom-col-make bom-txt-make">Precision / Astral / Standard Industry Grade</div>
+              </div>
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">Conventional Lightning Arrester 1-Meter Pure Copper Spike</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">1 Nos</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">SunSelect Standard Copper Spike with Base</div>
+                </div>
+              </div>
+              <div class="bom-struct-grid-row">
+                <div>
+                  <div class="bom-struct-lbl">Product:</div>
+                  <div class="bom-struct-v">PVC UV-Resistant Conduits, Cable Trays & SS304 Fasteners</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Qty:</div>
+                  <div class="bom-struct-v">1 Lot</div>
+                </div>
+                <div>
+                  <div class="bom-struct-lbl">Make:</div>
+                  <div class="bom-struct-v">Precision / Astral / Standard Industry Grade</div>
                 </div>
               </div>
             </div>
@@ -1418,29 +1487,29 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           <div class="bom-card-content">
             <div class="bom-db-row">
               <div class="bom-db-col">
-                <div class="bom-db-lbl">ACDB</div>
+                <div class="bom-db-lbl">ACDB:</div>
                 <div class="bom-db-v">3-Phase ACDB with MCB & Type II SPD</div>
               </div>
               <div class="bom-db-col">
-                <div class="bom-db-lbl">DCDB</div>
+                <div class="bom-db-lbl">DCDB:</div>
                 <div class="bom-db-v">1000V DCDB with 15A Fuse & SPD</div>
               </div>
               <div class="bom-db-col">
-                <div class="bom-db-lbl">Earthing</div>
+                <div class="bom-db-lbl">Earthing:</div>
                 <div class="bom-db-v">Dual Earth Pit with Chemical Compound</div>
               </div>
               <div class="bom-db-col">
-                <div class="bom-db-lbl">Lightning Arrester</div>
+                <div class="bom-db-lbl">Lightening Arrestor:</div>
                 <div class="bom-db-v">Class B+C Surge Protection Device</div>
               </div>
               <div class="bom-db-col">
-                <div class="bom-db-lbl">Miscellaneous</div>
+                <div class="bom-db-lbl">Miscellaneous:</div>
                 <div class="bom-db-v">Cable Ties, Danger Board, Warning Stickers</div>
               </div>
             </div>
           </div>
         </div>
-        <span class="bom-card-tag">Distribution & Protection</span>
+        <span class="bom-card-tag">Balance of System</span>
       </div>
     `;
   }
@@ -1449,10 +1518,19 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   let bomOtherHtml = '';
   for (const [catName, catItems] of bomGroups.other.entries()) {
     const rowsHtml = catItems.map(item => `
-      <div class="bom-struct-row">
-        <div class="bom-col-prod bom-txt-name">${item.productName || '-'}</div>
-        <div class="bom-col-qty bom-txt-qty">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
-        <div class="bom-col-make bom-txt-make">${item.brandName || 'As per Industry standards'}</div>
+      <div class="bom-struct-grid-row">
+        <div>
+          <div class="bom-struct-lbl">Product:</div>
+          <div class="bom-struct-v">${item.productName || '-'}</div>
+        </div>
+        <div>
+          <div class="bom-struct-lbl">Qty:</div>
+          <div class="bom-struct-v">${item.quantity ? `${item.quantity} ${item.unitName || 'NOS'}` : '-'}</div>
+        </div>
+        <div>
+          <div class="bom-struct-lbl">Make:</div>
+          <div class="bom-struct-v">${item.brandName || 'As per Industry Standard'}</div>
+        </div>
       </div>
     `).join('');
 
@@ -1473,15 +1551,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             ${otherIconHtml}
           </div>
           <div class="bom-card-content">
-            <div class="bom-struct-table">
-              <div class="bom-struct-head">
-                <div class="bom-col-prod bom-th">Product</div>
-                <div class="bom-col-qty bom-th">Qty</div>
-                <div class="bom-col-make bom-th">Make / Specification</div>
-              </div>
-              <div class="bom-struct-body">
-                ${rowsHtml}
-              </div>
+            <div class="bom-struct-list">
+              ${rowsHtml}
             </div>
           </div>
         </div>
@@ -1493,31 +1564,28 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   // Combine all BOM sections
   const bomSectionsHtml = bomPanelHtml + bomInverterHtml + bomCablesHtml + bomStructureHtml + bomAccessoriesHtml + bomOtherHtml;
 
-  // Dynamically calculate visual score based on cards and table rows to control density intelligently
-  let bomVisualScore = 0;
-  // Panels card: base 1 + 0.35 per extra row
-  bomVisualScore += 1 + Math.max(0, (bomGroups.panel.length - 1) * 0.35);
-  // Inverters card: base 1 + 0.35 per extra row
-  bomVisualScore += 1 + Math.max(0, (bomGroups.inverter.length - 1) * 0.35);
-  // Cables card: base 1
-  bomVisualScore += 1;
-  // Structure card: base 1 + 0.25 per row beyond 1
-  const structRows = bomGroups.structure.length > 0 ? bomGroups.structure.length : 4;
-  bomVisualScore += 1 + Math.max(0, (structRows - 1) * 0.25);
-  // Accessories card: base 1 + 0.25 per row beyond 1
-  const accRows = bomGroups.accessories.length > 0 ? bomGroups.accessories.length : 4;
-  bomVisualScore += 1 + Math.max(0, (accRows - 1) * 0.25);
-  // Distribution card: base 1
-  bomVisualScore += 1;
-  // Other categories: base 1 + 0.25 per extra row
+  // Calculate total row weight to dynamically choose density class and scale text
+  const panelRowsCount = Math.max(1, bomGroups.panel.length);
+  const inverterRowsCount = Math.max(1, bomGroups.inverter.length) + 1; // +1 for alt box
+  const cablesRowsCount = bomGroups.cables.length > 4 ? 2 : 1;
+  const structRowsCount = bomGroups.structure.length > 0 ? bomGroups.structure.length : 3;
+  const accRowsCount = bomGroups.accessories.length > 0 
+    ? bomGroups.accessories.filter(i => !/acdb|dcdb|earthing|arrestor|arrester|lightning|lightening/i.test(i.productName)).length
+    : 4;
+  const bosRowsCount = 1;
+  let otherRowsCount = 0;
   for (const oItems of bomGroups.other.values()) {
-    bomVisualScore += 1 + Math.max(0, (oItems.length - 1) * 0.25);
+    otherRowsCount += oItems.length;
   }
 
+  const totalBomRows = panelRowsCount + inverterRowsCount + cablesRowsCount + structRowsCount + accRowsCount + bosRowsCount + otherRowsCount;
+
   let bomDensityClass = 'bom-density-normal';
-  if (bomVisualScore >= 16) {
+  if (totalBomRows >= 24) {
+    bomDensityClass = 'bom-density-micro';
+  } else if (totalBomRows >= 18) {
     bomDensityClass = 'bom-density-ultra';
-  } else if (bomVisualScore >= 12) {
+  } else if (totalBomRows >= 12) {
     bomDensityClass = 'bom-density-compact';
   }
 
@@ -2261,7 +2329,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-page{
     display:flex !important;
     flex-direction:column !important;
-    justify-content:space-between !important;
+    justify-content:flex-start !important;
     height:297mm !important;
     max-height:297mm !important;
     overflow:hidden !important;
@@ -2275,28 +2343,29 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     min-height:0;
     max-height:calc(297mm - 48px);
     overflow:hidden;
-    padding:26mm 16mm 14px 16mm;
+    padding:24mm 16mm 8px 16mm;
     display:flex;
     flex-direction:column;
+    justify-content:flex-start;
   }
 
   .bom-cards-wrap{
     display:flex;
     flex-direction:column;
-    justify-content:space-between;
+    justify-content:flex-start;
     flex:1;
     min-height:0;
-    gap:10px;
+    gap:7px;
   }
 
   .bom-page .header{
-    margin-bottom:12px;
+    margin-bottom:10px;
     flex-shrink:0;
   }
 
   .bom-page .proposal-title{
     font-size:32px;
-    padding-bottom:5px;
+    padding-bottom:4px;
     border-bottom:4px solid var(--red);
   }
 
@@ -2311,13 +2380,13 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   /* Card Container */
   .bom-card{
-    border:1.2px solid #cbd5e1;
+    border:1px solid #d4d4d8;
     border-radius:8px;
     position:relative;
     background:#ffffff;
     box-sizing:border-box;
     margin-bottom:0;
-    padding:10px 16px 12px 16px;
+    padding:6.5px 12px 7.5px 12px;
   }
 
   .bom-card-tag{
@@ -2326,9 +2395,9 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     left:18px;
     background:#ffffff;
     padding:0 6px;
-    font-weight:600;
-    font-size:8.5px;
-    color:#475569;
+    font-weight:700;
+    font-size:9px;
+    color:#1e293b;
     line-height:1;
     letter-spacing:0.2px;
   }
@@ -2343,7 +2412,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     width:28px;
     height:28px;
     flex-shrink:0;
-    margin-top:2px;
+    margin-top:1.5px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -2361,7 +2430,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     min-width:0;
   }
 
-  /* Shared Typography: Crisp, Balanced, Non-Overbearing */
+  /* Shared Typography */
   .bom-th{
     font-size:6.5px;
     font-weight:600;
@@ -2376,33 +2445,113 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     font-size:8px;
     font-weight:500;
     color:#1e293b;
-    line-height:1.25;
+    line-height:1.2;
     min-width:0;
   }
 
   .bom-td-name{
     color:#0f172a;
-    font-weight:500;
+    font-weight:600;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
   }
 
-  /* Field Styles (Single Items) */
+  /* Field Styles */
   .bom-field{ min-width:0; }
   .bom-field-label{
-    font-size:6.5px;
-    font-weight:600;
-    color:#64748b;
-    text-transform:uppercase;
-    letter-spacing:0.3px;
+    font-size:7px;
+    font-weight:700;
+    color:#475569;
+    letter-spacing:0.2px;
     margin-bottom:1.5px;
     white-space:nowrap;
   }
   .bom-field-val{
-    font-size:8.5px;
-    font-weight:500;
-    color:#1e293b;
+    font-size:9px;
+    font-weight:700;
+    color:#0f172a;
+    line-height:1.2;
+  }
+  .bom-field-val-sm{
+    font-size:8px;
+    font-weight:600;
+    color:#0f172a;
+    line-height:1.2;
+  }
+
+  /* Brand Logos */
+  .bom-brand-logo{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    justify-content:center;
+    margin-left:auto;
+    padding-left:8px;
+  }
+  .bom-brand-name-blue{
+    font-size:12px;
+    font-weight:900;
+    color:#0284c7;
+    letter-spacing:0.2px;
+    line-height:1;
+  }
+  .bom-brand-name-red{
+    font-size:12px;
+    font-weight:900;
+    color:var(--red);
+    letter-spacing:0.2px;
+    line-height:1;
+  }
+  .bom-brand-sub{
+    font-size:6.5px;
+    font-weight:700;
+    color:#64748b;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }
+
+  /* Panel Row */
+  .bom-panel-row{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    flex-wrap:nowrap;
+  }
+
+  /* Inverter Top & Alternative Products Box */
+  .bom-inverter-top{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+    margin-bottom:4px;
+  }
+  .bom-alt-box{
+    background:#fffbeb;
+    border-left:3px solid #d97706;
+    padding:3.5px 7px;
+    border-radius:0 4px 4px 0;
+    margin-top:3px;
+  }
+  .bom-alt-title{
+    font-size:6.8px;
+    font-weight:800;
+    color:#1e3a8a;
+    letter-spacing:0.3px;
+    margin-bottom:1px;
+    line-height:1.1;
+  }
+  .bom-alt-sub{
+    font-size:5.8px;
+    font-style:italic;
+    color:#71717a;
+    margin-bottom:1px;
+    line-height:1.1;
+  }
+  .bom-alt-items{
+    font-size:6.8px;
+    font-weight:600;
+    color:#27272a;
     line-height:1.25;
   }
 
@@ -2410,21 +2559,21 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-panel-table, .bom-inverter-table{
     width:100%;
   }
-
-  .bom-panel-th-row, .bom-panel-tr{
+  .bom-panel-th-row, .bom-panel-tr,
+  .bom-inverter-th-row, .bom-inverter-tr{
     display:flex;
     align-items:center;
     gap:8px;
   }
-  .bom-panel-th-row{
+  .bom-panel-th-row, .bom-inverter-th-row{
     border-bottom:1px solid #f1f5f9;
     padding-bottom:2px;
-    margin-bottom:3px;
+    margin-bottom:2px;
   }
-  .bom-panel-tr{
-    padding:2px 0;
+  .bom-panel-tr, .bom-inverter-tr{
+    padding:1.5px 0;
   }
-  .bom-panel-tr:not(:last-child){
+  .bom-panel-tr:not(:last-child), .bom-inverter-tr:not(:last-child){
     border-bottom:1px dashed #f8fafc;
   }
   .bom-th-grow, .bom-td-grow{
@@ -2432,191 +2581,146 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     min-width:0;
   }
 
-  /* Single Panel Row Grid */
-  .bom-panel-row{
-    display:grid;
-    grid-template-columns:75px 75px 1.8fr 1.1fr 1.1fr;
-    gap:10px;
-    align-items:flex-start;
-  }
-
-  /* Inverter Multi Table & Single Grid */
-  .bom-inverter-th-row, .bom-inverter-tr{
-    display:flex;
-    align-items:center;
-    gap:8px;
-  }
-  .bom-inverter-th-row{
-    border-bottom:1px solid #f1f5f9;
-    padding-bottom:2px;
-    margin-bottom:3px;
-  }
-  .bom-inverter-tr{
-    padding:2px 0;
-  }
-  .bom-inverter-tr:not(:last-child){
-    border-bottom:1px dashed #f8fafc;
-  }
-
-  .bom-inverter-top{
-    display:grid;
-    grid-template-columns:85px 85px 1.6fr 1.3fr;
-    gap:10px;
-    align-items:flex-start;
-  }
-
   /* Cables Grid */
   .bom-cable-grid-4{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
-    gap:4px 10px;
+    gap:4px 8px;
   }
   .bom-cable-grid-2{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
-    gap:4px 10px;
+    gap:4px 8px;
   }
   .bom-cable-col{ min-width:0; }
   .bom-cable-type{
-    font-size:6.5px;
-    font-weight:600;
-    color:#64748b;
-    text-transform:uppercase;
-    letter-spacing:0.3px;
+    font-size:6.8px;
+    font-weight:700;
+    color:#475569;
+    letter-spacing:0.2px;
     margin-bottom:1px;
+    line-height:1.1;
   }
   .bom-cable-make{
     font-size:8.5px;
-    font-weight:500;
+    font-weight:600;
     color:#0f172a;
     margin-bottom:1px;
-    line-height:1.2;
+    line-height:1.15;
   }
   .bom-cable-qty{
     font-size:7px;
     font-weight:400;
     color:#475569;
     margin-bottom:1px;
+    line-height:1.1;
   }
   .bom-cable-spec{
     font-size:6.5px;
     font-weight:400;
     color:#64748b;
-    line-height:1.2;
+    line-height:1.15;
+  }
+  .bom-cable-brand-badge{
+    display:inline-block;
+    background:#fee2e2;
+    color:#dc2626;
+    font-size:6.5px;
+    font-weight:800;
+    padding:1px 3px;
+    border-radius:2px;
+    letter-spacing:0.3px;
+    margin-top:1.5px;
+    line-height:1;
   }
 
-  /* Structure, Accessories & Other Categories Table */
-  .bom-struct-table{
+  /* Structure, Accessories & Other Categories List */
+  .bom-struct-list{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
     width:100%;
   }
-  .bom-struct-head{
-    display:flex;
-    align-items:center;
+  .bom-struct-grid-row{
+    display:grid;
+    grid-template-columns:2.4fr 0.8fr 1.6fr;
     gap:8px;
-    border-bottom:1px solid #f1f5f9;
-    padding-bottom:2px;
-    margin-bottom:2px;
+    align-items:flex-start;
   }
-  .bom-struct-row{
-    display:flex;
-    align-items:baseline;
-    gap:8px;
-    padding:2px 0;
+  .bom-struct-lbl{
+    font-size:6.8px;
+    font-weight:700;
+    color:#64748b;
+    margin-bottom:1px;
+    line-height:1;
   }
-  .bom-struct-row:not(:last-child){
-    border-bottom:1px dashed #f8fafc;
-  }
-  .bom-col-prod{ flex:2.2; min-width:0; }
-  .bom-col-qty{ width:80px; flex-shrink:0; }
-  .bom-col-make{ flex:1.6; min-width:0; }
-  .bom-txt-name{
+  .bom-struct-v{
     font-size:8px;
-    font-weight:500;
+    font-weight:600;
     color:#0f172a;
     line-height:1.2;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
-  .bom-txt-qty{
-    font-size:7.5px;
-    font-weight:400;
-    color:#475569;
-    line-height:1.2;
-  }
-  .bom-txt-make{
-    font-size:7.5px;
-    font-weight:400;
-    color:#475569;
-    line-height:1.2;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    word-break:break-word;
   }
 
   /* Distribution Boxes Row */
   .bom-db-row{
     display:grid;
     grid-template-columns:repeat(5, 1fr);
-    gap:8px;
+    gap:5px 8px;
   }
   .bom-db-col{ min-width:0; }
   .bom-db-lbl{
-    font-size:6.5px;
-    font-weight:600;
+    font-size:6.8px;
+    font-weight:700;
     color:#64748b;
-    text-transform:uppercase;
-    letter-spacing:0.3px;
     margin-bottom:1.5px;
-    white-space:nowrap;
+    line-height:1;
   }
   .bom-db-v{
     font-size:8px;
-    font-weight:500;
-    color:#1e293b;
+    font-weight:600;
+    color:#0f172a;
     line-height:1.2;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    word-break:break-word;
   }
 
   /* ========================================================
      DYNAMIC DENSITY SCALING RULES
      ======================================================== */
 
-  /* Density Tier: Normal - Spacious, Distributed & Comfortable */
+  /* Density Tier: Normal (<= 11 rows) */
   .bom-density-normal.bom-page .content,
   .bom-density-normal .content{
-    padding:26mm 16mm 14px 16mm;
+    padding:24mm 16mm 10px 16mm;
   }
   .bom-density-normal .header{
-    margin-bottom:14px;
+    margin-bottom:12px;
   }
   .bom-density-normal .proposal-title{
-    font-size:34px;
-    padding-bottom:5px;
+    font-size:32px;
+    padding-bottom:4px;
     border-bottom:4px solid var(--red);
   }
   .bom-density-normal .bom-cards-wrap{
-    justify-content:space-between;
-    gap:12px;
+    justify-content:flex-start;
+    gap:8px;
   }
   .bom-density-normal .bom-card{
     margin-bottom:0;
-    padding:10px 16px 12px 16px;
+    padding:7.5px 14px 8.5px 14px;
     border-radius:8px;
-    border:1.2px solid #cbd5e1;
+    border:1px solid #d4d4d8;
   }
   .bom-density-normal .bom-card-inner{
     gap:12px;
   }
   .bom-density-normal .bom-card-icon{
-    width:34px;
-    height:34px;
+    width:30px;
+    height:30px;
   }
   .bom-density-normal .bom-category-img{
-    width:34px;
-    height:34px;
+    width:30px;
+    height:30px;
   }
   .bom-density-normal .bom-card-tag{
     font-size:9.5px;
@@ -2624,116 +2728,94 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     left:20px;
     font-weight:700;
   }
-  .bom-density-normal .bom-th,
   .bom-density-normal .bom-field-label,
   .bom-density-normal .bom-db-lbl,
+  .bom-density-normal .bom-struct-lbl,
   .bom-density-normal .bom-cable-type{
-    font-size:7.5px;
-    letter-spacing:0.3px;
+    font-size:7.2px;
+    letter-spacing:0.2px;
     font-weight:700;
     color:#475569;
   }
-  .bom-density-normal .bom-td,
   .bom-density-normal .bom-field-val,
   .bom-density-normal .bom-db-v,
-  .bom-density-normal .bom-txt-name,
+  .bom-density-normal .bom-struct-v,
   .bom-density-normal .bom-cable-make{
-    font-size:9.5px;
+    font-size:9px;
     font-weight:600;
     color:#0f172a;
-    line-height:1.35;
+    line-height:1.25;
   }
-  .bom-density-normal .bom-txt-qty,
-  .bom-density-normal .bom-txt-make,
   .bom-density-normal .bom-cable-qty,
   .bom-density-normal .bom-cable-spec{
-    font-size:9px;
+    font-size:7.5px;
     font-weight:500;
     color:#334155;
   }
-  .bom-density-normal .bom-struct-row,
-  .bom-density-normal .bom-panel-tr,
-  .bom-density-normal .bom-inverter-tr{
-    padding:3.5px 0;
-  }
-  .bom-density-normal .bom-struct-head,
-  .bom-density-normal .bom-panel-th-row,
-  .bom-density-normal .bom-inverter-th-row{
-    padding-bottom:3px;
-    margin-bottom:3px;
+  .bom-density-normal .bom-struct-list{
+    gap:4.5px;
   }
 
-  /* Density Tier: Compact (Moderate density) */
+  /* Density Tier: Compact (12 to 17 rows) */
   .bom-density-compact.bom-page .content,
   .bom-density-compact .content{
-    padding:24mm 16mm 8px 16mm;
+    padding:22mm 16mm 6px 16mm;
   }
   .bom-density-compact .header{
     margin-bottom:8px;
   }
   .bom-density-compact .proposal-title{
     font-size:28px;
-    padding-bottom:4px;
-    border-bottom:4px solid var(--red);
+    padding-bottom:3.5px;
+    border-bottom:3.5px solid var(--red);
   }
   .bom-density-compact .bom-cards-wrap{
-    justify-content:space-between;
-    gap:8px;
+    justify-content:flex-start;
+    gap:6px;
   }
   .bom-density-compact .bom-card{
     margin-bottom:0;
-    padding:7px 12px 8px 12px;
-    border-radius:6px;
-    border:1px solid #e2e8f0;
+    padding:5.5px 11px 6.5px 11px;
+    border-radius:6.5px;
+    border:1px solid #d4d4d8;
   }
   .bom-density-compact .bom-card-inner{
     gap:10px;
   }
   .bom-density-compact .bom-card-icon{
-    width:28px;
-    height:28px;
+    width:26px;
+    height:26px;
   }
   .bom-density-compact .bom-category-img{
-    width:28px;
-    height:28px;
+    width:26px;
+    height:26px;
   }
   .bom-density-compact .bom-card-tag{
     font-size:8.5px;
     bottom:-5px;
   }
-  .bom-density-compact .bom-th,
   .bom-density-compact .bom-field-label,
   .bom-density-compact .bom-db-lbl,
+  .bom-density-compact .bom-struct-lbl,
   .bom-density-compact .bom-cable-type{
-    font-size:6.8px;
+    font-size:6.6px;
   }
-  .bom-density-compact .bom-td,
   .bom-density-compact .bom-field-val,
   .bom-density-compact .bom-db-v,
-  .bom-density-compact .bom-txt-name,
+  .bom-density-compact .bom-struct-v,
   .bom-density-compact .bom-cable-make{
-    font-size:8.5px;
-    line-height:1.25;
+    font-size:8.2px;
+    line-height:1.2;
   }
-  .bom-density-compact .bom-txt-qty,
-  .bom-density-compact .bom-txt-make,
   .bom-density-compact .bom-cable-qty,
   .bom-density-compact .bom-cable-spec{
-    font-size:8px;
+    font-size:6.8px;
   }
-  .bom-density-compact .bom-struct-row,
-  .bom-density-compact .bom-panel-tr,
-  .bom-density-compact .bom-inverter-tr{
-    padding:2.2px 0;
-  }
-  .bom-density-compact .bom-struct-head,
-  .bom-density-compact .bom-panel-th-row,
-  .bom-density-compact .bom-inverter-th-row{
-    padding-bottom:2px;
-    margin-bottom:2px;
+  .bom-density-compact .bom-struct-list{
+    gap:3.5px;
   }
 
-  /* Density Tier: Ultra-Compact (High item counts) */
+  /* Density Tier: Ultra-Compact (18 to 23 rows) */
   .bom-density-ultra.bom-page .content,
   .bom-density-ultra .content{
     padding:20mm 16mm 4px 16mm;
@@ -2744,7 +2826,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-density-ultra .proposal-title{
     font-size:24px;
     padding-bottom:3px;
-    border-bottom:3.5px solid var(--red);
+    border-bottom:3px solid var(--red);
   }
   .bom-density-ultra .bom-cards-wrap{
     justify-content:flex-start;
@@ -2752,9 +2834,9 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
   .bom-density-ultra .bom-card{
     margin-bottom:0;
-    padding:4px 8px 5px 8px;
-    border-radius:5px;
-    border:1px solid #e2e8f0;
+    padding:4px 9px 5px 9px;
+    border-radius:5.5px;
+    border:1px solid #d4d4d8;
   }
   .bom-density-ultra .bom-card-inner{
     gap:8px;
@@ -2773,38 +2855,104 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     bottom:-4.5px;
     padding:0 5px;
   }
-  .bom-density-ultra .bom-th,
   .bom-density-ultra .bom-field-label,
   .bom-density-ultra .bom-db-lbl,
+  .bom-density-ultra .bom-struct-lbl,
   .bom-density-ultra .bom-cable-type{
     font-size:6px;
-    letter-spacing:0.2px;
+    letter-spacing:0.15px;
   }
-  .bom-density-ultra .bom-td,
   .bom-density-ultra .bom-field-val,
   .bom-density-ultra .bom-db-v,
-  .bom-density-ultra .bom-txt-name,
+  .bom-density-ultra .bom-struct-v,
   .bom-density-ultra .bom-cable-make{
     font-size:7.5px;
     line-height:1.15;
   }
-  .bom-density-ultra .bom-txt-qty,
-  .bom-density-ultra .bom-txt-make,
   .bom-density-ultra .bom-cable-qty,
   .bom-density-ultra .bom-cable-spec{
-    font-size:7px;
+    font-size:6.2px;
     line-height:1.15;
   }
-  .bom-density-ultra .bom-struct-row,
-  .bom-density-ultra .bom-panel-tr,
-  .bom-density-ultra .bom-inverter-tr{
-    padding:1px 0;
+  .bom-density-ultra .bom-struct-list{
+    gap:2.5px;
   }
-  .bom-density-ultra .bom-struct-head,
-  .bom-density-ultra .bom-panel-th-row,
-  .bom-density-ultra .bom-inverter-th-row{
-    padding-bottom:1.5px;
-    margin-bottom:1.5px;
+
+  /* Density Tier: Micro (>= 24 rows) */
+  .bom-density-micro.bom-page .content,
+  .bom-density-micro .content{
+    padding:18mm 14mm 2px 14mm;
+  }
+  .bom-density-micro .header{
+    margin-bottom:4px;
+  }
+  .bom-density-micro .proposal-title{
+    font-size:20px;
+    padding-bottom:2px;
+    border-bottom:2.5px solid var(--red);
+  }
+  .bom-density-micro .bom-cards-wrap{
+    justify-content:flex-start;
+    gap:3px;
+  }
+  .bom-density-micro .bom-card{
+    margin-bottom:0;
+    padding:3px 7px 4px 7px;
+    border-radius:4.5px;
+    border:1px solid #d4d4d8;
+  }
+  .bom-density-micro .bom-card-inner{
+    gap:6px;
+  }
+  .bom-density-micro .bom-card-icon{
+    width:18px;
+    height:18px;
+    margin-top:0.5px;
+  }
+  .bom-density-micro .bom-category-img{
+    width:18px;
+    height:18px;
+  }
+  .bom-density-micro .bom-card-tag{
+    font-size:6.8px;
+    bottom:-4px;
+    padding:0 4px;
+  }
+  .bom-density-micro .bom-field-label,
+  .bom-density-micro .bom-db-lbl,
+  .bom-density-micro .bom-struct-lbl,
+  .bom-density-micro .bom-cable-type{
+    font-size:5.2px;
+    letter-spacing:0.1px;
+  }
+  .bom-density-micro .bom-field-val,
+  .bom-density-micro .bom-db-v,
+  .bom-density-micro .bom-struct-v,
+  .bom-density-micro .bom-cable-make{
+    font-size:6.5px;
+    line-height:1.1;
+  }
+  .bom-density-micro .bom-cable-qty,
+  .bom-density-micro .bom-cable-spec{
+    font-size:5.5px;
+    line-height:1.1;
+  }
+  .bom-density-micro .bom-struct-list{
+    gap:1.8px;
+  }
+  .bom-density-micro .bom-alt-box{
+    padding:2px 4px;
+    margin-top:2px;
+  }
+  .bom-density-micro .bom-alt-title{
+    font-size:5.5px;
+  }
+  .bom-density-micro .bom-alt-sub{
+    font-size:5px;
+  }
+  .bom-density-micro .bom-alt-items{
+    font-size:5.5px;
+    line-height:1.15;
   }
 
   /* ========================================================

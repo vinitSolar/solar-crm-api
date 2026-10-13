@@ -349,6 +349,22 @@ export class ProductService {
             // Process soft deletion of requested documents
             const deleteUids = data.deleteDocumentUids || [];
             if (deleteUids.length > 0) {
+                try {
+                    const docsToDelete = await client.query(`
+                        SELECT file_name FROM master_documents
+                        WHERE (uid = ANY($1) OR uid IN (SELECT master_document_uid FROM document_associations WHERE uid = ANY($1)))
+                          AND is_deleted = 0
+                    `, [deleteUids]);
+
+                    for (const row of docsToDelete.rows) {
+                        if (row.file_name) {
+                            await storageService.deleteFile(row.file_name).catch(() => {});
+                        }
+                    }
+                } catch (docErr) {
+                    logger.warn("Failed to delete document files from storage during product update", { error: docErr });
+                }
+
                 await client.query(`
                     UPDATE master_documents
                     SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
@@ -573,6 +589,15 @@ export class ProductService {
             }
 
             await client.query("COMMIT");
+
+            // Clean up removed image files from storage
+            const finalKeys = finalProductImages.map(img => storageService.extractStorageKey(img)).filter(Boolean);
+            for (const oldKey of existingProductKeys) {
+                if (!finalKeys.includes(oldKey)) {
+                    await storageService.deleteFile(oldKey).catch(() => {});
+                }
+            }
+
             safeCacheDel("cache:products:dropdown").catch(() => {});
             const documents = await this.getProductDocuments(uid);
             return toProductSafe(updatedProduct, documents);

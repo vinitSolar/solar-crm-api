@@ -56,7 +56,7 @@ export class MasterDocumentTypeRepository {
       uid,
       tenantUid,
       data.name,
-      data.category ?? "general",
+      typeof data.category === "number" ? data.category : 5,
       data.description ?? null,
       data.allowedExtensions ?? "pdf,jpg,jpeg,png",
       data.allowMultiple ?? 0,

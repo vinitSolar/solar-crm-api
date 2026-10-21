@@ -103,6 +103,15 @@ function createLeadRouter(): Router {
         controller.getLeadsPaginated,
     );
 
+    router.post(
+        "/check-duplicate",
+        controller.checkDuplicate,
+    );
+    router.post(
+        "/check-duplicates",
+        controller.checkDuplicate,
+    );
+
     /**
      * @swagger
      * /leads/all:

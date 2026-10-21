@@ -8,6 +8,7 @@ import { seedDefaultRoles } from "./seed_default_roles.js";
 import { seedInstallationMilestones } from "./seed_installation_milestones.js";
 import { seedProducts } from "./seed_products.js";
 import { seedSubsidyRules } from "./seed_subsidy_rules.js";
+import { seedPackages } from "./seed_packages.js";
 
 const SALT_ROUNDS = 10;
 
@@ -271,6 +272,9 @@ export async function seed(pool: Pool) {
 
         // 10. Seed subsidy rules (PM Surya Ghar: Muft Bijli Yojana)
         await seedSubsidyRules(pool);
+
+        // 11. Seed default packages for Head Office
+        await seedPackages(pool);
 
         logger.info("🎉 Database seed completed successfully!");
 

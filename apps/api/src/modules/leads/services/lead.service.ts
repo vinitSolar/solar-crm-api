@@ -64,6 +64,25 @@ export class LeadService {
             data.firstName = (data as any).name;
         }
 
+        // Check for duplicates in mobileNumber or email
+        if (data.mobileNumber || data.email) {
+            const duplicates = await this.repository.findDuplicates(tenantUid, {
+                mobileNumber: data.mobileNumber,
+                email: data.email,
+            });
+
+            if (duplicates.mobileExists) {
+                throw new CustomError(LEAD_MESSAGES.MOBILE_ALREADY_EXISTS, 400, [
+                    { field: "mobileNumber", message: LEAD_MESSAGES.MOBILE_ALREADY_EXISTS }
+                ]);
+            }
+            if (duplicates.emailExists) {
+                throw new CustomError(LEAD_MESSAGES.EMAIL_ALREADY_EXISTS, 400, [
+                    { field: "email", message: LEAD_MESSAGES.EMAIL_ALREADY_EXISTS }
+                ]);
+            }
+        }
+
         const isDraft = Boolean(
             data.isDraft === true ||
             data.isDraft === 1 ||
@@ -253,6 +272,26 @@ export class LeadService {
                         field: "body.assignedTo",
                         message: LEAD_MESSAGES.USER_NOT_FOUND,
                     }
+                ]);
+            }
+        }
+
+        // Check for duplicates when updating mobileNumber or email
+        if (data.mobileNumber || data.email) {
+            const duplicates = await this.repository.findDuplicates(tenantUid, {
+                mobileNumber: data.mobileNumber,
+                email: data.email,
+                excludeUid: uid,
+            });
+
+            if (duplicates.mobileExists) {
+                throw new CustomError(LEAD_MESSAGES.MOBILE_ALREADY_EXISTS, 400, [
+                    { field: "mobileNumber", message: LEAD_MESSAGES.MOBILE_ALREADY_EXISTS }
+                ]);
+            }
+            if (duplicates.emailExists) {
+                throw new CustomError(LEAD_MESSAGES.EMAIL_ALREADY_EXISTS, 400, [
+                    { field: "email", message: LEAD_MESSAGES.EMAIL_ALREADY_EXISTS }
                 ]);
             }
         }
@@ -534,5 +573,16 @@ export class LeadService {
         } catch (err) {
             logger.error("Error dispatching lead updated WhatsApp notification:", err);
         }
+    }
+
+    async checkDuplicateLead(
+        tenantUid: string,
+        params: {
+            mobileNumber?: string | null | undefined;
+            email?: string | null | undefined;
+            excludeUid?: string | null | undefined;
+        }
+    ) {
+        return await this.repository.findDuplicates(tenantUid, params);
     }
 }

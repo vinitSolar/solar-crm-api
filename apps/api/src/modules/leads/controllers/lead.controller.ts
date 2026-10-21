@@ -155,4 +155,26 @@ export class LeadController {
             next(error);
         }
     };
+
+    checkDuplicate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const { mobileNumber, email, excludeUid } = req.body;
+
+            const result = await this.service.checkDuplicateLead(tenantUid, {
+                mobileNumber,
+                email,
+                excludeUid,
+            });
+
+            res.status(200).json({
+                success: true,
+                message: "Duplicate check completed",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

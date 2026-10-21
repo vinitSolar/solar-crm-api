@@ -82,16 +82,27 @@ export class FranchiseService {
             throw new CustomError(FRANCHISE_MESSAGES.CODE_ALREADY_EXISTS, 409);
         }
 
-        const emailToCheck = data.franchise.email || data.owner.email;
-        if (emailToCheck) {
-            const existingEmailTenant = await this.franchiseRepository.findTenantByEmail(emailToCheck);
+        if (data.franchise.email) {
+            const existingEmailTenant = await this.franchiseRepository.findTenantByEmail(data.franchise.email);
             if (existingEmailTenant) {
                 throw new CustomError(FRANCHISE_MESSAGES.EMAIL_ALREADY_EXISTS, 409);
             }
 
-            const existingUserEmail = await this.franchiseRepository.checkIfUserEmailExists(emailToCheck);
+            const existingUserEmail = await this.franchiseRepository.checkIfUserEmailExists(data.franchise.email);
             if (existingUserEmail) {
-                throw new CustomError("Email is already registered to a user in the system.", 409);
+                throw new CustomError("Franchise email is already registered to a user in the system.", 409);
+            }
+        }
+
+        if (data.owner.email && data.owner.email !== data.franchise.email) {
+            const existingOwnerTenant = await this.franchiseRepository.findTenantByEmail(data.owner.email);
+            if (existingOwnerTenant) {
+                throw new CustomError("Owner email is already registered to a franchise.", 409);
+            }
+
+            const existingUserEmail = await this.franchiseRepository.checkIfUserEmailExists(data.owner.email);
+            if (existingUserEmail) {
+                throw new CustomError("Owner email is already registered to a user in the system.", 409);
             }
         }
 

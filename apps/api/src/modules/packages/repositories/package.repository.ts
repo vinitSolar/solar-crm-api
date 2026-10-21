@@ -42,7 +42,7 @@ export class PackageRepository {
     }
 
     async checkNameExists(tenantUid: string, name: string, excludeUid?: string): Promise<boolean> {
-        let query = `SELECT 1 FROM packages WHERE tenant_uid = $1 AND name = $2 AND is_deleted = false`;
+        let query = `SELECT 1 FROM packages WHERE (tenant_uid::text = $1::text OR tenant_uid::text IN (SELECT uid::text FROM tenants WHERE type = 0)) AND name = $2 AND is_deleted = false`;
         const values: any[] = [tenantUid, name];
 
         if (excludeUid) {
@@ -55,7 +55,7 @@ export class PackageRepository {
     }
 
     async checkCodeExists(tenantUid: string, code: string, excludeUid?: string): Promise<boolean> {
-        let query = `SELECT 1 FROM packages WHERE tenant_uid = $1 AND package_code = $2 AND is_deleted = false`;
+        let query = `SELECT 1 FROM packages WHERE (tenant_uid::text = $1::text OR tenant_uid::text IN (SELECT uid::text FROM tenants WHERE type = 0)) AND package_code = $2 AND is_deleted = false`;
         const values: any[] = [tenantUid, code];
 
         if (excludeUid) {
@@ -68,7 +68,7 @@ export class PackageRepository {
     }
 
     async countPackages(tenantUid: string): Promise<number> {
-        const query = `SELECT COUNT(*) FROM packages WHERE tenant_uid = $1`;
+        const query = `SELECT COUNT(*) FROM packages WHERE (tenant_uid::text = $1::text OR tenant_uid::text IN (SELECT uid::text FROM tenants WHERE type = 0))`;
         const result = await this.pool.query(query, [tenantUid]);
         return parseInt(result.rows[0].count, 10);
     }
@@ -271,7 +271,7 @@ export class PackageRepository {
     }
 
     async findByUid(uid: string, tenantUid: string): Promise<any | null> {
-        const query = `SELECT * FROM packages WHERE uid = $1 AND tenant_uid = $2`;
+        const query = `SELECT * FROM packages WHERE uid = $1 AND (tenant_uid::text = $2::text OR tenant_uid::text IN (SELECT uid::text FROM tenants WHERE type = 0))`;
         const result = await this.pool.query(query, [uid, tenantUid]);
         
         if (result.rowCount === 0) return null;
@@ -332,7 +332,7 @@ export class PackageRepository {
     ): Promise<{ data: any[]; total: number; totalPages: number }> {
         const offset = (params.page - 1) * params.limit;
         const values: any[] = [tenantUid];
-        let conditions = ["p.tenant_uid = $1"];
+        let conditions = ["(p.tenant_uid::text = $1::text OR p.tenant_uid::text IN (SELECT uid::text FROM tenants WHERE type = 0))"];
         let count = 2;
 
         if (params.status === "active") conditions.push(`p.is_deleted = false AND p.is_active = true`);
@@ -380,7 +380,7 @@ export class PackageRepository {
 
     async getDropdown(tenantUid: string, status?: "active" | "deleted" | "all"): Promise<any[]> {
         const values: any[] = [tenantUid];
-        let conditions = ["tenant_uid = $1"];
+        let conditions = ["(tenant_uid::text = $1::text OR tenant_uid::text IN (SELECT uid::text FROM tenants WHERE type = 0))"];
         
         if (status === "active" || !status) conditions.push(`is_deleted = false AND is_active = true`);
         else if (status === "deleted") conditions.push(`is_deleted = true`);

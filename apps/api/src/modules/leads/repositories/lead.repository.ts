@@ -276,4 +276,98 @@ export class LeadRepository {
         );
         return (result.rowCount ?? 0) > 0;
     }
+
+    async findDuplicates(
+        tenantUid: string,
+        params: {
+            mobileNumber?: string | null | undefined;
+            email?: string | null | undefined;
+            excludeUid?: string | null | undefined;
+        }
+    ): Promise<{
+        mobileExists: boolean;
+        emailExists: boolean;
+        existingLead?: {
+            uid: string;
+            leadNumber: string;
+            firstName: string;
+            lastName: string;
+            mobileNumber: string;
+            alternateNumber?: string;
+            email?: string;
+        } | null;
+    }> {
+        const cleanMobile = params.mobileNumber ? params.mobileNumber.replace(/\D/g, "").slice(-10) : null;
+        const cleanEmail = params.email && params.email.trim() ? params.email.trim().toLowerCase() : null;
+
+        if (!cleanMobile && !cleanEmail) {
+            return { mobileExists: false, emailExists: false };
+        }
+
+        const conditions: string[] = [];
+        const values: any[] = [tenantUid];
+
+        let index = 2;
+        if (params.excludeUid) {
+            conditions.push(`l.uid != $${index}`);
+            values.push(params.excludeUid);
+            index++;
+        }
+
+        const matchConditions: string[] = [];
+
+        if (cleanMobile) {
+            matchConditions.push(`(
+                RIGHT(REGEXP_REPLACE(COALESCE(l.mobile_number, ''), '[^0-9]', '', 'g'), 10) = $${index}
+            )`);
+            values.push(cleanMobile);
+            index++;
+        }
+
+        if (cleanEmail) {
+            matchConditions.push(`(LOWER(TRIM(COALESCE(l.email, ''))) = $${index})`);
+            values.push(cleanEmail);
+            index++;
+        }
+
+        if (matchConditions.length === 0) {
+            return { mobileExists: false, emailExists: false };
+        }
+
+        const whereSql = `l.tenant_uid = $1 AND l.is_deleted = 0 ${conditions.length ? "AND " + conditions.join(" AND ") : ""} AND (${matchConditions.join(" OR ")})`;
+
+        const query = `
+            SELECT l.uid, l.lead_number AS "leadNumber", l.first_name AS "firstName", l.last_name AS "lastName",
+                   l.mobile_number AS "mobileNumber", l.alternate_number AS "alternateNumber", l.email
+            FROM leads l
+            WHERE ${whereSql}
+            LIMIT 5
+        `;
+
+        const result = await this.pool.query(query, values);
+
+        let mobileExists = false;
+        let emailExists = false;
+        let firstMatch: any = null;
+
+        for (const row of result.rows) {
+            const rowMobile = (row.mobileNumber || "").replace(/\D/g, "").slice(-10);
+            const rowEmail = (row.email || "").trim().toLowerCase();
+
+            if (cleanMobile && rowMobile === cleanMobile) {
+                mobileExists = true;
+                if (!firstMatch) firstMatch = row;
+            }
+            if (cleanEmail && rowEmail === cleanEmail) {
+                emailExists = true;
+                if (!firstMatch) firstMatch = row;
+            }
+        }
+
+        return {
+            mobileExists,
+            emailExists,
+            existingLead: firstMatch,
+        };
+    }
 }

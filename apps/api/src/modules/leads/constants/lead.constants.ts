@@ -11,6 +11,9 @@ export const LEAD_MESSAGES = {
     FETCHED_SUCCESSFULLY: "Leads fetched successfully",
     USER_NOT_FOUND: "Assigned user not found or does not belong to this tenant.",
     VALIDATION_FAILED: "Validation failed",
+    MOBILE_ALREADY_EXISTS: "A lead with this mobile number already exists",
+    ALTERNATE_NUMBER_ALREADY_EXISTS: "A lead with this alternate number already exists",
+    EMAIL_ALREADY_EXISTS: "A lead with this email already exists",
 };
 
 export const LEAD_SOURCE_MESSAGES = {

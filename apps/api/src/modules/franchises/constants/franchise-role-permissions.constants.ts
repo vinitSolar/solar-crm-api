@@ -90,6 +90,8 @@ export const FRANCHISE_LOOKUP_MENUS = [
     'SUBSIDY_DOCUMENT_TYPES',
     'BANK_DETAILS',
     'SUBSIDIES',
+    'PACKAGES',
+    'PRODUCTS',
 ];
 
 const READ_ONLY_PERMISSION: IPermissionAction = {

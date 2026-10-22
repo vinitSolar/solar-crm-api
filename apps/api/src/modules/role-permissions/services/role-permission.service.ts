@@ -7,6 +7,8 @@ import { ROLE_PERMISSION_MESSAGES } from "../constants/role-permission.constants
 import { logger } from "@packages/logger/index.js";
 import { safeCacheDelPattern } from "@packages/redis/index.js";
 
+import { CustomError } from "../../../middlewares/error.middleware.js";
+
 /**
  * Role Permission Service.
  * Contains business logic — no SQL queries.
@@ -69,6 +71,10 @@ export class RolePermissionService {
         const role = await this.roleRepository.getRoleByUid(roleUid, tenantUid);
         if (!role) {
             throw new Error(ROLE_PERMISSION_MESSAGES.ROLE_NOT_FOUND);
+        }
+
+        if (role.is_system === 1) {
+            throw new CustomError("Default system role permissions cannot be modified", 400);
         }
 
         // Validate all menu UIDs exist

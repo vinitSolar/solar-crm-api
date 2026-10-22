@@ -85,7 +85,7 @@ export class FranchiseOnboardingService {
                 const role = await this.roleRepository.createRole(
                     roleUid,
                     tenantUid,
-                    roleDef,
+                    { ...roleDef, isSystem: 1 },
                     createdBy
                 );
 

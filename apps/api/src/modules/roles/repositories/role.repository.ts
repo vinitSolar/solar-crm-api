@@ -150,8 +150,8 @@ export class RoleRepository {
         logger.debug("RoleRepository.createRole", { uid, tenantUid, data });
 
         const query = `
-            INSERT INTO roles (uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            INSERT INTO roles (uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, is_system, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id, uid, tenant_uid, name, description, can_site_survey, can_installation, can_sale, show_all_leads, show_all_surveys, is_system, is_active, is_deleted, created_at, updated_at, created_by, updated_by, deleted_by
         `;
 
@@ -165,6 +165,7 @@ export class RoleRepository {
             data.canSale ?? 0,
             data.showAllLeads ?? 0,
             data.showAllSurveys ?? 0,
+            data.isSystem ?? 0,
             createdBy
         ]);
 

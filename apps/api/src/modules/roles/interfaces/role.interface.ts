@@ -42,6 +42,7 @@ export interface ICreateRoleRequest {
     canSale?: number;
     showAllLeads?: number;
     showAllSurveys?: number;
+    isSystem?: number;
 }
 
 export interface IUpdateRoleRequest {

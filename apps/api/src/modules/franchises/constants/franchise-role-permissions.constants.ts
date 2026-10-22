@@ -74,6 +74,7 @@ export const DEFAULT_FRANCHISE_ROLES: IFranchiseRoleDef[] = [
 ];
 
 export const FRANCHISE_LOOKUP_MENUS = [
+    'ROLES',
     'DOCUMENT_TYPES',
     'INSTALLATION_MILESTONES',
     'LEAD_SOURCES',

@@ -37,6 +37,7 @@ export interface IQuotationPdfData {
         packageGst?: number | null;
         packageName?: string | null;
         packageDescription?: string | null;
+        packageRecommendedPrice?: number | null;
         notes: string | null;
         createdAt: string;
     };

@@ -10,7 +10,7 @@ export const createBankDetailSchema = z.object({
         branchName: z.string().min(1, "Branch name is required").max(255),
         swiftCode: z.string().max(50).optional().nullable().or(z.literal("")),
         upiId: z.string().max(100).optional().nullable().or(z.literal("")),
-        qrCode: z.string().optional().nullable().or(z.literal("")),
+        qrCode: z.any().optional().nullable(),
     }),
 });
 
@@ -23,7 +23,7 @@ export const updateBankDetailSchema = z.object({
         branchName: z.string().min(1, "Branch name is required").max(255).optional(),
         swiftCode: z.string().max(50).optional().nullable().or(z.literal("")),
         upiId: z.string().max(100).optional().nullable().or(z.literal("")),
-        qrCode: z.string().optional().nullable().or(z.literal("")),
+        qrCode: z.any().optional().nullable(),
     }),
 });
 

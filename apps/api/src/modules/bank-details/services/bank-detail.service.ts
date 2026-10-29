@@ -30,6 +30,7 @@ export class BankDetailService {
         }
 
         let qrCodePath = data.qrCode || null;
+        if (qrCodePath === "" || qrCodePath === "null") qrCodePath = null;
         if (file) {
             try {
                 qrCodePath = await storageService.uploadFile(
@@ -42,6 +43,8 @@ export class BankDetailService {
                 logger.error("Failed to upload bank QR code", { error });
                 throw new CustomError("Failed to upload QR code image", 500);
             }
+        } else if (qrCodePath) {
+            qrCodePath = storageService.extractStorageKey(qrCodePath) || qrCodePath;
         }
 
         const result = await this.repository.create(tenantUid, { ...data, qrCode: qrCodePath }, createdBy);
@@ -107,6 +110,10 @@ export class BankDetailService {
                 logger.error("Failed to upload bank QR code", { error });
                 throw new CustomError("Failed to upload QR code image", 500);
             }
+        } else if (data.qrCode === "" || data.qrCode === null || data.qrCode === "null") {
+            updateData.qrCode = null;
+        } else if (data.qrCode !== undefined) {
+            updateData.qrCode = storageService.extractStorageKey(data.qrCode) || data.qrCode;
         }
 
         const result = await this.repository.update(tenantUid, uid, updateData, updatedBy);

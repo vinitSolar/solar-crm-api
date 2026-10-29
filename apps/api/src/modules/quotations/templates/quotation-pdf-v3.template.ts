@@ -487,12 +487,12 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy, bankDetails } = data;
 
   const bankName = bankDetails?.bankName || 'HDFC Bank';
-  const accountHolderName = bankDetails?.accountHolderName || franchise.name || 'SunSelect Solar Private Limited';
+  const accountHolderName = bankDetails?.accountHolderName || (bankDetails as any)?.accountName || franchise.name || 'SunSelect Solar Private Limited';
   const accountNumber = bankDetails?.accountNumber || '0876543210123';
   const ifscCode = bankDetails?.ifscCode || 'HDFC0001234';
   const branchName = bankDetails?.branchName || franchise.city || 'Navi Mumbai';
   const upiId = bankDetails?.upiId || null;
-  const rawBankQr = bankDetails?.qrCode || null;
+  const rawBankQr = (bankDetails as any)?.qrCodeStorageKey || bankDetails?.qrCode || null;
   const bankQrCodeBase64 = rawBankQr ? resolveImageToBase64Sync(rawBankQr) : null;
 
   const coverBgBase64 = getCoverBgBase64();
@@ -530,7 +530,16 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   // Quotation subtotal in CRM includes package price + extra products.
   // We subtract extra products gross total so the package row shows only the package price.
   let grossPackagePrice = 0;
-  if (Number(quotation.subtotal) > 0) {
+  if (quotation.packageRecommendedPrice && Number(quotation.packageRecommendedPrice) > 0) {
+    grossPackagePrice = Number(quotation.packageRecommendedPrice);
+  } else if (
+    Number(quotation.grandTotal) > 0 &&
+    Number(quotation.subtotal) > 0 &&
+    Math.abs(Number(quotation.subtotal) + Number(quotation.gstAmount || 0) + rawExtraValue - Number(quotation.grandTotal)) <= 5 &&
+    Number(quotation.grandTotal) <= Number(quotation.subtotal) + Number(quotation.gstAmount || 0) + rawExtraValue
+  ) {
+    grossPackagePrice = Math.max(0, Number(quotation.grandTotal) - extraProductsGross - rawExtraValue);
+  } else if (Number(quotation.subtotal) > 0) {
     let baseSub = Number(quotation.subtotal) - extraProductsGross;
     if (rawExtraValue > 0 && Math.abs(Number(quotation.subtotal) - (Number(quotation.grandTotal) || 0)) <= 10 && baseSub > rawExtraValue) {
       baseSub -= rawExtraValue;
@@ -3844,45 +3853,17 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
           </div>
         </div>
 
+        ${bankQrCodeBase64 ? `
         <div class="proposal-qr-col">
           <div class="proposal-qr-frame">
-            ${bankQrCodeBase64 ? `
               <img src="${bankQrCodeBase64}" alt="Bank Payment QR" class="proposal-qr-img" />
-            ` : `
-              <svg class="proposal-qr-svg" viewBox="0 0 100 100" width="100%" height="100%" fill="#1e293b">
-                <rect x="8" y="8" width="28" height="28" rx="4" fill="none" stroke="#1e293b" stroke-width="4"/>
-                <rect x="16" y="16" width="12" height="12" rx="2" fill="#1e293b"/>
-                <rect x="64" y="8" width="28" height="28" rx="4" fill="none" stroke="#1e293b" stroke-width="4"/>
-                <rect x="72" y="16" width="12" height="12" rx="2" fill="#1e293b"/>
-                <rect x="8" y="64" width="28" height="28" rx="4" fill="none" stroke="#1e293b" stroke-width="4"/>
-                <rect x="16" y="72" width="12" height="12" rx="2" fill="#1e293b"/>
-                <rect x="42" y="12" width="6" height="6" rx="1"/>
-                <rect x="52" y="12" width="6" height="6" rx="1"/>
-                <rect x="42" y="24" width="6" height="6" rx="1"/>
-                <rect x="52" y="24" width="6" height="6" rx="1"/>
-                <rect x="12" y="42" width="6" height="6" rx="1"/>
-                <rect x="24" y="42" width="6" height="6" rx="1"/>
-                <rect x="12" y="52" width="6" height="6" rx="1"/>
-                <rect x="24" y="52" width="6" height="6" rx="1"/>
-                <rect x="42" y="42" width="16" height="16" rx="3" fill="#E31E24"/>
-                <circle cx="50" cy="50" r="4" fill="#ffffff"/>
-                <rect x="64" y="42" width="6" height="6" rx="1"/>
-                <rect x="76" y="42" width="6" height="6" rx="1"/>
-                <rect x="84" y="52" width="8" height="6" rx="1"/>
-                <rect x="42" y="64" width="6" height="6" rx="1"/>
-                <rect x="52" y="72" width="6" height="6" rx="1"/>
-                <rect x="42" y="80" width="8" height="6" rx="1"/>
-                <rect x="64" y="64" width="8" height="6" rx="1"/>
-                <rect x="78" y="72" width="6" height="6" rx="1"/>
-                <rect x="68" y="82" width="18" height="6" rx="1"/>
-              </svg>
-            `}
           </div>
           <div class="proposal-qr-text-wrap">
             <p class="proposal-qr-title">Scan to Pay</p>
             <p class="proposal-qr-sub">Scan via any UPI App</p>
           </div>
         </div>
+        ` : ''}
       </div>
 
       ${quotation.notes ? `<p class="notice">Note: ${quotation.notes}</p>` : ''}

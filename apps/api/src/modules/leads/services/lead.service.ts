@@ -276,20 +276,28 @@ export class LeadService {
             }
         }
 
-        // Check for duplicates when updating mobileNumber or email
-        if (data.mobileNumber || data.email) {
+        // Check for duplicates when updating mobileNumber or email only if they actually changed
+        const cleanExistingMobile = existing.mobileNumber ? existing.mobileNumber.replace(/\D/g, "").slice(-10) : "";
+        const cleanNewMobile = data.mobileNumber ? data.mobileNumber.replace(/\D/g, "").slice(-10) : "";
+        const isMobileChanged = Boolean(data.mobileNumber !== undefined && cleanNewMobile && cleanNewMobile !== cleanExistingMobile);
+
+        const cleanExistingEmail = existing.email ? existing.email.trim().toLowerCase() : "";
+        const cleanNewEmail = data.email ? data.email.trim().toLowerCase() : "";
+        const isEmailChanged = Boolean(data.email !== undefined && cleanNewEmail !== cleanExistingEmail);
+
+        if (isMobileChanged || isEmailChanged) {
             const duplicates = await this.repository.findDuplicates(tenantUid, {
-                mobileNumber: data.mobileNumber,
-                email: data.email,
+                mobileNumber: isMobileChanged ? data.mobileNumber : undefined,
+                email: isEmailChanged ? data.email : undefined,
                 excludeUid: uid,
             });
 
-            if (duplicates.mobileExists) {
+            if (isMobileChanged && duplicates.mobileExists) {
                 throw new CustomError(LEAD_MESSAGES.MOBILE_ALREADY_EXISTS, 400, [
                     { field: "mobileNumber", message: LEAD_MESSAGES.MOBILE_ALREADY_EXISTS }
                 ]);
             }
-            if (duplicates.emailExists) {
+            if (isEmailChanged && duplicates.emailExists) {
                 throw new CustomError(LEAD_MESSAGES.EMAIL_ALREADY_EXISTS, 400, [
                     { field: "email", message: LEAD_MESSAGES.EMAIL_ALREADY_EXISTS }
                 ]);

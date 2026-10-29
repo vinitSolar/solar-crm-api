@@ -308,9 +308,9 @@ export class LeadRepository {
         const values: any[] = [tenantUid];
 
         let index = 2;
-        if (params.excludeUid) {
-            conditions.push(`l.uid != $${index}`);
-            values.push(params.excludeUid);
+        if (params.excludeUid && String(params.excludeUid).trim()) {
+            conditions.push(`l.uid::text != $${index}::text`);
+            values.push(String(params.excludeUid).trim());
             index++;
         }
 
@@ -334,7 +334,7 @@ export class LeadRepository {
             return { mobileExists: false, emailExists: false };
         }
 
-        const whereSql = `l.tenant_uid = $1 AND l.is_deleted = 0 ${conditions.length ? "AND " + conditions.join(" AND ") : ""} AND (${matchConditions.join(" OR ")})`;
+        const whereSql = `l.tenant_uid::text = $1::text AND l.is_deleted = 0 ${conditions.length ? "AND " + conditions.join(" AND ") : ""} AND (${matchConditions.join(" OR ")})`;
 
         const query = `
             SELECT l.uid, l.lead_number AS "leadNumber", l.first_name AS "firstName", l.last_name AS "lastName",

@@ -858,12 +858,14 @@ export class QuotationService {
             let packageGst = null;
             let packageName = null;
             let packageDescription = null;
+            let packageRecommendedPrice = null;
             if (quotation.packageUid) {
-                const packageRes = await pool.query(`SELECT name, gst, description FROM packages WHERE uid = $1`, [quotation.packageUid]);
+                const packageRes = await pool.query(`SELECT name, gst, description, recomended_price FROM packages WHERE uid = $1`, [quotation.packageUid]);
                 if (packageRes.rows.length > 0) {
                     packageGst = packageRes.rows[0].gst ? Number(packageRes.rows[0].gst) : null;
                     packageName = packageRes.rows[0].name;
                     packageDescription = packageRes.rows[0].description;
+                    packageRecommendedPrice = packageRes.rows[0].recomended_price ? Number(packageRes.rows[0].recomended_price) : null;
                 }
             }
 
@@ -913,7 +915,13 @@ export class QuotationService {
             };
 
             const bankDetailRepo = new BankDetailRepository(pool);
-            const bankDetails = await bankDetailRepo.getDefault(tenantUid);
+            const rawBankDetails = await bankDetailRepo.getDefault(tenantUid);
+            const bankDetails = rawBankDetails ? {
+                ...rawBankDetails,
+                accountHolderName: rawBankDetails.accountName,
+                qrCode: rawBankDetails.qrCode ? (storageService.getPublicUrl(rawBankDetails.qrCode) || rawBankDetails.qrCode) : null,
+                qrCodeStorageKey: rawBankDetails.qrCode,
+            } : null;
 
             // Prepare PDF Data payload
             const pdfData = {
@@ -936,6 +944,7 @@ export class QuotationService {
                     packageGst,
                     packageName,
                     packageDescription,
+                    packageRecommendedPrice,
                     notes: quotation.notes,
                     createdAt: formatDate(quotation.createdAt)
                 },

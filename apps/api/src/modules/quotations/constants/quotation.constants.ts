@@ -44,3 +44,14 @@ export const QUOTATION_WORKER_MESSAGES = {
     WORKER_JOB_FAILED: "Quotation snapshot job failed",
     WORKER_JOB_COMPLETED: "Quotation snapshot job completed successfully",
 };
+
+export const DEFAULT_SCOPE_OF_WORK = [
+    { title: "Roof Top Area @ 10 Sq.Mtr./KWp", value: "Customer Scope" },
+    { title: "Civil Works", value: "Included" },
+    { title: "Module Mounting Structure", value: "Included" },
+    { title: "Mounting, Erection & Commissioning", value: "Included" },
+    { title: "Power Evacuation (Solar Plant to Mains)", value: "Included @ 20 Mtr" },
+    { title: "Earthing System", value: "Included" },
+    { title: "DISCOM & Net Meter Charges", value: "Included" },
+    { title: "Free Operation & Maintenance", value: "Included for 5 Years" },
+];

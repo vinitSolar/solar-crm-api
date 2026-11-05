@@ -22,8 +22,8 @@ export class StateSubsidyRuleRepository {
         
         const query = `
             INSERT INTO state_subsidy_rules 
-            (uid, scheme_name, state_uid, subsidy_per_kw, maximum_subsidy_amount, description, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (uid, scheme_name, state_uid, subsidy_per_kw, maximum_subsidy_amount, description, categories, category_rates, calculation_type, calculation_config, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
         `;
         
@@ -34,6 +34,10 @@ export class StateSubsidyRuleRepository {
             data.subsidy_per_kw,
             data.maximum_subsidy_amount,
             data.description || null,
+            data.categories || [1, 2, 3, 4],
+            data.category_rates ? (typeof data.category_rates === "string" ? data.category_rates : JSON.stringify(data.category_rates)) : "[]",
+            data.calculation_type || "CAPACITY_SLABS",
+            data.calculation_config ? (typeof data.calculation_config === "string" ? data.calculation_config : JSON.stringify(data.calculation_config)) : "{}",
             createdBy,
             createdBy
         ];
@@ -117,6 +121,22 @@ export class StateSubsidyRuleRepository {
         if (data.description !== undefined) {
             setClause.push(`description = $${index++}`);
             values.push(data.description);
+        }
+        if (data.categories !== undefined) {
+            setClause.push(`categories = $${index++}`);
+            values.push(data.categories);
+        }
+        if (data.category_rates !== undefined) {
+            setClause.push(`category_rates = $${index++}`);
+            values.push(typeof data.category_rates === "string" ? data.category_rates : JSON.stringify(data.category_rates));
+        }
+        if (data.calculation_type !== undefined) {
+            setClause.push(`calculation_type = $${index++}`);
+            values.push(data.calculation_type);
+        }
+        if (data.calculation_config !== undefined) {
+            setClause.push(`calculation_config = $${index++}`);
+            values.push(typeof data.calculation_config === "string" ? data.calculation_config : JSON.stringify(data.calculation_config));
         }
         if (data.is_active !== undefined) {
             setClause.push(`is_active = $${index++}`);

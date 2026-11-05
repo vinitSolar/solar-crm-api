@@ -511,9 +511,22 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
   `).join("");
 
   // Build dynamic Scope of Work from quotation_scope_of_work_items as bullet list
+  const effectiveScopeOfWork = (scopeOfWork && scopeOfWork.length > 0)
+    ? scopeOfWork
+    : [
+        { title: "Roof Top Area @ 10 Sq.Mtr./KWp", value: "Customer Scope" },
+        { title: "Civil Works", value: "Included" },
+        { title: "Module Mounting Structure", value: "Included" },
+        { title: "Mounting, Erection & Commissioning", value: "Included" },
+        { title: "Power Evacuation (Solar Plant to Mains)", value: "Included @ 20 Mtr" },
+        { title: "Earthing System", value: "Included" },
+        { title: "DISCOM & Net Meter Charges", value: "Included" },
+        { title: "Free Operation & Maintenance", value: "Included for 5 Years" },
+      ];
+
   let sowContentHtml = "";
-  if (scopeOfWork && scopeOfWork.length > 0) {
-    const sowItemsHtml = scopeOfWork.map((item) => {
+  if (effectiveScopeOfWork && effectiveScopeOfWork.length > 0) {
+    const sowItemsHtml = effectiveScopeOfWork.map((item) => {
       const titleClean = (item.title || "").trim().replace(/:$/, "");
       if (item.value && item.value.trim()) {
         return `

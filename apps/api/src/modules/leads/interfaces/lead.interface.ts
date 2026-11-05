@@ -80,6 +80,7 @@ export interface ILead {
     updatedBy: string | null;
     deletedBy: string | null;
     finalSystemSize?: number | null;
+    category?: number | null;
 }
 
 export interface ILeadFilter {
@@ -143,6 +144,7 @@ export interface ICreateLead {
     remarks?: string;
     isDraft?: boolean | number;
     is_draft?: boolean | number;
+    category?: number;
 }
 
 export interface IUpdateLead extends Partial<ICreateLead> {}
@@ -177,6 +179,7 @@ export interface ILeadSafe {
     leadSource?: ILeadSourceSafe | null;
     leadStatus?: ILeadStatusSafe | null;
     finalSystemSize?: number | null;
+    category?: number | null;
 }
 
 export interface ILeadSourceSafe {
@@ -217,4 +220,34 @@ export interface IPaginatedResponse<T> {
         limit: number;
         totalPages: number;
     };
+}
+
+
+export interface ICursorPaginationQuery {
+    limit?: number;
+    cursor?: string;
+    search?: string;
+    status?: "active" | "deleted" | "all";
+    statusUid?: string;
+    assignedTo?: string;
+    leadSourceUid?: string;
+    startDate?: string;
+    endDate?: string;
+    followUpDate?: string;
+    city?: string;
+    state?: string;
+    minCapacity?: number;
+    maxCapacity?: number;
+    sortBy?: "created_at" | "updated_at" | "first_name" | "system_size";
+    sortOrder?: "asc" | "desc";
+}
+
+export interface ICursorPaginationMeta {
+    nextCursor: string | null;
+    hasMore: boolean;
+}
+
+export interface ICursorPaginatedResponse<T> {
+    data: T[];
+    pagination: ICursorPaginationMeta;
 }

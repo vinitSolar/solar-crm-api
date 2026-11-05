@@ -11,6 +11,7 @@ import {
     updateLeadSchema,
     getByUidSchema,
     paginationSchema,
+    cursorPaginationSchema,
     changeLeadStatusSchema,
     validateLeadRequest,
 } from "../validators/lead.validator.js";
@@ -96,6 +97,13 @@ function createLeadRouter(): Router {
      *       401:
      *         description: Unauthorized
      */
+        router.get(
+        "/",
+        requirePermission("LEADS", "can_view"),
+        validateLeadRequest(cursorPaginationSchema),
+        controller.getLeadsCursor,
+    );
+
     router.post(
         "/list",
         requirePermission("LEADS", "can_view"),

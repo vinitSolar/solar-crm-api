@@ -1,4 +1,11 @@
 import type { ISubsidyRequiredDocumentDetail } from "../repositories/subsidy-required-document.repository.js";
+import type { ISubsidyCalculationConfig, SubsidyCalculationType } from "../utils/subsidy-calculator.js";
+
+export interface ISubsidyCategoryRate {
+    categories: number[];
+    subsidyPerKw: number;
+    maximumSubsidyAmount: number;
+}
 
 /**
  * Represents a state subsidy rule record from the database.
@@ -11,6 +18,10 @@ export interface IStateSubsidyRule {
     subsidy_per_kw: number;
     maximum_subsidy_amount: number;
     description: string | null;
+    categories: number[];
+    category_rates?: ISubsidyCategoryRate[] | string | null;
+    calculation_type?: SubsidyCalculationType | string | null;
+    calculation_config?: ISubsidyCalculationConfig | string | null;
     is_active: number;
     is_deleted: number;
     deleted_at: Date | null;
@@ -32,6 +43,10 @@ export interface IStateSubsidyRuleSafe {
     subsidyPerKw: number;
     maximumSubsidyAmount: number;
     description: string | null;
+    categories: number[];
+    categoryRates?: ISubsidyCategoryRate[];
+    calculationType?: SubsidyCalculationType | string | null;
+    calculationConfig?: ISubsidyCalculationConfig | null;
     isActive: number;
     isDeleted: number;
     createdAt: Date;

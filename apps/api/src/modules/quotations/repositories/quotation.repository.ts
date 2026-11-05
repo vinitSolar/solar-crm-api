@@ -258,6 +258,22 @@ export class QuotationRepository {
         return result.rows.map(row => this.mapItemToCamelCase(row));
     }
 
+    async findScopeOfWorkByPackageUid(packageUid: string): Promise<Array<{ title: string; value: string; sortOrder?: number; scopeOfWorkUid?: string }>> {
+        const query = `
+            SELECT uid, scope_of_work_uid, title, value, sort_order 
+            FROM package_scope_of_work_items 
+            WHERE package_uid = $1 AND is_deleted = false
+            ORDER BY sort_order ASC, created_at ASC
+        `;
+        const result = await this.pool.query(query, [packageUid]);
+        return result.rows.map(row => ({
+            scopeOfWorkUid: row.scope_of_work_uid,
+            title: row.title,
+            value: row.value,
+            sortOrder: row.sort_order
+        }));
+    }
+
     async findScopeOfWorkByQuotationUid(quotationUid: string): Promise<IQuotationScopeOfWorkItem[]> {
         const query = `
             SELECT * FROM quotation_scope_of_work_items 
@@ -636,9 +652,10 @@ export class QuotationRepository {
         state: string | null;
         pinCode: string | null;
         systemSize: number | null;
+        category?: number | null;
     } | null> {
         const query = `
-            SELECT uid, lead_number, first_name, last_name, mobile_number, email, address, city, state, pin_code, system_size
+            SELECT uid, lead_number, first_name, last_name, mobile_number, email, address, city, state, pin_code, system_size, category
             FROM leads
             WHERE tenant_uid = $1 AND uid = $2 AND is_deleted = 0
             LIMIT 1
@@ -657,8 +674,52 @@ export class QuotationRepository {
             city: row.city,
             state: row.state,
             pinCode: row.pin_code,
-            systemSize: row.system_size ? Number(row.system_size) : null
+            systemSize: row.system_size ? Number(row.system_size) : null,
+            category: row.category !== null && row.category !== undefined ? Number(row.category) : 1
         };
+    }
+
+    async getActiveSubsidyRulesForState(state: string | null): Promise<Array<{
+        uid: string;
+        schemeName: string | null;
+        stateUid: string | null;
+        stateName: string | null;
+        subsidyPerKw: number;
+        maximumSubsidyAmount: number;
+        calculationType: string | null;
+        calculationConfig: any;
+        categories: number[];
+        categoryRates: any;
+    }>> {
+        const query = `
+            SELECT ssr.uid, ssr.scheme_name, ssr.state_uid, s.name as state_name,
+                   ssr.subsidy_per_kw, ssr.maximum_subsidy_amount,
+                   ssr.calculation_type, ssr.calculation_config,
+                   ssr.categories, ssr.category_rates
+            FROM state_subsidy_rules ssr
+            LEFT JOIN states s ON s.uid::text = ssr.state_uid::text
+            WHERE (
+                ssr.state_uid IS NULL 
+                OR ssr.state_uid = 'All' 
+                OR ($1::text IS NOT NULL AND LOWER(COALESCE(s.name, '')) = LOWER($1))
+                OR ($1::text IS NOT NULL AND LOWER(COALESCE(ssr.scheme_name, '')) LIKE '%' || LOWER($1) || '%')
+            )
+            AND ssr.is_active = 1 AND ssr.is_deleted = 0
+            ORDER BY CASE WHEN ssr.state_uid IS NULL OR ssr.state_uid = 'All' THEN 0 ELSE 1 END
+        `;
+        const result = await this.pool.query(query, [state || null]);
+        return result.rows.map(row => ({
+            uid: row.uid,
+            schemeName: row.scheme_name,
+            stateUid: row.state_uid,
+            stateName: row.state_name,
+            subsidyPerKw: Number(row.subsidy_per_kw),
+            maximumSubsidyAmount: Number(row.maximum_subsidy_amount),
+            calculationType: row.calculation_type,
+            calculationConfig: typeof row.calculation_config === "string" ? JSON.parse(row.calculation_config) : (row.calculation_config || {}),
+            categories: row.categories || [1, 2, 3, 4],
+            categoryRates: typeof row.category_rates === "string" ? JSON.parse(row.category_rates) : (row.category_rates || [])
+        }));
     }
 
     async getStateSubsidyRule(state: string): Promise<{

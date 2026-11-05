@@ -10,6 +10,7 @@ const LEAD_COLUMNS = `
     monthly_bill_amount AS "monthlyBillAmount", system_size AS "systemSize", 
     follow_up_date AS "followUpDate", lead_source_uid AS "leadSourceUid", 
     status_uid AS "statusUid", assigned_to AS "assignedTo",
+    category,
     is_active AS "isActive", is_deleted AS "isDeleted", 
     created_at AS "createdAt", updated_at AS "updatedAt",
     created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
@@ -22,7 +23,7 @@ const LEAD_JOIN_COLUMNS = `
     l.email, l.address, l.landmark, l.locality, l.state, l.city, l.pin_code AS "pinCode",
     l.monthly_bill_amount AS "monthlyBillAmount", l.system_size AS "systemSize", 
     l.follow_up_date AS "followUpDate", l.lead_source_uid AS "leadSourceUid", 
-    l.status_uid AS "statusUid", l.assigned_to AS "assignedTo", n.note AS "remarks",
+    l.status_uid AS "statusUid", l.assigned_to AS "assignedTo", l.category, n.note AS "remarks",
     l.is_active AS "isActive", l.is_deleted AS "isDeleted", 
     l.created_at AS "createdAt", l.updated_at AS "updatedAt",
     l.created_by AS "createdBy", l.updated_by AS "updatedBy", l.deleted_by AS "deletedBy"
@@ -62,10 +63,10 @@ export class LeadRepository {
             INSERT INTO leads (
                 uid, tenant_uid, lead_number, first_name, last_name, mobile_number, alternate_number, email, 
                 address, landmark, locality, state, city, pin_code, monthly_bill_amount, system_size, follow_up_date, 
-                lead_source_uid, status_uid, assigned_to, created_by
+                lead_source_uid, status_uid, assigned_to, category, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
             )
             RETURNING ${LEAD_COLUMNS}
         `;
@@ -74,7 +75,7 @@ export class LeadRepository {
             data.alternateNumber ?? null, data.email ?? null, data.address ?? null, 
             data.landmark ?? null, data.locality ?? null, data.state ?? null, data.city ?? null, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
             data.systemSize ?? null, data.followUpDate || null, data.leadSourceUid ?? null, 
-            data.statusUid, data.assignedTo ?? null, createdBy
+            data.statusUid, data.assignedTo ?? null, data.category ?? 1, createdBy
         ];
 
         const result = client 
@@ -239,6 +240,7 @@ export class LeadRepository {
         if (data.leadSourceUid !== undefined) { updates.push(`lead_source_uid = $${index++}`); values.push(data.leadSourceUid); }
         if (data.statusUid !== undefined) { updates.push(`status_uid = $${index++}`); values.push(data.statusUid); }
         if (data.assignedTo !== undefined) { updates.push(`assigned_to = $${index++}`); values.push(data.assignedTo); }
+        if (data.category !== undefined) { updates.push(`category = $${index++}`); values.push(data.category); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 
@@ -370,4 +372,129 @@ export class LeadRepository {
             existingLead: firstMatch,
         };
     }
+
+    async getLeadsCursor(
+        tenantUid: string,
+        limit: number = 5,
+        cursorData: { createdAt: Date; id: string | number } | null,
+        filters: {
+            search?: string | undefined;
+            status?: "active" | "deleted" | "all" | undefined;
+            statusUid?: string | undefined;
+            assignedTo?: string | undefined;
+            leadSourceUid?: string | undefined;
+            startDate?: string | undefined;
+            endDate?: string | undefined;
+            followUpDate?: string | undefined;
+            city?: string | undefined;
+            state?: string | undefined;
+            minCapacity?: number | undefined;
+            maxCapacity?: number | undefined;
+            sortBy?: "created_at" | "updated_at" | "first_name" | "system_size" | undefined;
+            sortOrder?: "asc" | "desc" | undefined;
+        }
+    ): Promise<{ rows: ILead[]; hasMore: boolean }> {
+        const params: any[] = [tenantUid];
+        let whereClause = "l.tenant_uid = $1";
+
+        const status = filters.status || "active";
+        if (status === "active") whereClause += " AND l.is_deleted = 0";
+        else if (status === "deleted") whereClause += " AND l.is_deleted = 1";
+
+        if (filters.assignedTo) {
+            params.push(filters.assignedTo);
+            whereClause += ` AND l.assigned_to = $${params.length}`;
+        }
+
+        if (filters.statusUid) {
+            params.push(filters.statusUid);
+            whereClause += ` AND l.status_uid = $${params.length}`;
+        }
+
+        if (filters.leadSourceUid) {
+            params.push(filters.leadSourceUid);
+            whereClause += ` AND l.lead_source_uid = $${params.length}`;
+        }
+
+        if (filters.startDate) {
+            params.push(new Date(filters.startDate));
+            whereClause += ` AND l.created_at >= $${params.length}`;
+        }
+
+        if (filters.endDate) {
+            params.push(new Date(filters.endDate));
+            whereClause += ` AND l.created_at <= $${params.length}`;
+        }
+
+        if (filters.followUpDate) {
+            params.push(filters.followUpDate);
+            whereClause += ` AND l.follow_up_date = $${params.length}`;
+        }
+
+        if (filters.city) {
+            params.push(`%${filters.city}%`);
+            whereClause += ` AND l.city ILIKE $${params.length}`;
+        }
+
+        if (filters.state) {
+            params.push(`%${filters.state}%`);
+            whereClause += ` AND l.state ILIKE $${params.length}`;
+        }
+
+        if (filters.minCapacity !== undefined && !isNaN(Number(filters.minCapacity))) {
+            params.push(Number(filters.minCapacity));
+            whereClause += ` AND l.system_size >= $${params.length}`;
+        }
+
+        if (filters.maxCapacity !== undefined && !isNaN(Number(filters.maxCapacity))) {
+            params.push(Number(filters.maxCapacity));
+            whereClause += ` AND l.system_size <= $${params.length}`;
+        }
+
+        if (filters.search) {
+            params.push(`%${filters.search}%`);
+            const sIdx = params.length;
+            whereClause += ` AND (
+                l.lead_number ILIKE $${sIdx} OR
+                l.first_name ILIKE $${sIdx} OR 
+                l.last_name ILIKE $${sIdx} OR 
+                l.mobile_number ILIKE $${sIdx} OR 
+                l.email ILIKE $${sIdx}
+            )`;
+        }
+
+        // Keyset Pagination cursor condition (created_at DESC, id DESC)
+        if (cursorData) {
+            params.push(cursorData.createdAt, cursorData.id);
+            const cDateIdx = params.length - 1;
+            const cIdIdx = params.length;
+            whereClause += ` AND (l.created_at < $${cDateIdx} OR (l.created_at = $${cDateIdx} AND l.id < $${cIdIdx}))`;
+        }
+
+        // Fetch limit + 1 to know if there's a next page without a COUNT(*)
+        const fetchLimit = limit + 1;
+        params.push(fetchLimit);
+
+        const query = `
+            SELECT ${LEAD_JOIN_COLUMNS}, ${LEAD_RELATIONS_COLUMNS} 
+            FROM leads l
+            LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'lead' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = l.uid
+            LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid 
+            LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
+            LEFT JOIN users u ON l.assigned_to = u.uid
+            WHERE ${whereClause} 
+            ORDER BY l.created_at DESC, l.id DESC 
+            LIMIT $${params.length}
+        `;
+
+        const result = await this.pool.query(query, params);
+        const rows = result.rows as ILead[];
+        const hasMore = rows.length > limit;
+        if (hasMore) {
+            rows.pop();
+        }
+
+        return { rows, hasMore };
+    }
+
 }

@@ -4,7 +4,7 @@ import type { LeadStatusRepository } from "../repositories/lead-status.repositor
 import type { UserRepository } from "../../users/repositories/user.repository.js";
 import type { NoteService } from "../../notes/services/note.service.js";
 import type { RoleRepository } from "../../roles/repositories/role.repository.js";
-import type { ICreateLead, IUpdateLead, ILeadSafe, IPaginationQuery, IPaginatedResponse } from "../interfaces/lead.interface.js";
+import type { ICreateLead, IUpdateLead, ILeadSafe, IPaginationQuery, IPaginatedResponse, ICursorPaginationQuery, ICursorPaginatedResponse } from "../interfaces/lead.interface.js";
 import { toLeadSafe } from "../dto/lead.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { LEAD_MESSAGES, LEAD_SOURCE_MESSAGES, LEAD_STATUS_MESSAGES } from "../constants/lead.constants.js";
@@ -197,6 +197,78 @@ export class LeadService {
             },
         };
     }
+
+    async getLeadsCursor(
+        tenantUid: string,
+        userUid: string,
+        roleUid: string,
+        query: ICursorPaginationQuery
+    ): Promise<ICursorPaginatedResponse<ILeadSafe>> {
+        const limit = Math.min(Math.max(Number(query.limit) || 5, 1), 50);
+
+        const role = await this.roleRepository.getRoleByUid(roleUid, tenantUid);
+        const showAllLeads = role?.show_all_leads === 1;
+        const assignedTo = showAllLeads ? query.assignedTo : userUid;
+
+        let cursorData: { createdAt: Date; id: string } | undefined;
+        if (query.cursor) {
+            try {
+                const decoded = Buffer.from(query.cursor, "base64url").toString("utf8");
+                const parsed = JSON.parse(decoded);
+                if (parsed.createdAt && parsed.id) {
+                    const date = new Date(parsed.createdAt);
+                    if (!isNaN(date.getTime())) {
+                        cursorData = {
+                            createdAt: date,
+                            id: String(parsed.id),
+                        };
+                    }
+                }
+            } catch (err) {
+                logger.warn("Invalid cursor provided, ignoring cursor", { cursor: query.cursor });
+            }
+        }
+
+        const filters: Parameters<LeadRepository["getLeadsCursor"]>[3] = {};
+        if (query.search) filters.search = query.search;
+        filters.status = query.status || "active";
+        if (query.statusUid) filters.statusUid = query.statusUid;
+        if (assignedTo) filters.assignedTo = assignedTo;
+        if (query.leadSourceUid) filters.leadSourceUid = query.leadSourceUid;
+        if (query.startDate) filters.startDate = query.startDate;
+        if (query.endDate) filters.endDate = query.endDate;
+        if (query.followUpDate) filters.followUpDate = query.followUpDate;
+        if (query.city) filters.city = query.city;
+        if (query.state) filters.state = query.state;
+        if (query.minCapacity !== undefined) filters.minCapacity = query.minCapacity;
+        if (query.maxCapacity !== undefined) filters.maxCapacity = query.maxCapacity;
+        filters.sortBy = query.sortBy || "created_at";
+        filters.sortOrder = query.sortOrder || "desc";
+
+        const result = await this.repository.getLeadsCursor(tenantUid, limit, cursorData || null, filters);
+
+        let nextCursor: string | null = null;
+        if (result.hasMore && result.rows.length > 0) {
+            const lastRow = result.rows[result.rows.length - 1];
+            if (lastRow) {
+                nextCursor = Buffer.from(
+                    JSON.stringify({
+                        createdAt: lastRow.createdAt,
+                        id: String(lastRow.id),
+                    })
+                ).toString("base64url");
+            }
+        }
+
+        return {
+            data: result.rows.map(toLeadSafe),
+            pagination: {
+                nextCursor,
+                hasMore: result.hasMore,
+            },
+        };
+    }
+
 
     async getAllLeads(
         tenantUid: string,

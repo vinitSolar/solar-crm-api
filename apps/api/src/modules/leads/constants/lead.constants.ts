@@ -1,3 +1,10 @@
+export const LEAD_CATEGORIES = {
+    GENERAL_OPEN: 1,
+    EWS: 2,
+    OBC: 3,
+    SC_ST: 4,
+} as const;
+
 export const LEAD_MESSAGES = {
     NOT_FOUND: "Lead not found",
     CREATED: "Lead created successfully",

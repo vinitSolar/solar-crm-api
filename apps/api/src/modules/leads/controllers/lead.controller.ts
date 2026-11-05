@@ -44,6 +44,27 @@ export class LeadController {
         }
     };
 
+    
+    getLeadsCursor = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const roleUid = authReq.roleUid || authReq.user.roleUid;
+            const query = req.query as any;
+
+            const result = await this.service.getLeadsCursor(tenantUid, userUid, roleUid, query);
+            res.status(200).json({
+                success: true,
+                message: LEAD_MESSAGES.FETCHED_SUCCESSFULLY,
+                data: result.data,
+                pagination: result.pagination,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     getLeadsPaginated = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;

@@ -2,7 +2,7 @@ import type { StateSubsidyRuleRepository, IStateSubsidyRuleWithStateName } from 
 import type { SubsidyRequiredDocumentRepository, ICombinedRequiredDocumentDetail } from "../repositories/subsidy-required-document.repository.js";
 import type { MasterDocumentTypeRepository } from "../../master-documents/repositories/master-document-type.repository.js";
 import type { AuditLogService } from "../../audit-logs/services/audit-logs.service.js";
-import type { IStateSubsidyRule, IStateSubsidyRuleSafe, IStateSubsidyRuleDropdown } from "../interfaces/state-subsidy-rule.interface.js";
+import type { IStateSubsidyRule, IStateSubsidyRuleSafe, IStateSubsidyRuleDropdown, ISubsidyCategoryRate } from "../interfaces/state-subsidy-rule.interface.js";
 import { STATE_SUBSIDY_RULE_MESSAGES } from "../constants/state-subsidy-rule.constants.js";
 import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constants.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
@@ -16,6 +16,10 @@ export interface ICreateSubsidyPayload {
     subsidyPerKw: number;
     maximumSubsidyAmount: number;
     description?: string | null;
+    categories: number[];
+    categoryRates?: ISubsidyCategoryRate[];
+    calculationType?: string | null;
+    calculationConfig?: any;
     documentTypeUids?: string[];
 }
 
@@ -25,6 +29,10 @@ export interface IUpdateSubsidyPayload {
     subsidyPerKw?: number;
     maximumSubsidyAmount?: number;
     description?: string | null;
+    categories?: number[];
+    categoryRates?: ISubsidyCategoryRate[];
+    calculationType?: string | null;
+    calculationConfig?: any;
     isActive?: number;
     documentTypeUids?: string[];
 }
@@ -48,6 +56,31 @@ export class StateSubsidyRuleService {
     }
 
     private sanitize(rule: IStateSubsidyRuleWithStateName): IStateSubsidyRuleSafe {
+        let categoryRates: ISubsidyCategoryRate[] = [];
+        if (rule.category_rates) {
+            try {
+                categoryRates = typeof rule.category_rates === "string" ? JSON.parse(rule.category_rates) : rule.category_rates;
+            } catch {
+                categoryRates = [];
+            }
+        }
+        if (!categoryRates.length && rule.categories?.length) {
+            categoryRates = [{
+                categories: rule.categories.map(Number),
+                subsidyPerKw: Number(rule.subsidy_per_kw),
+                maximumSubsidyAmount: Number(rule.maximum_subsidy_amount),
+            }];
+        }
+
+        let calculationConfig = null;
+        if (rule.calculation_config) {
+            try {
+                calculationConfig = typeof rule.calculation_config === "string" ? JSON.parse(rule.calculation_config) : rule.calculation_config;
+            } catch {
+                calculationConfig = null;
+            }
+        }
+
         return {
             uid: rule.uid,
             schemeName: rule.scheme_name,
@@ -56,6 +89,10 @@ export class StateSubsidyRuleService {
             subsidyPerKw: Number(rule.subsidy_per_kw),
             maximumSubsidyAmount: Number(rule.maximum_subsidy_amount),
             description: rule.description,
+            categories: Array.isArray(rule.categories) ? rule.categories.map(Number) : [1, 2, 3, 4],
+            categoryRates,
+            calculationType: rule.calculation_type || "CAPACITY_SLABS",
+            calculationConfig,
             isActive: rule.is_active,
             isDeleted: rule.is_deleted,
             createdAt: rule.created_at,
@@ -114,12 +151,31 @@ export class StateSubsidyRuleService {
         try {
             await client.query("BEGIN");
 
+            let categories = payload.categories;
+            let subsidyPerKw = payload.subsidyPerKw;
+            let maximumSubsidyAmount = payload.maximumSubsidyAmount;
+
+            if (payload.categoryRates && payload.categoryRates.length > 0) {
+                const allCategories = Array.from(new Set(payload.categoryRates.flatMap(r => r.categories)));
+                if (allCategories.length > 0) {
+                    categories = allCategories;
+                }
+                if (payload.categoryRates[0]) {
+                    subsidyPerKw = payload.categoryRates[0].subsidyPerKw;
+                    maximumSubsidyAmount = payload.categoryRates[0].maximumSubsidyAmount;
+                }
+            }
+
             const dbPayload: Partial<IStateSubsidyRule> & { scheme_name?: string | null } = {
                 scheme_name: payload.schemeName ?? null,
-                state_uid: payload.stateUid ?? null,
-                subsidy_per_kw: payload.subsidyPerKw,
-                maximum_subsidy_amount: payload.maximumSubsidyAmount,
+                state_uid: payload.stateUid === "All" ? null : (payload.stateUid ?? null),
+                subsidy_per_kw: subsidyPerKw,
+                maximum_subsidy_amount: maximumSubsidyAmount,
                 description: payload.description ?? null,
+                categories,
+                category_rates: payload.categoryRates || [],
+                calculation_type: payload.calculationType || "CAPACITY_SLABS",
+                calculation_config: payload.calculationConfig || {},
             };
 
             const createdRule = await this.repository.create(dbPayload, userUid, client);
@@ -182,10 +238,24 @@ export class StateSubsidyRuleService {
 
             const dbPayload: Partial<IStateSubsidyRule> & { scheme_name?: string | null } = {};
             if (payload.schemeName !== undefined) dbPayload.scheme_name = payload.schemeName;
-            if (payload.stateUid !== undefined) dbPayload.state_uid = payload.stateUid;
+            if (payload.stateUid !== undefined) dbPayload.state_uid = payload.stateUid === "All" ? null : payload.stateUid;
             if (payload.subsidyPerKw !== undefined) dbPayload.subsidy_per_kw = payload.subsidyPerKw;
             if (payload.maximumSubsidyAmount !== undefined) dbPayload.maximum_subsidy_amount = payload.maximumSubsidyAmount;
             if (payload.description !== undefined) dbPayload.description = payload.description;
+            if (payload.categories !== undefined) dbPayload.categories = payload.categories;
+            if (payload.categoryRates !== undefined) {
+                dbPayload.category_rates = payload.categoryRates;
+                const allCategories = Array.from(new Set(payload.categoryRates.flatMap(r => r.categories)));
+                if (allCategories.length > 0) {
+                    dbPayload.categories = allCategories;
+                }
+                if (payload.categoryRates[0]) {
+                    dbPayload.subsidy_per_kw = payload.categoryRates[0].subsidyPerKw;
+                    dbPayload.maximum_subsidy_amount = payload.categoryRates[0].maximumSubsidyAmount;
+                }
+            }
+            if (payload.calculationType !== undefined) dbPayload.calculation_type = payload.calculationType;
+            if (payload.calculationConfig !== undefined) dbPayload.calculation_config = payload.calculationConfig;
             if (payload.isActive !== undefined) dbPayload.is_active = payload.isActive;
 
             const updatedRule = await this.repository.update(uid, dbPayload, userUid, client);

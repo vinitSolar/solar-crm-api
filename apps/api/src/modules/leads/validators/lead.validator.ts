@@ -93,6 +93,7 @@ const leadBodyBase = {
     draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     isDraft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+    category: z.coerce.number().int().min(1).max(4).optional(),
 };
 
 /** Fields that are required when isDraft is false (normal lead creation) */
@@ -228,6 +229,30 @@ export const validateLeadRequest = (schema: z.ZodSchema) => {
                 }
                 req.body = parsed.body;
             }
+            if (parsed && typeof parsed === "object" && parsed.query !== undefined) {
+                try {
+                    req.query = parsed.query;
+                } catch {
+                    Object.defineProperty(req, "query", {
+                        value: parsed.query,
+                        writable: true,
+                        configurable: true,
+                        enumerable: true,
+                    });
+                }
+            }
+            if (parsed && typeof parsed === "object" && parsed.params !== undefined) {
+                try {
+                    req.params = parsed.params;
+                } catch {
+                    Object.defineProperty(req, "params", {
+                        value: parsed.params,
+                        writable: true,
+                        configurable: true,
+                        enumerable: true,
+                    });
+                }
+            }
             next();
         } catch (error) {
             if (error instanceof z.ZodError) {
@@ -245,3 +270,25 @@ export const validateLeadRequest = (schema: z.ZodSchema) => {
         }
     };
 };
+
+
+export const cursorPaginationSchema = z.object({
+    query: z.object({
+        limit: z.coerce.number().int().min(1).max(50).optional().default(5),
+        cursor: z.string().optional(),
+        search: z.string().optional(),
+        status: z.enum(["active", "deleted", "all"]).optional().default("active"),
+        statusUid: z.string().uuid("Invalid status UID format").optional(),
+        assignedTo: z.string().uuid("Invalid user UID format").optional(),
+        leadSourceUid: z.string().uuid("Invalid lead source UID format").optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        followUpDate: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        minCapacity: z.coerce.number().min(0).optional(),
+        maxCapacity: z.coerce.number().min(0).optional(),
+        sortBy: z.enum(["created_at", "updated_at", "first_name", "system_size"]).optional().default("created_at"),
+        sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+    }),
+});

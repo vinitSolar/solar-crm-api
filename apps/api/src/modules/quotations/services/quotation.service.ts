@@ -9,7 +9,7 @@ import { UserRepository } from "../../users/repositories/user.repository.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { isRedisAvailable } from "../../notification/helpers/redis-health.helper.js";
 import { QueueSnapshotStrategy, DirectSnapshotStrategy } from "../strategies/snapshot.strategy.js";
-import { QUOTATION_VALIDATION_MESSAGES } from "../constants/quotation.constants.js";
+import { QUOTATION_VALIDATION_MESSAGES, DEFAULT_SCOPE_OF_WORK } from "../constants/quotation.constants.js";
 import { toSafeQuotation, type SafeQuotationResponse } from "../dto/quotation.dto.js";
 import { storageService } from "@packages/storage/index.js";
 import { QuotationPdfGenerator } from "./pdf-generator.service.js";
@@ -26,6 +26,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { notificationService, NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/index.js";
+import { calculateDynamicRuleSubsidy, calculateCentralSuryaGharSubsidy } from "../../state-subsidy-rules/utils/subsidy-calculator.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -203,21 +204,60 @@ export class QuotationService {
             };
             if (data.packageUid !== undefined) payload.packageUid = data.packageUid;
             let subsidyData = data.subsidyData;
-            if ((!subsidyData || subsidyData.length === 0) && lead.state && systemSize > 0) {
-                const subsidyRule = await this.repository.getStateSubsidyRule(lead.state);
-                if (subsidyRule) {
-                    const calculatedSubsidy = Math.min(
-                        subsidyRule.subsidyPerKw * systemSize,
-                        subsidyRule.maximumSubsidyAmount
-                    );
-                    subsidyData = [{
-                        uid: crypto.randomUUID(), 
-                        name: `${lead.state} State Solar Subsidy`,
-                        amount: calculatedSubsidy
-                    }];
+            if ((!subsidyData || subsidyData.length === 0) && systemSize > 0) {
+                const rules = await this.repository.getActiveSubsidyRulesForState(lead?.state || null);
+                const leadCategory = (lead as any)?.category || 1;
+                const centralRule = rules.find(r => !r.stateUid || r.stateUid === "All" || (r.schemeName || "").toLowerCase().includes("surya"));
+                const stateRule = rules.find(r => r !== centralRule);
+
+                const calculatedItems: Array<{ uid: string; name: string; amount: number; description?: string }> = [];
+
+                let centralAmount = 0;
+                if (centralRule) {
+                    const res = calculateDynamicRuleSubsidy(centralRule, systemSize, leadCategory);
+                    centralAmount = res.amount;
+                    if (centralAmount > 0) {
+                        const item: { uid: string; name: string; amount: number; description?: string } = {
+                            uid: centralRule.uid,
+                            name: centralRule.schemeName || "PM Surya Ghar: Muft Bijli Yojana (Central CFA)",
+                            amount: centralAmount
+                        };
+                        if (res.description) item.description = res.description;
+                        calculatedItems.push(item);
+                    }
+                } else {
+                    centralAmount = calculateCentralSuryaGharSubsidy(systemSize);
+                    if (centralAmount > 0) {
+                        calculatedItems.push({
+                            uid: crypto.randomUUID(),
+                            name: "PM Surya Ghar: Muft Bijli Yojana (Central CFA)",
+                            amount: centralAmount
+                        });
+                    }
+                }
+
+                if (stateRule) {
+                    const res = calculateDynamicRuleSubsidy(stateRule, systemSize, leadCategory, centralAmount);
+                    if (res.amount > 0 && res.isEligible !== false) {
+                        const item: { uid: string; name: string; amount: number; description?: string } = {
+                            uid: stateRule.uid,
+                            name: stateRule.schemeName || `${lead?.state ?? "State"} State Subsidy`,
+                            amount: res.amount
+                        };
+                        if (res.description) item.description = res.description;
+                        calculatedItems.push(item);
+                    }
+                }
+
+                subsidyData = calculatedItems;
+            }
+            if (subsidyData !== undefined) {
+                payload.subsidyData = subsidyData;
+                const totalSub = subsidyData.reduce((acc: number, item: any) => acc + (Number(item.amount) || 0), 0);
+                if (payload.netCustomerCost === undefined || payload.netCustomerCost === 0) {
+                    payload.netCustomerCost = Math.max(0, payload.grandTotal - totalSub);
                 }
             }
-            if (subsidyData !== undefined) payload.subsidyData = subsidyData;
 
             const quotation = await this.repository.create(client, tenantUid, payload, createdBy);
 
@@ -300,19 +340,40 @@ export class QuotationService {
                 ...(data.extraScopeOfWork?.map(s => ({ ...s, isExtra: true })) || [])
             ];
 
-            const shouldLoadDefaults = 
-                data.scopeOfWork === undefined && 
-                data.extraScopeOfWork === undefined && 
-                data.termsConditions === undefined;
+            const shouldLoadDefaultSows = 
+                (data.scopeOfWork === undefined || data.scopeOfWork.length === 0) && 
+                (data.extraScopeOfWork === undefined || data.extraScopeOfWork.length === 0);
 
-            if (shouldLoadDefaults) {
-                const defaultSows = await this.scopeOfWorkRepo.findAllActive(tenantUid);
-                const defaultSowInsertPromises = defaultSows.map(defaultSow => 
+            const shouldLoadDefaultTcs = 
+                data.termsConditions === undefined || data.termsConditions.length === 0;
+
+            if (shouldLoadDefaultSows) {
+                let defaultSows: Array<{ uid?: string; title: string; value: string; sortOrder?: number }> = [];
+                if (quotation.packageUid) {
+                    const packageSows = await this.repository.findScopeOfWorkByPackageUid(quotation.packageUid);
+                    if (packageSows.length > 0) {
+                        defaultSows = packageSows;
+                    }
+                }
+                if (defaultSows.length === 0) {
+                    const tenantSows = await this.scopeOfWorkRepo.findAllActive(tenantUid);
+                    if (tenantSows.length > 0) {
+                        defaultSows = tenantSows;
+                    }
+                }
+                if (defaultSows.length === 0) {
+                    defaultSows = DEFAULT_SCOPE_OF_WORK.map((s, idx) => ({
+                        title: s.title,
+                        value: s.value,
+                        sortOrder: idx + 1
+                    }));
+                }
+                const defaultSowInsertPromises = defaultSows.map((defaultSow, idx) => 
                     this.repository.createScopeOfWorkItem(client, quotation.uid, {
-                        scopeOfWorkUid: defaultSow.uid,
+                        scopeOfWorkUid: defaultSow.uid || null,
                         title: defaultSow.title,
                         value: defaultSow.value,
-                        sortOrder: defaultSow.sortOrder
+                        sortOrder: defaultSow.sortOrder ?? (idx + 1)
                     }, createdBy)
                 );
                 createdSows.push(...(await Promise.all(defaultSowInsertPromises)));
@@ -349,7 +410,7 @@ export class QuotationService {
 
             // 6. Resolve and save terms and conditions snapshot
             const createdTcs: IQuotationTermsConditionsItem[] = [];
-            if (shouldLoadDefaults) {
+            if (shouldLoadDefaultTcs) {
                 const defaultTcs = await this.termsConditionRepo.findAllActive(tenantUid);
                 const defaultTcInsertPromises = defaultTcs.map(defaultTc => 
                     this.repository.createTermsConditionsItem(client, quotation.uid, {
@@ -584,6 +645,32 @@ export class QuotationService {
                 sows.push(...(await Promise.all(sowInsertPromises)));
             } else {
                 sows = await this.repository.findScopeOfWorkByQuotationUid(updatedQuotation.uid);
+                if (sows.length === 0) {
+                    let defaultSows = await this.scopeOfWorkRepo.findAllActive(tenantUid);
+                    if (defaultSows.length === 0) {
+                        defaultSows = DEFAULT_SCOPE_OF_WORK.map((s, idx) => ({
+                            uid: "",
+                            tenantUid,
+                            title: s.title,
+                            value: s.value,
+                            sortOrder: idx + 1,
+                            isDefault: 1,
+                            isActive: 1,
+                            isDeleted: 0,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        })) as any;
+                    }
+                    const defaultSowInsertPromises = defaultSows.map(defaultSow => 
+                        this.repository.createScopeOfWorkItem(client, updatedQuotation.uid, {
+                            scopeOfWorkUid: defaultSow.uid || null,
+                            title: defaultSow.title,
+                            value: defaultSow.value,
+                            sortOrder: defaultSow.sortOrder
+                        }, updatedBy)
+                    );
+                    sows = await Promise.all(defaultSowInsertPromises);
+                }
             }
 
             // Terms and conditions update (replacement strategy)
@@ -840,6 +927,70 @@ export class QuotationService {
             // If quotation items are not yet snapshotted but quotation has a package, resolve directly from package
             if (items.length === 0 && quotation.packageUid) {
                 items = await this.repository.findProductsByPackageUid(quotation.packageUid);
+            }
+
+            // Fallback for Scope of Work if not yet snapshotted or empty
+            if (scopeOfWork.length === 0) {
+                if (quotation.packageUid) {
+                    const packageSows = await this.repository.findScopeOfWorkByPackageUid(quotation.packageUid);
+                    if (packageSows.length > 0) {
+                        scopeOfWork = packageSows.map((s, idx) => ({
+                            uid: `pkg-sow-${idx}`,
+                            quotationUid: quotation.uid,
+                            scopeOfWorkUid: s.scopeOfWorkUid ?? null,
+                            title: s.title,
+                            value: s.value,
+                            sortOrder: s.sortOrder ?? (idx + 1),
+                            isExtra: false,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        })) as any;
+                    }
+                }
+                if (scopeOfWork.length === 0) {
+                    const tenantSows = await this.scopeOfWorkRepo.findAllActive(tenantUid);
+                    if (tenantSows.length > 0) {
+                        scopeOfWork = tenantSows.map((s, idx) => ({
+                            uid: s.uid,
+                            quotationUid: quotation.uid,
+                            scopeOfWorkUid: s.uid,
+                            title: s.title,
+                            value: s.value,
+                            sortOrder: s.sortOrder ?? (idx + 1),
+                            isExtra: false,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        })) as any;
+                    } else {
+                        scopeOfWork = DEFAULT_SCOPE_OF_WORK.map((s, idx) => ({
+                            uid: `default-sow-${idx}`,
+                            quotationUid: quotation.uid,
+                            scopeOfWorkUid: null,
+                            title: s.title,
+                            value: s.value,
+                            sortOrder: idx + 1,
+                            isExtra: false,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        })) as any;
+                    }
+                }
+            }
+
+            // Fallback for Terms and Conditions if not yet snapshotted
+            if (termsConditions.length === 0) {
+                const tenantTcs = await this.termsConditionRepo.findAllActive(tenantUid);
+                if (tenantTcs.length > 0) {
+                    termsConditions = tenantTcs.map((t, idx) => ({
+                        uid: t.uid,
+                        quotationUid: quotation.uid,
+                        title: t.title,
+                        description: t.description,
+                        sortOrder: t.sortOrder ?? (idx + 1),
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    })) as any;
+                }
             }
 
             // 2. Fetch Lead details for customer info

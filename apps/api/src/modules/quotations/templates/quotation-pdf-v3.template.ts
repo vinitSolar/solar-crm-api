@@ -1554,9 +1554,22 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
 
   // Build dynamic Scope of Work from quotation_scope_of_work_items as bullet list
+  const effectiveScopeOfWork = (scopeOfWork && scopeOfWork.length > 0)
+    ? scopeOfWork
+    : [
+        { title: "Roof Top Area @ 10 Sq.Mtr./KWp", value: "Customer Scope" },
+        { title: "Civil Works", value: "Included" },
+        { title: "Module Mounting Structure", value: "Included" },
+        { title: "Mounting, Erection & Commissioning", value: "Included" },
+        { title: "Power Evacuation (Solar Plant to Mains)", value: "Included @ 20 Mtr" },
+        { title: "Earthing System", value: "Included" },
+        { title: "DISCOM & Net Meter Charges", value: "Included" },
+        { title: "Free Operation & Maintenance", value: "Included for 5 Years" },
+      ];
+
   let sowContentHtml = "";
-  if (scopeOfWork && scopeOfWork.length > 0) {
-    const sowItemsHtml = scopeOfWork.map((item) => {
+  if (effectiveScopeOfWork && effectiveScopeOfWork.length > 0) {
+    const sowItemsHtml = effectiveScopeOfWork.map((item) => {
       const titleClean = (item.title || "").trim().replace(/:$/, "");
       if (item.value && item.value.trim()) {
         return `
@@ -2649,7 +2662,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-th{
     font-size:7.5px;
     font-weight:700;
-    color:#64748b;
+    color:#0f172a;
     text-transform:uppercase;
     letter-spacing:0.3px;
     line-height:1.2;
@@ -2658,40 +2671,40 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   .bom-td{
     font-size:9.8px;
-    font-weight:500;
-    color:#1e293b;
+    font-weight:400;
+    color:#334155;
     line-height:1.25;
     min-width:0;
   }
 
   .bom-td-name{
-    color:#0f172a;
-    font-weight:600;
+    color:#334155;
+    font-weight:400;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
   }
 
-  /* Field Styles */
+  /* Field Styles - Titles in bold, Values regular */
   .bom-field{ min-width:0; }
   .bom-field-label{
-    font-size:8px;
+    font-size:8.5px;
     font-weight:700;
-    color:#475569;
+    color:#0f172a;
     letter-spacing:0.2px;
     margin-bottom:2px;
     white-space:nowrap;
   }
   .bom-field-val{
-    font-size:10.2px;
-    font-weight:600;
-    color:#0f172a;
+    font-size:9.8px;
+    font-weight:400;
+    color:#334155;
     line-height:1.25;
   }
   .bom-field-val-sm{
-    font-size:9px;
-    font-weight:500;
-    color:#0f172a;
+    font-size:8.5px;
+    font-weight:400;
+    color:#475569;
     line-height:1.25;
   }
 
@@ -2749,24 +2762,24 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
   .bom-cable-col{ min-width:0; }
   .bom-cable-type{
-    font-size:8px;
+    font-size:8.5px;
     font-weight:700;
-    color:#475569;
+    color:#0f172a;
     letter-spacing:0.2px;
     margin-bottom:2px;
     line-height:1.1;
   }
   .bom-cable-make{
-    font-size:10px;
-    font-weight:600;
-    color:#0f172a;
+    font-size:9.8px;
+    font-weight:400;
+    color:#334155;
     margin-bottom:2px;
     line-height:1.25;
   }
   .bom-cable-qty{
     font-size:8.2px;
-    font-weight:500;
-    color:#475569;
+    font-weight:400;
+    color:#64748b;
     margin-bottom:2px;
     line-height:1.15;
   }
@@ -2791,16 +2804,16 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     align-items:flex-start;
   }
   .bom-struct-lbl{
-    font-size:8px;
+    font-size:8.5px;
     font-weight:700;
-    color:#64748b;
+    color:#0f172a;
     margin-bottom:2px;
     line-height:1;
   }
   .bom-struct-v{
     font-size:9.8px;
-    font-weight:600;
-    color:#0f172a;
+    font-weight:400;
+    color:#334155;
     line-height:1.25;
     word-break:break-word;
   }
@@ -2813,16 +2826,16 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   }
   .bom-db-col{ min-width:0; }
   .bom-db-lbl{
-    font-size:8px;
+    font-size:8.5px;
     font-weight:700;
-    color:#64748b;
+    color:#0f172a;
     margin-bottom:2px;
     line-height:1;
   }
   .bom-db-v{
     font-size:9.8px;
-    font-weight:600;
-    color:#0f172a;
+    font-weight:400;
+    color:#334155;
     line-height:1.25;
     word-break:break-word;
   }
@@ -2875,32 +2888,36 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-density-normal .bom-db-lbl,
   .bom-density-normal .bom-struct-lbl,
   .bom-density-normal .bom-cable-type{
-    font-size:8px;
+    font-size:8.5px;
     letter-spacing:0.2px;
     font-weight:700;
-    color:#475569;
+    color:#0f172a;
   }
   .bom-density-normal .bom-field-val,
   .bom-density-normal .bom-db-v,
   .bom-density-normal .bom-struct-v,
   .bom-density-normal .bom-cable-make{
-    font-size:10.2px;
-    font-weight:600;
-    color:#0f172a;
+    font-size:9.8px;
+    font-weight:400;
+    color:#334155;
     line-height:1.3;
   }
   .bom-density-normal .bom-cable-qty,
   .bom-density-normal .bom-cable-spec,
   .bom-density-normal .bom-field-val-sm{
     font-size:8.5px;
-    font-weight:500;
-    color:#334155;
+    font-weight:400;
+    color:#475569;
   }
   .bom-density-normal .bom-th{
     font-size:7.5px;
+    font-weight:700;
+    color:#0f172a;
   }
   .bom-density-normal .bom-td{
     font-size:9.8px;
+    font-weight:400;
+    color:#334155;
   }
   .bom-density-normal .bom-struct-list{
     gap:6px;
@@ -2948,25 +2965,36 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-density-compact .bom-db-lbl,
   .bom-density-compact .bom-struct-lbl,
   .bom-density-compact .bom-cable-type{
-    font-size:7.2px;
+    font-size:7.5px;
+    letter-spacing:0.2px;
+    font-weight:700;
+    color:#0f172a;
   }
   .bom-density-compact .bom-field-val,
   .bom-density-compact .bom-db-v,
   .bom-density-compact .bom-struct-v,
   .bom-density-compact .bom-cable-make{
-    font-size:9px;
+    font-size:8.8px;
+    font-weight:400;
+    color:#334155;
     line-height:1.25;
   }
   .bom-density-compact .bom-cable-qty,
   .bom-density-compact .bom-cable-spec,
   .bom-density-compact .bom-field-val-sm{
     font-size:7.6px;
+    font-weight:400;
+    color:#475569;
   }
   .bom-density-compact .bom-th{
     font-size:6.8px;
+    font-weight:700;
+    color:#0f172a;
   }
   .bom-density-compact .bom-td{
     font-size:8.8px;
+    font-weight:400;
+    color:#334155;
   }
   .bom-density-compact .bom-struct-list{
     gap:4.5px;
@@ -3016,27 +3044,37 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-density-ultra .bom-db-lbl,
   .bom-density-ultra .bom-struct-lbl,
   .bom-density-ultra .bom-cable-type{
-    font-size:6.5px;
+    font-size:6.8px;
     letter-spacing:0.15px;
+    font-weight:700;
+    color:#0f172a;
   }
   .bom-density-ultra .bom-field-val,
   .bom-density-ultra .bom-db-v,
   .bom-density-ultra .bom-struct-v,
   .bom-density-ultra .bom-cable-make{
-    font-size:8px;
+    font-size:7.8px;
+    font-weight:400;
+    color:#334155;
     line-height:1.2;
   }
   .bom-density-ultra .bom-cable-qty,
   .bom-density-ultra .bom-cable-spec,
   .bom-density-ultra .bom-field-val-sm{
     font-size:6.8px;
+    font-weight:400;
+    color:#475569;
     line-height:1.15;
   }
   .bom-density-ultra .bom-th{
     font-size:6.2px;
+    font-weight:700;
+    color:#0f172a;
   }
   .bom-density-ultra .bom-td{
     font-size:7.8px;
+    font-weight:400;
+    color:#334155;
   }
   .bom-density-ultra .bom-struct-list{
     gap:3.2px;
@@ -3086,27 +3124,37 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   .bom-density-micro .bom-db-lbl,
   .bom-density-micro .bom-struct-lbl,
   .bom-density-micro .bom-cable-type{
-    font-size:5.8px;
+    font-size:6px;
     letter-spacing:0.1px;
+    font-weight:700;
+    color:#0f172a;
   }
   .bom-density-micro .bom-field-val,
   .bom-density-micro .bom-db-v,
   .bom-density-micro .bom-struct-v,
   .bom-density-micro .bom-cable-make{
     font-size:7px;
+    font-weight:400;
+    color:#334155;
     line-height:1.15;
   }
   .bom-density-micro .bom-cable-qty,
   .bom-density-micro .bom-cable-spec,
   .bom-density-micro .bom-field-val-sm{
     font-size:6px;
+    font-weight:400;
+    color:#475569;
     line-height:1.1;
   }
   .bom-density-micro .bom-th{
     font-size:5.5px;
+    font-weight:700;
+    color:#0f172a;
   }
   .bom-density-micro .bom-td{
     font-size:6.8px;
+    font-weight:400;
+    color:#334155;
   }
   .bom-density-micro .bom-struct-list{
     gap:2.2px;

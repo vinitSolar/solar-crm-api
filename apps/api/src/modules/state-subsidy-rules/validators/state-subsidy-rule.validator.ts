@@ -2,6 +2,12 @@ import { z } from "zod";
 import { STATE_SUBSIDY_RULE_MESSAGES } from "../constants/state-subsidy-rule.constants.js";
 import type { Request, Response, NextFunction } from "express";
 
+export const categoryRateSchema = z.object({
+    categories: z.array(z.number().int().min(1).max(4)).min(1, "At least one category is required per rate slab"),
+    subsidyPerKw: z.number().min(0, "Subsidy per kW must be a non-negative number"),
+    maximumSubsidyAmount: z.number().min(0, "Maximum subsidy amount must be a non-negative number"),
+});
+
 /**
  * Schema for creating a state subsidy rule.
  */
@@ -20,6 +26,12 @@ export const createStateSubsidyRuleSchema = z.object({
             message: STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID,
         }).min(0, STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID),
         description: z.string().optional().nullable(),
+        categories: z.array(z.number().int().min(1).max(4), {
+            message: "Category is required",
+        }).min(1, "At least one category is required"),
+        categoryRates: z.array(categoryRateSchema).optional(),
+        calculationType: z.string().optional(),
+        calculationConfig: z.any().optional(),
         documentTypeUids: z.array(z.string().min(1, "Document type UID cannot be empty")).optional(),
     }),
 });
@@ -34,6 +46,10 @@ export const updateStateSubsidyRuleSchema = z.object({
         subsidyPerKw: z.number().min(0, STATE_SUBSIDY_RULE_MESSAGES.SUBSIDY_PER_KW_INVALID).optional(),
         maximumSubsidyAmount: z.number().min(0, STATE_SUBSIDY_RULE_MESSAGES.MAXIMUM_SUBSIDY_AMOUNT_INVALID).optional(),
         description: z.string().optional().nullable(),
+        categories: z.array(z.number().int().min(1).max(4)).min(1, "At least one category is required").optional(),
+        categoryRates: z.array(categoryRateSchema).optional(),
+        calculationType: z.string().optional(),
+        calculationConfig: z.any().optional(),
         isActive: z.boolean().optional(),
         documentTypeUids: z.array(z.string().min(1, "Document type UID cannot be empty")).optional(),
     }).refine((data) => Object.keys(data).length > 0, {

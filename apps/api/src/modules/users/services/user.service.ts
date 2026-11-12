@@ -29,12 +29,12 @@ export class UserService {
     }
 
     async getAllUsersByTenant(tenantUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<UserDTO[]> {
-        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale, true);
+        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale, true, true);
         return users.map(toUserDTO);
     }
 
     async getUsersForDropdown(tenantUid: string, currentUserUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<UserDTO[]> {
-        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale, false);
+        const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale, false, false);
         const dtos = users.map(toUserDTO);
         
         const hasCapabilityFilter = canSiteSurvey === 1 || canInstallation === 1 || canSale === 1;
@@ -47,7 +47,7 @@ export class UserService {
             currentUser.firstName = "My Self";
             currentUser.lastName = "";
             dtos.unshift(currentUser);
-        } else if (!hasCapabilityFilter) {
+        } else {
             const currentUser = await this.userRepository.getUserByUid(currentUserUid, tenantUid);
             if (currentUser) {
                 const currentUserDto = toUserDTO(currentUser);
@@ -65,7 +65,44 @@ export class UserService {
         if (!user) {
             throw new CustomError(USER_MESSAGES.NOT_FOUND, 404);
         }
-        return toUserDTO(user);
+        const assignments = await this.userRepository.getActiveAssignmentsCount(uid, tenantUid);
+        const dto = toUserDTO(user);
+        dto.activeLeadsCount = assignments.activeLeads;
+        dto.activeProjectsCount = assignments.activeProjects;
+        return dto;
+    }
+
+    async getActiveAssignments(uid: string, tenantUid: string): Promise<{ activeLeads: number; activeProjects: number }> {
+        const existingUser = await this.userRepository.getUserByUid(uid, tenantUid);
+        if (!existingUser) {
+            throw new CustomError(USER_MESSAGES.NOT_FOUND, 404);
+        }
+        return this.userRepository.getActiveAssignmentsCount(uid, tenantUid);
+    }
+
+    private buildActiveAssignmentsErrorMessage(activeLeads: number, activeProjects: number, action: "deactivate" | "delete" = "deactivate"): string {
+        const parts: string[] = [];
+        if (activeLeads > 0) {
+            parts.push(`${activeLeads} active lead${activeLeads > 1 ? "s" : ""}`);
+        }
+        if (activeProjects > 0) {
+            parts.push(`${activeProjects} active project${activeProjects > 1 ? "s" : ""}`);
+        }
+        const assignedText = parts.join(" and ");
+        return action === "deactivate"
+            ? USER_MESSAGES.CANNOT_DEACTIVATE_ACTIVE_ASSIGNMENTS(assignedText)
+            : USER_MESSAGES.CANNOT_DELETE_ACTIVE_ASSIGNMENTS(assignedText);
+    }
+
+    private async throwIfHasActiveAssignments(uid: string, tenantUid: string, action: "deactivate" | "delete"): Promise<void> {
+        const assignments = await this.userRepository.getActiveAssignmentsCount(uid, tenantUid);
+        if (assignments.activeLeads > 0 || assignments.activeProjects > 0) {
+            const message = this.buildActiveAssignmentsErrorMessage(assignments.activeLeads, assignments.activeProjects, action);
+            throw new CustomError(message, 400, [
+                ...(assignments.activeLeads > 0 ? [{ field: "leads", message: USER_MESSAGES.ACTIVE_LEADS_ASSIGNED_FIELD(assignments.activeLeads) }] : []),
+                ...(assignments.activeProjects > 0 ? [{ field: "projects", message: USER_MESSAGES.ACTIVE_PROJECTS_ASSIGNED_FIELD(assignments.activeProjects) }] : []),
+            ]);
+        }
     }
 
     async createUser(tenantUid: string, data: ICreateUserRequest, createdBy: string): Promise<UserDTO> {
@@ -101,6 +138,11 @@ export class UserService {
             }
         }
 
+        // Validate active assignments before allowing deactivation
+        if (existingUser.isActive !== 0 && data.isActive !== undefined && Number(data.isActive) === 0) {
+            await this.throwIfHasActiveAssignments(uid, tenantUid, "deactivate");
+        }
+
         let payload = { ...data };
         if (payload.password) {
             payload.password = await bcrypt.hash(payload.password, SALT_ROUNDS);
@@ -127,6 +169,8 @@ export class UserService {
         if (existingUser.isOwner === 1) {
             throw new CustomError(USER_MESSAGES.OWNER_USER_DELETE_ERROR, 400);
         }
+
+        await this.throwIfHasActiveAssignments(uid, tenantUid, "delete");
 
         const success = await this.userRepository.softDeleteUser(uid, tenantUid, deletedBy);
         if (!success) {

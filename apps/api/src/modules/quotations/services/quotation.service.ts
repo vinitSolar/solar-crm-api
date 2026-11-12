@@ -207,8 +207,13 @@ export class QuotationService {
             if ((!subsidyData || subsidyData.length === 0) && systemSize > 0) {
                 const rules = await this.repository.getActiveSubsidyRulesForState(lead?.state || null);
                 const leadCategory = (lead as any)?.category || 1;
-                const centralRule = rules.find(r => !r.stateUid || r.stateUid === "All" || (r.schemeName || "").toLowerCase().includes("surya"));
-                const stateRule = rules.find(r => r !== centralRule);
+                const centralRule = rules.find(r => {
+                    const name = (r.schemeName || "").toLowerCase();
+                    return !r.stateUid || r.stateUid === "All" || (name.includes("surya") && name.includes("ghar"));
+                });
+                const stateRule = lead?.state
+                    ? rules.find(r => r !== centralRule && Boolean(r.stateUid) && r.stateUid !== "All")
+                    : undefined;
 
                 const calculatedItems: Array<{ uid: string; name: string; amount: number; description?: string }> = [];
 
@@ -252,8 +257,9 @@ export class QuotationService {
                 subsidyData = calculatedItems;
             }
             if (subsidyData !== undefined) {
-                payload.subsidyData = subsidyData;
-                const totalSub = subsidyData.reduce((acc: number, item: any) => acc + (Number(item.amount) || 0), 0);
+                const positiveSubsidies = subsidyData.filter((item: any) => Number(item?.amount) > 0);
+                payload.subsidyData = positiveSubsidies;
+                const totalSub = positiveSubsidies.reduce((acc: number, item: any) => acc + (Number(item.amount) || 0), 0);
                 if (payload.netCustomerCost === undefined || payload.netCustomerCost === 0) {
                     payload.netCustomerCost = Math.max(0, payload.grandTotal - totalSub);
                 }
@@ -535,7 +541,9 @@ export class QuotationService {
             if (data.gstAmount !== undefined) updatePayload.gstAmount = data.gstAmount;
             if (data.grandTotal !== undefined) updatePayload.grandTotal = data.grandTotal;
             if (data.discount !== undefined) updatePayload.discount = data.discount;
-            if (data.subsidyData !== undefined) updatePayload.subsidyData = data.subsidyData;
+            if (data.subsidyData !== undefined) {
+                updatePayload.subsidyData = data.subsidyData.filter((item: any) => Number(item?.amount) > 0);
+            }
             if (data.netCustomerCost !== undefined) updatePayload.netCustomerCost = data.netCustomerCost;
             if (data.extra !== undefined) updatePayload.extra = data.extra;
             if (data.systemSize !== undefined) updatePayload.systemSize = data.systemSize;
@@ -1043,7 +1051,9 @@ export class QuotationService {
                 };
             }));
 
-            const showSubsidy = quotation.subsidyData && quotation.subsidyData.length > 0;
+            const activeSubsidyData = (Array.isArray(quotation.subsidyData) ? quotation.subsidyData : [])
+                .filter((item: any) => Number(item?.amount) > 0);
+            const showSubsidy = activeSubsidyData.length > 0;
             const systemSize = Number(quotation.systemSize);
 
             // Status text mapping
@@ -1103,7 +1113,7 @@ export class QuotationService {
                 scopeOfWork: scopeOfWork.map(s => ({ title: s.title, value: s.value })),
                 termsConditions: termsConditions.map(t => ({ title: t.title, description: t.description })),
                 subsidy: {
-                    subsidyData: quotation.subsidyData as Array<{ uid: string; name: string; amount: number }>,
+                    subsidyData: activeSubsidyData as Array<{ uid: string; name: string; amount: number }>,
                     netCustomerCost: quotation.netCustomerCost,
                     showSubsidy
                 }

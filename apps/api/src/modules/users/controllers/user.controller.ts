@@ -123,6 +123,24 @@ export class UserController {
         }
     };
 
+    getActiveAssignments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const uid = req.params.uid as string;
+            logger.info("UserController.getActiveAssignments", { uid, tenantUid: authReq.tenantUid });
+
+            const assignments = await this.userService.getActiveAssignments(uid, authReq.tenantUid);
+
+            res.status(200).json({
+                success: true,
+                message: USER_MESSAGES.ACTIVE_ASSIGNMENTS_FETCHED_SUCCESS,
+                data: assignments,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     createUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;

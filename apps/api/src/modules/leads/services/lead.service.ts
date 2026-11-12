@@ -83,7 +83,17 @@ export class LeadService {
             }
         }
 
+        const isQuickLead = Boolean(
+            data.isQuickLead === true ||
+            data.isQuickLead === 1 ||
+            (data as any).isQuickLead === "true" ||
+            (data as any).isQuickLead === "1" ||
+            (data as any).is_quick_lead === true ||
+            (data as any).is_quick_lead === 1
+        );
+
         const isDraft = Boolean(
+            isQuickLead ||
             data.isDraft === true ||
             data.isDraft === 1 ||
             (data as any).isDraft === "true" ||
@@ -99,6 +109,15 @@ export class LeadService {
             ((data as any).status && String((data as any).status).trim().toLowerCase() === "draft") ||
             ((data as any).statusName && String((data as any).statusName).trim().toLowerCase() === "draft")
         );
+
+        // For Quick Leads / drafts, if leadSourceUid is missing, fallback to default or first active source
+        if (!data.leadSourceUid) {
+            const allSources = await this.sourceRepository.getAll(tenantUid, "active");
+            const defaultSource = allSources.find((s) => s.isDefault === 1) || allSources[0];
+            if (defaultSource) {
+                data.leadSourceUid = defaultSource.uid;
+            }
+        }
 
         let finalStatusUid: string;
 
@@ -132,7 +151,12 @@ export class LeadService {
                 nextLeadNumber = `SS${String(nextNum).padStart(5, "0")}`;
             }
 
-            const createData = { ...data, statusUid: finalStatusUid, leadNumber: nextLeadNumber };
+            const createData = {
+                ...data,
+                statusUid: finalStatusUid,
+                leadNumber: nextLeadNumber,
+                isQuickLead: isQuickLead ? 1 : 0,
+            };
             const lead = await this.repository.create(tenantUid, createData, createdBy);
             
             if (data.remarks) {
@@ -265,6 +289,13 @@ export class LeadService {
             pagination: {
                 nextCursor,
                 hasMore: result.hasMore,
+                ...(cursorData
+                    ? {}
+                    : {
+                          total: result.total,
+                          allCount: result.allCount,
+                          statusCounts: result.statusCounts,
+                      }),
             },
         };
     }
@@ -324,6 +355,8 @@ export class LeadService {
                 throw new CustomError("No draft lead status found", 400);
             }
             data.statusUid = draftStatus.uid;
+        } else if (existing.isQuickLead === 1) {
+            data.isQuickLead = 0;
         }
 
         let newStatusName: string | undefined;
@@ -333,11 +366,27 @@ export class LeadService {
             newStatusName = leadStatus.name;
         }
 
-        const isReassigned = Boolean(data.assignedTo && data.assignedTo !== existing.assignedTo);
+        const previousAssignedTo = existing.assignedTo ? String(existing.assignedTo).trim() : null;
+        if (typeof data.assignedTo === "string") {
+            data.assignedTo = data.assignedTo.trim() || null;
+        }
+        const nextAssignedTo = data.assignedTo !== undefined ? (data.assignedTo ?? null) : previousAssignedTo;
+        const isReassigned = Boolean(
+            nextAssignedTo &&
+            (!previousAssignedTo || nextAssignedTo.toLowerCase() !== previousAssignedTo.toLowerCase())
+        );
+        const wasDraftOrQuickLead = Boolean(existing.statusIsDraft === 1 || existing.isQuickLead === 1);
+        const shouldNotifyInitialDraftAssignment = Boolean(
+            !isReassigned &&
+            wasDraftOrQuickLead &&
+            !isDraft &&
+            nextAssignedTo
+        );
+        const shouldSendAssignedNotification = isReassigned || shouldNotifyInitialDraftAssignment;
         const isStatusChanged = Boolean(data.statusUid && data.statusUid !== existing.statusUid);
 
-        if (isReassigned && data.assignedTo) {
-            const user = await this.userRepository.getUserByUid(data.assignedTo, tenantUid);
+        if (isReassigned && nextAssignedTo) {
+            const user = await this.userRepository.getUserByUid(nextAssignedTo, tenantUid);
             if (!user) {
                 throw new CustomError(LEAD_MESSAGES.VALIDATION_FAILED, 400, [
                     {
@@ -388,8 +437,8 @@ export class LeadService {
                 updated.remarks = data.remarks || null;
             }
 
-            // Real-time Push Notification to newly assigned mobile user (Android / iOS)
-            if (isReassigned && updated.assignedTo) {
+            // Real-time Push Notification to newly assigned mobile user (or un-notified draft/quick lead assignee)
+            if (shouldSendAssignedNotification && updated.assignedTo) {
                 this.sendLeadAssignedPushNotification(tenantUid, updated, updated.assignedTo, updatedBy).catch(err => {
                     logger.error("Failed to trigger lead reassignment push notification:", err);
                 });
@@ -403,7 +452,7 @@ export class LeadService {
             }
 
             // FCM Push Notification to assigned user for lead update (if not a draft)
-            if (updated.assignedTo && !updated.statusIsDraft && !isReassigned && !isStatusChanged) {
+            if (updated.assignedTo && !updated.statusIsDraft && !shouldSendAssignedNotification && !isStatusChanged) {
                 this.sendLeadUpdatedPushNotification(tenantUid, updated, updated.assignedTo, updatedBy).catch(err => {
                     logger.error("Failed to trigger lead update push notification:", err);
                 });
@@ -437,8 +486,42 @@ export class LeadService {
         const leadStatus = await this.statusRepository.getByUid(tenantUid, statusUid);
         if (!leadStatus) throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 400);
 
+        // Restriction: Without completing all 4 required creation steps, status cannot be changed to non-draft
+        const isTargetDraft = leadStatus.isDraft === 1 || String(leadStatus.name).trim().toLowerCase() === "draft";
+        if (!isTargetDraft) {
+            const missing: string[] = [];
+            if (!existing.firstName || existing.firstName.trim().length < 2) missing.push("First Name");
+            const cleanPhone = (existing.mobileNumber || "").replace(/\D/g, "").slice(-10);
+            if (!/^[6-9][0-9]{9}$/.test(cleanPhone)) missing.push("10-digit Mobile Number");
+            if (!existing.leadSourceUid) missing.push("Lead Source");
+            if (!existing.address || existing.address.trim().length < 3) missing.push("Address (min 3 chars)");
+            const pin = (existing.pinCode || "").trim();
+            if (!/^[1-9][0-9]{5}$/.test(pin) || pin === "000000") missing.push("Valid 6-digit Pin Code");
+            if (!existing.state || !existing.state.trim()) missing.push("State");
+            if (!existing.city || !existing.city.trim()) missing.push("City");
+            const bill = Number(existing.monthlyBillAmount);
+            if (existing.monthlyBillAmount === null || existing.monthlyBillAmount === undefined || isNaN(bill) || bill < 0) missing.push("Monthly Bill Amount");
+            const size = Number(existing.systemSize);
+            if (existing.systemSize === null || existing.systemSize === undefined || isNaN(size) || size <= 0) missing.push("Recommended System Size");
+            if (!existing.followUpDate) missing.push("Follow-up Date");
+            if (!existing.assignedTo) missing.push("Assigned Salesperson");
+
+            if (missing.length > 0) {
+                throw new CustomError(
+                    `Cannot change status. Please complete all required lead creation fields (4 steps) first: ${missing.join(", ")}`,
+                    400,
+                    missing.map(f => ({ field: f, message: `${f} is required` }))
+                );
+            }
+        }
+
         try {
-            const updated = await this.repository.update(tenantUid, uid, { statusUid }, updatedBy);
+            const updatePayload: any = { statusUid };
+            if (existing.isQuickLead === 1 && !isTargetDraft) {
+                updatePayload.isQuickLead = 0;
+            }
+
+            const updated = await this.repository.update(tenantUid, uid, updatePayload, updatedBy);
             if (!updated) {
                 throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
             }

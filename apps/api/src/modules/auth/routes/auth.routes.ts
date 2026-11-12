@@ -89,7 +89,7 @@ function createAuthRouter(): Router {
      *                       type: string
      *                     expiresIn:
      *                       type: string
-     *                       example: 15m
+     *                       example: 7d
      *       400:
      *         description: Validation failed
      *         content:
@@ -150,7 +150,7 @@ function createAuthRouter(): Router {
      *                       type: string
      *                     expiresIn:
      *                       type: string
-     *                       example: 15m
+     *                       example: 7d
      *       400:
      *         description: Validation failed
      *         content:

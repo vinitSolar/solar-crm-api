@@ -236,6 +236,8 @@ export class ProjectService {
                 page,
                 limit,
                 totalPages: Math.ceil(result.total / limit),
+                allCount: result.allCount,
+                statusCounts: result.statusCounts,
             },
         };
     }

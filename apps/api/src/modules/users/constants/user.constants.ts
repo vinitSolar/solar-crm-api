@@ -2,6 +2,7 @@ export const USER_MESSAGES = {
     FETCHED_SUCCESS: "Users fetched successfully",
     FETCHED_ALL_SUCCESS: "All users fetched successfully",
     FETCHED_ONE_SUCCESS: "User fetched successfully",
+    ACTIVE_ASSIGNMENTS_FETCHED_SUCCESS: "Active assignments fetched successfully",
     CREATED_SUCCESS: "User created successfully",
     UPDATED_SUCCESS: "User updated successfully",
     DELETED_SUCCESS: "User deleted successfully",
@@ -24,4 +25,12 @@ export const USER_MESSAGES = {
     LAST_NAME_MAX_LENGTH: "Last name must be at most 100 characters",
     INVALID_EMAIL: "Invalid email format",
     PASSWORD_MIN_LENGTH: "Password must be at least 8 characters",
+    CANNOT_DEACTIVATE_ACTIVE_ASSIGNMENTS: (assignedText: string) =>
+        `Cannot deactivate user. This user has ${assignedText} assigned. Please complete, close, or reassign them before deactivating this user.`,
+    CANNOT_DELETE_ACTIVE_ASSIGNMENTS: (assignedText: string) =>
+        `Cannot delete user. This user has ${assignedText} assigned. Please complete, close, or reassign them before deleting this user.`,
+    ACTIVE_LEADS_ASSIGNED_FIELD: (count: number) =>
+        `User has ${count} active lead${count > 1 ? "s" : ""} assigned`,
+    ACTIVE_PROJECTS_ASSIGNED_FIELD: (count: number) =>
+        `User has ${count} active project${count > 1 ? "s" : ""} assigned`,
 } as const;

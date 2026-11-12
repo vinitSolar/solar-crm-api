@@ -53,7 +53,8 @@ export const updateLeadStatusSchema = z.object({
 
 /** Helper to check if isDraft flag is truthy from various input types and query params */
 function isDraftTrue(body: Record<string, unknown>, query?: Record<string, unknown>): boolean {
-    const val = body.isDraft ?? body.is_draft ?? body.draft ?? query?.isDraft ?? query?.is_draft ?? query?.draft;
+    const val = body.isDraft ?? body.is_draft ?? body.draft ?? body.isQuickLead ?? body.is_quick_lead
+        ?? query?.isDraft ?? query?.is_draft ?? query?.draft ?? query?.isQuickLead ?? query?.is_quick_lead;
     if (val === true || val === 1 || val === "true" || val === "1") {
         return true;
     }
@@ -69,31 +70,33 @@ function isDraftTrue(body: Record<string, unknown>, query?: Record<string, unkno
 
 /** Base shape for lead body — all fields optional at the Zod level; required-ness enforced via superRefine */
 const leadBodyBase = {
-    name: z.string().optional(),
-    firstName: z.string().min(2, "First name must be at least 2 characters").optional(),
-    lastName: z.string().min(1, "Last name is required").optional(),
-    mobileNumber: z.string().min(10, "Mobile number must be at least 10 characters").optional(),
-    alternateNumber: z.string().optional(),
-    email: z.string().email("Invalid email format").optional().or(z.literal("")),
-    address: z.string().min(1, "Address is required").optional(),
-    landmark: z.string().optional(),
-    locality: z.string().optional(),
-    state: z.string().min(2, "State is required").optional(),
-    city: z.string().min(2, "City is required").optional(),
-    pinCode: z.string().min(1, "Pin code is required").optional(),
-    monthlyBillAmount: z.number().optional(),
-    systemSize: z.number().min(0, "System size must be a positive number").optional(),
-    followUpDate: z.string().optional(),
-    leadSourceUid: z.string().uuid("Invalid lead source UID format").optional(),
-    statusUid: z.string().uuid("Invalid lead status UID format").optional(),
-    status: z.string().optional(),
-    statusName: z.string().optional(),
+    name: z.string().optional().nullable().or(z.literal("")),
+    firstName: z.string().optional().nullable().or(z.literal("")),
+    lastName: z.string().optional().nullable().or(z.literal("")),
+    mobileNumber: z.string().optional().nullable().or(z.literal("")),
+    alternateNumber: z.string().optional().nullable().or(z.literal("")),
+    email: z.string().email("Invalid email format").optional().nullable().or(z.literal("")),
+    address: z.string().optional().nullable().or(z.literal("")),
+    landmark: z.string().optional().nullable().or(z.literal("")),
+    locality: z.string().optional().nullable().or(z.literal("")),
+    state: z.string().optional().nullable().or(z.literal("")),
+    city: z.string().optional().nullable().or(z.literal("")),
+    pinCode: z.string().optional().nullable().or(z.literal("")),
+    monthlyBillAmount: z.number().optional().nullable(),
+    systemSize: z.number().min(0, "System size must be a positive number").optional().nullable(),
+    followUpDate: z.string().optional().nullable().or(z.literal("")),
+    leadSourceUid: z.string().uuid("Invalid lead source UID format").optional().nullable().or(z.literal("")),
+    statusUid: z.string().uuid("Invalid lead status UID format").optional().nullable().or(z.literal("")),
+    status: z.string().optional().nullable().or(z.literal("")),
+    statusName: z.string().optional().nullable().or(z.literal("")),
     assignedTo: z.string().uuid("Invalid user UID format").optional().nullable().or(z.literal("")),
-    remarks: z.string().optional(),
+    remarks: z.string().optional().nullable().or(z.literal("")),
     draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     isDraft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
-    category: z.coerce.number().int().min(1).max(4).optional(),
+    isQuickLead: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+    is_quick_lead: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+    category: z.coerce.number().int().min(1).max(4).optional().nullable(),
 };
 
 /** Fields that are required when isDraft is false (normal lead creation) */

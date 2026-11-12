@@ -481,8 +481,11 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
   }
 
   let subsidyRowsHtml = "";
-  if (subsidy && subsidy.showSubsidy) {
-    subsidyRowsHtml = subsidy.subsidyData.map(sub => `
+  const activeSubsidiesV2 = (subsidy && subsidy.showSubsidy && Array.isArray(subsidy.subsidyData))
+    ? subsidy.subsidyData.filter(sub => Number(sub?.amount) > 0)
+    : [];
+  if (subsidy && activeSubsidiesV2.length > 0) {
+    subsidyRowsHtml = activeSubsidiesV2.map(sub => `
         <tr class="calc-row subsidy-row">
             <td colspan="4" class="calc-blank"></td>
             <td colspan="3" class="calc-label">Less: ${sub.name}</td>

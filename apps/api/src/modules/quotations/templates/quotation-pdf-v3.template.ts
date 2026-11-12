@@ -723,15 +723,19 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     isBold: true
   });
 
-  // 6. Subsidy: only subsidy name
+  // 6. Subsidy: only subsidy name (omit 0 / non-applicable subsidies)
   let subsidyAmount = 0;
-  if (subsidy && subsidy.showSubsidy && subsidy.subsidyData && subsidy.subsidyData.length > 0) {
-    subsidy.subsidyData.forEach(sub => {
-      subsidyAmount += sub.amount;
+  const activeSubsidies = (subsidy && subsidy.showSubsidy && Array.isArray(subsidy.subsidyData))
+    ? subsidy.subsidyData.filter(sub => Number(sub?.amount) > 0)
+    : [];
+  if (activeSubsidies.length > 0) {
+    activeSubsidies.forEach(sub => {
+      const amount = Number(sub.amount);
+      subsidyAmount += amount;
       pricingRows.push({
         description: sub.name || 'Subsidy',
-        amount: sub.amount > 0 ? `- ${formatPrice(sub.amount)}` : '0',
-        isNegative: sub.amount > 0
+        amount: `- ${formatPrice(amount)}`,
+        isNegative: true
       });
     });
   } else {

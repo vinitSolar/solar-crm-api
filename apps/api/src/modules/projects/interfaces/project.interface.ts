@@ -135,6 +135,8 @@ export interface IPaginatedResponse<T> {
         page: number;
         limit: number;
         totalPages: number;
+        allCount?: number;
+        statusCounts?: Record<string, number>;
     };
 }
 

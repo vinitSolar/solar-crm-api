@@ -136,37 +136,32 @@ export class ProjectRepository {
         search?: string,
         status: "active" | "deleted" | "all" = "active",
         filters?: { projectStatusUid?: string; projectManagerUid?: string; startDate?: string; endDate?: string }
-    ): Promise<{ rows: IProject[]; total: number }> {
-        const params: any[] = [tenantUid];
-        let whereClause = "p.tenant_uid::varchar = $1";
+    ): Promise<{ rows: IProject[]; total: number; allCount: number; statusCounts: Record<string, number> }> {
+        const baseParams: any[] = [tenantUid];
+        let baseWhereClause = "p.tenant_uid::varchar = $1";
 
-        if (status === "active") whereClause += " AND p.is_deleted = 0";
-        else if (status === "deleted") whereClause += " AND p.is_deleted = 1";
+        if (status === "active") baseWhereClause += " AND p.is_deleted = 0";
+        else if (status === "deleted") baseWhereClause += " AND p.is_deleted = 1";
 
-        if (filters?.projectStatusUid) {
-            params.push(filters.projectStatusUid);
-            whereClause += ` AND p.project_status_uid::varchar = $${params.length}`;
-        }
-        
         if (filters?.projectManagerUid) {
-            params.push(filters.projectManagerUid);
-            whereClause += ` AND p.project_manager_uid::varchar = $${params.length}`;
+            baseParams.push(filters.projectManagerUid);
+            baseWhereClause += ` AND p.project_manager_uid::varchar = $${baseParams.length}`;
         }
 
         if (filters?.startDate) {
-            params.push(filters.startDate);
-            whereClause += ` AND p.project_date >= $${params.length}`;
+            baseParams.push(filters.startDate);
+            baseWhereClause += ` AND p.project_date >= $${baseParams.length}`;
         }
 
         if (filters?.endDate) {
-            params.push(filters.endDate);
-            whereClause += ` AND p.project_date <= $${params.length}`;
+            baseParams.push(filters.endDate);
+            baseWhereClause += ` AND p.project_date <= $${baseParams.length}`;
         }
 
         if (search) {
-            params.push(`%${search}%`);
-            const searchIndex = params.length;
-            whereClause += ` AND (
+            baseParams.push(`%${search}%`);
+            const searchIndex = baseParams.length;
+            baseWhereClause += ` AND (
                 p.project_number ILIKE $${searchIndex} OR
                 p.project_name ILIKE $${searchIndex} OR 
                 l.first_name ILIKE $${searchIndex} OR
@@ -176,15 +171,22 @@ export class ProjectRepository {
             )`;
         }
 
-        const countQuery = `
-            SELECT COUNT(*) FROM projects p
+        const params: any[] = [...baseParams];
+        let whereClause = baseWhereClause;
+
+        if (filters?.projectStatusUid) {
+            params.push(filters.projectStatusUid);
+            whereClause += ` AND p.project_status_uid::varchar = $${params.length}`;
+        }
+
+        const statusCountsQuery = `
+            SELECT p.project_status_uid::varchar AS "statusUid", COUNT(*)::int AS cnt
+            FROM projects p
             LEFT JOIN users u ON p.project_manager_uid::varchar = u.uid
             LEFT JOIN leads l ON p.lead_uid::varchar = l.uid
-            WHERE ${whereClause}
+            WHERE ${baseWhereClause}
+            GROUP BY p.project_status_uid
         `;
-
-        const countResult = await this.pool.query(countQuery, params);
-        const total = parseInt(countResult.rows[0].count, 10);
 
         const offset = (page - 1) * limit;
         params.push(limit, offset);
@@ -202,9 +204,23 @@ export class ProjectRepository {
             LIMIT $${params.length - 1} OFFSET $${params.length}
         `;
 
-        const result = await this.pool.query(dataQuery, params);
+        const [countsResult, result] = await Promise.all([
+            this.pool.query(statusCountsQuery, baseParams),
+            this.pool.query(dataQuery, params),
+        ]);
 
-        return { rows: result.rows as IProject[], total };
+        const statusCounts: Record<string, number> = {};
+        let allCount = 0;
+        for (const row of countsResult.rows) {
+            const count = Number(row.cnt) || 0;
+            if (row.statusUid) {
+                statusCounts[String(row.statusUid)] = count;
+            }
+            allCount += count;
+        }
+        const total = filters?.projectStatusUid ? (statusCounts[filters.projectStatusUid] ?? 0) : allCount;
+
+        return { rows: result.rows as IProject[], total, allCount, statusCounts };
     }
 
     async update(tenantUid: string, uid: string, data: IUpdateProject, updatedBy: string): Promise<IProject | null> {

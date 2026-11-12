@@ -237,14 +237,14 @@ export class AuthService {
     }
 
     /**
-     * Helper to parse JWT expiresIn strings (like "7d") to a future Date object.
+     * Helper to parse JWT expiresIn strings (like "15d") to a future Date object.
      */
     private parseExpiryToDate(expiresIn: string): Date {
         const match = expiresIn.match(/^(\d+)([dhms])$/);
         const date = new Date();
         
         if (!match) {
-            date.setDate(date.getDate() + 7); // Default 7 days
+            date.setDate(date.getDate() + 15); // Default 15 days
             return date;
         }
         
@@ -256,7 +256,7 @@ export class AuthService {
             case 'h': date.setHours(date.getHours() + value); break;
             case 'm': date.setMinutes(date.getMinutes() + value); break;
             case 's': date.setSeconds(date.getSeconds() + value); break;
-            default: date.setDate(date.getDate() + 7);
+            default: date.setDate(date.getDate() + 15);
         }
         
         return date;

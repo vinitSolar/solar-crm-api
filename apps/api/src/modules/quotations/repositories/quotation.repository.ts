@@ -701,6 +701,7 @@ export class QuotationRepository {
             WHERE (
                 ssr.state_uid IS NULL 
                 OR ssr.state_uid = 'All' 
+                OR ($1::text IS NOT NULL AND LOWER(COALESCE(ssr.state_uid::text, '')) = LOWER($1))
                 OR ($1::text IS NOT NULL AND LOWER(COALESCE(s.name, '')) = LOWER($1))
                 OR ($1::text IS NOT NULL AND LOWER(COALESCE(ssr.scheme_name, '')) LIKE '%' || LOWER($1) || '%')
             )

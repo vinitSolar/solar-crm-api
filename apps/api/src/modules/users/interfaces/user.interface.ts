@@ -18,6 +18,8 @@ export interface IUser {
     deletedBy: string | null;
     // Joined fields
     roleName?: string;
+    activeLeadsCount?: number;
+    activeProjectsCount?: number;
 }
 
 export interface ICreateUserRequest {

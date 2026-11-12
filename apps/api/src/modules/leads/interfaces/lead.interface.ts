@@ -81,6 +81,7 @@ export interface ILead {
     deletedBy: string | null;
     finalSystemSize?: number | null;
     category?: number | null;
+    isQuickLead?: number | null;
 }
 
 export interface ILeadFilter {
@@ -95,6 +96,7 @@ export interface ILeadFilter {
     city?: string;
     isActive?: number;
     isDraft?: number;
+    isQuickLead?: number;
 }
 
 export interface ICreateLeadSource {
@@ -120,6 +122,7 @@ export interface ICreateLeadStatus {
 export interface IUpdateLeadStatus extends Partial<ICreateLeadStatus> {
     isActive?: number;
     isDraft?: number;
+    isQuickLead?: number;
 }
 
 export interface ICreateLead {
@@ -140,10 +143,12 @@ export interface ICreateLead {
     followUpDate?: Date | string;
     leadSourceUid?: string;
     statusUid?: string;
-    assignedTo?: string;
+    assignedTo?: string | null;
     remarks?: string;
     isDraft?: boolean | number;
     is_draft?: boolean | number;
+    isQuickLead?: boolean | number;
+    is_quick_lead?: boolean | number;
     category?: number;
 }
 
@@ -180,6 +185,7 @@ export interface ILeadSafe {
     leadStatus?: ILeadStatusSafe | null;
     finalSystemSize?: number | null;
     category?: number | null;
+    isQuickLead?: number | null;
 }
 
 export interface ILeadSourceSafe {
@@ -245,6 +251,9 @@ export interface ICursorPaginationQuery {
 export interface ICursorPaginationMeta {
     nextCursor: string | null;
     hasMore: boolean;
+    total?: number;
+    allCount?: number;
+    statusCounts?: Record<string, number>;
 }
 
 export interface ICursorPaginatedResponse<T> {

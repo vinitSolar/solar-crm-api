@@ -2,6 +2,36 @@ import type { Pool } from "pg";
 import type { IUser, ICreateUserRequest, IUpdateUserRequest, IPaginationQuery } from "../interfaces/user.interface.js";
 import { v4 as uuidv4 } from "uuid";
 
+const ACTIVE_ASSIGNMENTS_SELECT_COLUMNS = `
+    COALESCE(alc.active_leads_count, 0)::int as "activeLeadsCount",
+    COALESCE(apc.active_projects_count, 0)::int as "activeProjectsCount"
+`;
+
+const ACTIVE_ASSIGNMENTS_JOIN_SQL = `
+    LEFT JOIN (
+        SELECT l.assigned_to AS user_uid, COUNT(*)::int AS active_leads_count
+        FROM leads l
+        LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid
+        WHERE l.tenant_uid = $1
+          AND l.assigned_to IS NOT NULL
+          AND l.is_deleted = 0
+          AND COALESCE(l.is_active, 1) = 1
+          AND COALESCE(ls.is_closed, 0) = 0
+        GROUP BY l.assigned_to
+    ) alc ON alc.user_uid = u.uid
+    LEFT JOIN (
+        SELECT p.project_manager_uid::varchar AS user_uid, COUNT(*)::int AS active_projects_count
+        FROM projects p
+        LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid
+        WHERE p.tenant_uid::varchar = $1
+          AND p.project_manager_uid IS NOT NULL
+          AND p.is_deleted = 0
+          AND COALESCE(p.is_active, 1) = 1
+          AND COALESCE(ps.is_closed, 0) = 0
+        GROUP BY p.project_manager_uid::varchar
+    ) apc ON apc.user_uid = u.uid
+`;
+
 export class UserRepository {
     private readonly pool: Pool;
 
@@ -63,9 +93,11 @@ export class UserRepository {
                     u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
                     u.is_deleted as "isDeleted", 
                     u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
-                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"
+                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName",
+                    ${ACTIVE_ASSIGNMENTS_SELECT_COLUMNS}
              FROM users u
              LEFT JOIN roles r ON u.role_uid = r.uid
+             ${ACTIVE_ASSIGNMENTS_JOIN_SQL}
              WHERE ${whereClause}
              ORDER BY u.created_at DESC
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -81,7 +113,8 @@ export class UserRepository {
         canSiteSurvey?: number,
         canInstallation?: number,
         canSale?: number,
-        excludeSpecialRoles: boolean = false
+        excludeSpecialRoles: boolean = false,
+        includeAssignmentCounts: boolean = false
     ): Promise<IUser[]> {
         const params: any[] = [tenantUid];
         const conditions: string[] = [`u.tenant_uid = $1`];
@@ -115,15 +148,19 @@ export class UserRepository {
 
         const whereClause = conditions.join(" AND ");
 
+        const assignmentSelect = includeAssignmentCounts ? `, ${ACTIVE_ASSIGNMENTS_SELECT_COLUMNS}` : "";
+        const assignmentJoin = includeAssignmentCounts ? ACTIVE_ASSIGNMENTS_JOIN_SQL : "";
+
         const result = await this.pool.query(
             `SELECT u.id, u.uid, u.tenant_uid as "tenantUid", u.role_uid as "roleUid", 
                     u.first_name as "firstName", u.last_name as "lastName", u.email, u.password, 
                     u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
                     u.is_deleted as "isDeleted", 
                     u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
-                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"
+                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"${assignmentSelect}
              FROM users u
              LEFT JOIN roles r ON u.role_uid = r.uid
+             ${assignmentJoin}
              WHERE ${whereClause}
              ORDER BY u.created_at DESC`,
             params
@@ -260,5 +297,36 @@ export class UserRepository {
             [updatedBy, uid, tenantUid]
         );
         return (result.rowCount ?? 0) > 0;
+    }
+
+    async getActiveAssignmentsCount(uid: string, tenantUid: string): Promise<{ activeLeads: number; activeProjects: number }> {
+        const leadsResult = await this.pool.query(
+            `SELECT COUNT(*)::int AS count
+             FROM leads l
+             LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid
+             WHERE l.tenant_uid = $1
+               AND l.assigned_to = $2
+               AND l.is_deleted = 0
+               AND COALESCE(l.is_active, 1) = 1
+               AND COALESCE(ls.is_closed, 0) = 0`,
+            [tenantUid, uid]
+        );
+
+        const projectsResult = await this.pool.query(
+            `SELECT COUNT(*)::int AS count
+             FROM projects p
+             LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid
+             WHERE p.tenant_uid::varchar = $1
+               AND p.project_manager_uid::varchar = $2
+               AND p.is_deleted = 0
+               AND COALESCE(p.is_active, 1) = 1
+               AND COALESCE(ps.is_closed, 0) = 0`,
+            [tenantUid, uid]
+        );
+
+        return {
+            activeLeads: leadsResult.rows[0]?.count ? parseInt(leadsResult.rows[0].count, 10) : 0,
+            activeProjects: projectsResult.rows[0]?.count ? parseInt(projectsResult.rows[0].count, 10) : 0,
+        };
     }
 }

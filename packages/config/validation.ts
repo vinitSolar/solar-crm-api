@@ -29,9 +29,9 @@ export const envSchema = z.object({
 
     // JWT
     JWT_SECRET: z.string().min(1, "JWT_SECRET is required"),
-    JWT_EXPIRES_IN: z.string().min(1, "JWT_EXPIRES_IN is required"),
+    JWT_EXPIRES_IN: z.string().min(1, "JWT_EXPIRES_IN is required").default("7d"),
     JWT_REFRESH_SECRET: z.string().min(1, "JWT_REFRESH_SECRET is required"),
-    JWT_REFRESH_EXPIRES_IN: z.string().min(1, "JWT_REFRESH_EXPIRES_IN is required"),
+    JWT_REFRESH_EXPIRES_IN: z.string().min(1, "JWT_REFRESH_EXPIRES_IN is required").default("15d"),
 
     // Redis
     REDIS_HOST: z.string().min(1, "REDIS_HOST is required"),

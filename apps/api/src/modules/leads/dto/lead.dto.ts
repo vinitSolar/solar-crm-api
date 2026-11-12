@@ -37,6 +37,7 @@ export function toLeadSafe(lead: ILead): ILeadSafe {
         createdAt: lead.createdAt,
         finalSystemSize: lead.finalSystemSize ? Number(lead.finalSystemSize) : null,
         category: lead.category !== null && lead.category !== undefined ? Number(lead.category) : 1,
+        isQuickLead: lead.isQuickLead !== null && lead.isQuickLead !== undefined ? Number(lead.isQuickLead) : 0,
         leadSource: lead.leadSourceUid ? {
             uid: lead.leadSourceUid,
             name: lead.sourceName || "",

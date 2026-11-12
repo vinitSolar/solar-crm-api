@@ -48,6 +48,20 @@ export const globalErrorHandler = (
         return;
     }
 
+    if (err.name === "MulterError") {
+        const multerCode = (err as { code?: string }).code;
+        const message =
+            multerCode === "LIMIT_FILE_SIZE"
+                ? "File size exceeds the maximum allowed limit of 10 MB."
+                : err.message || "Unable to process the uploaded file.";
+        res.status(400).json({
+            success: false,
+            message,
+            errors: [],
+        });
+        return;
+    }
+
     // Check if it's an authentication/authorization error
     if (err.message.includes("Invalid") || err.message.includes("failed") || err.message.includes("inactive") || err.message.includes("locked") || err.message.includes("not found")) {
         res.status(401).json({

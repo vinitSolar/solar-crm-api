@@ -349,6 +349,38 @@ function createUserRouter(): Router {
 
     /**
      * @swagger
+     * /users/{uid}/assignments:
+     *   get:
+     *     tags: [Users]
+     *     summary: Get active lead and project assignment counts for a user
+     *     description: Returns the number of active (open) leads and projects currently assigned to the user.
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: uid
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: The user UID
+     *     responses:
+     *       200:
+     *         description: Active assignments fetched successfully
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: User not found
+     */
+    router.get(
+        "/:uid/assignments",
+        authenticate,
+        requirePermission("USERS", "can_view"),
+        validateUserRequest(getUserSchema),
+        userController.getActiveAssignments,
+    );
+
+    /**
+     * @swagger
      * /users:
      *   post:
      *     tags: [Users]

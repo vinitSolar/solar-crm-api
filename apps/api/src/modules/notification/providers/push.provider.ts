@@ -283,7 +283,8 @@ class PushProvider {
                         module: moduleName,
                         referenceUid,
                         amount,
-                        leadNumber
+                        leadNumber,
+                        leadUid: v.lead_uid || ""
                     }
                 };
             }

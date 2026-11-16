@@ -198,4 +198,77 @@ export class LeadController {
             next(error);
         }
     };
+
+    getFollowUps = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const leadUid = (req.params.leadUid || req.params.uid) as string;
+
+            const followUps = await this.service.getFollowUps(tenantUid, leadUid);
+            res.status(200).json({
+                success: true,
+                message: "Follow-ups fetched successfully",
+                data: followUps,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    scheduleFollowUp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const leadUid = (req.params.leadUid || req.params.uid) as string;
+
+            const followUp = await this.service.scheduleFollowUp(tenantUid, leadUid, req.body, userUid);
+            res.status(201).json({
+                success: true,
+                message: "Follow-up scheduled successfully",
+                data: followUp,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    completeFollowUp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const leadUid = (req.params.leadUid || req.params.uid) as string;
+            const notes = req.body.notes;
+
+            const completed = await this.service.completeFollowUp(tenantUid, leadUid, notes, userUid);
+            res.status(200).json({
+                success: true,
+                message: "Follow-up completed successfully",
+                data: completed,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getActiveFollowUps = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const roleUid = authReq.user.roleUid;
+            const assignedTo = req.query.assignedTo as string | undefined;
+
+            const followUps = await this.service.getActiveFollowUps(tenantUid, userUid, roleUid, assignedTo);
+            res.status(200).json({
+                success: true,
+                message: "Active follow-ups fetched successfully",
+                data: followUps,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

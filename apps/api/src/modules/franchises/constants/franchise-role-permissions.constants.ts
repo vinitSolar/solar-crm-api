@@ -130,7 +130,7 @@ export function getDefaultPermissionForFranchiseRole(
 
     switch (roleName) {
         case "Franchise Owner(Admin)": {
-            if (["DASHBOARD", "LEADS", "SURVEYS", "QUOTATIONS", "PROJECTS", "PAYMENTS", "SUBSIDY_TRACKER"].includes(code)) {
+            if (["DASHBOARD", "LEADS", "SURVEYS", "QUOTATIONS", "PROJECTS", "PAYMENTS", "SUBSIDY_TRACKER", "FOLLOW_UPS"].includes(code)) {
                 return { canView: 1, canCreate: 1, canEdit: 1, canDelete: 1, canSetting: 0 };
             }
             if (["USERS", "ROLES"].includes(code)) {
@@ -146,7 +146,7 @@ export function getDefaultPermissionForFranchiseRole(
             if (code === "DASHBOARD" || code === "PROJECTS" || code === "PRODUCTS" || code === "PACKAGES" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
-            if (code === "LEADS" || code === "QUOTATIONS") {
+            if (code === "LEADS" || code === "QUOTATIONS" || code === "FOLLOW_UPS") {
                 return { canView: 1, canCreate: 1, canEdit: 1, canDelete: 0, canSetting: 0 };
             }
             if (code === "SURVEYS" || code === "PAYMENTS") {

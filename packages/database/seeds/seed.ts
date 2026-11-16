@@ -18,6 +18,7 @@ export async function seed(pool: Pool) {
     const defaultMenus = [
         { name: "Dashboard", code: "DASHBOARD", route: "/dashboard", icon: "LayoutDashboard", sortOrder: 1, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
         { name: "Leads", code: "LEADS", route: "/leads", icon: "Users", sortOrder: 10, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
+        { name: "Follow Ups", code: "FOLLOW_UPS", route: "/follow-ups", icon: "CalendarClock", sortOrder: 15, permissions: { view: 1, create: 1, edit: 1, delete: 0, setting: 0 } },
         { name: "Site Surveys", code: "SURVEYS", route: "/surveys", icon: "ClipboardList", sortOrder: 20, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
         { name: "Quotations", code: "QUOTATIONS", route: "/quotations", icon: "FileText", sortOrder: 30, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },
         { name: "Projects", code: "projects", route: "/projects", icon: "Briefcase", sortOrder: 40, permissions: { view: 1, create: 1, edit: 1, delete: 1, setting: 0 } },

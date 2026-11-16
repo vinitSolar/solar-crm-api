@@ -8,6 +8,7 @@ import { connectDatabase } from "@packages/index.js";
 import { connectRedis } from "@packages/redis/index.js";
 import { startNotificationWorker, emailProvider } from "./modules/notification/index.js";
 import { startQuotationWorker } from "./modules/quotations/index.js";
+import { workflowAutomationService } from "./modules/automation/index.js";
 import http from "http";
 
 import app from "./app.js";

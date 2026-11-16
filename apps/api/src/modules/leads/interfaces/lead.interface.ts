@@ -82,6 +82,7 @@ export interface ILead {
     finalSystemSize?: number | null;
     category?: number | null;
     isQuickLead?: number | null;
+    isFollowUp?: number | null;
 }
 
 export interface ILeadFilter {
@@ -97,6 +98,7 @@ export interface ILeadFilter {
     isActive?: number;
     isDraft?: number;
     isQuickLead?: number;
+    isFollowUp?: number;
 }
 
 export interface ICreateLeadSource {
@@ -140,7 +142,7 @@ export interface ICreateLead {
     pinCode: string;
     monthlyBillAmount?: number;
     systemSize: number;
-    followUpDate?: Date | string;
+    followUpDate?: Date | string | null;
     leadSourceUid?: string;
     statusUid?: string;
     assignedTo?: string | null;
@@ -149,6 +151,9 @@ export interface ICreateLead {
     is_draft?: boolean | number;
     isQuickLead?: boolean | number;
     is_quick_lead?: boolean | number;
+    isFollowUp?: boolean | number;
+    is_follow_up?: boolean | number;
+    followUpReason?: string;
     category?: number;
 }
 
@@ -186,6 +191,7 @@ export interface ILeadSafe {
     finalSystemSize?: number | null;
     category?: number | null;
     isQuickLead?: number | null;
+    isFollowUp?: number | null;
 }
 
 export interface ILeadSourceSafe {

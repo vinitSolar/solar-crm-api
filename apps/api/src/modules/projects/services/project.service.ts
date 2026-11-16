@@ -19,6 +19,7 @@ import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constan
 import { logger } from "@packages/logger/index.js";
 import { notificationService } from "../../notification/services/notification.service.js";
 import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
+import { statusEventBus, STATUS_EVENTS } from "../../automation/index.js";
 
 export class ProjectService {
     private readonly repository: ProjectRepository;
@@ -481,6 +482,15 @@ export class ProjectService {
         // Start next milestone if marked as complete
         if (status === 2) {
             hasNext = await this.milestoneRepository.startNextMilestone(tenantUid, projectUid, milestone.sequenceNo, updatedBy);
+
+            // Emit Milestone Updated event for automated status progression (e.g. all milestones complete -> Commissioned)
+            statusEventBus.emitEvent(STATUS_EVENTS.MILESTONE_UPDATED, {
+                tenantUid,
+                actorUid: updatedBy,
+                entityType: "project",
+                entityUid: projectUid,
+                metadata: { milestoneUid, sequenceNo: milestone.sequenceNo, hasNext }
+            });
         }
 
         await this.auditLogService.log({

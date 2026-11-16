@@ -16,7 +16,7 @@ export class UserService {
 
     async getUsersByTenant(tenantUid: string, query: IPaginationQuery): Promise<IUserListResponse> {
         const { users, total } = await this.userRepository.getPaginatedUsers(tenantUid, query);
-        
+
         return {
             users: users.map(toUserDTO),
             meta: {
@@ -36,7 +36,7 @@ export class UserService {
     async getUsersForDropdown(tenantUid: string, currentUserUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<UserDTO[]> {
         const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale, false, false);
         const dtos = users.map(toUserDTO);
-        
+
         const hasCapabilityFilter = canSiteSurvey === 1 || canInstallation === 1 || canSale === 1;
 
         const currentUserIndex = dtos.findIndex(u => u.uid === currentUserUid);
@@ -47,7 +47,7 @@ export class UserService {
             currentUser.firstName = "My Self";
             currentUser.lastName = "";
             dtos.unshift(currentUser);
-        } else {
+        } else if (!hasCapabilityFilter) {
             const currentUser = await this.userRepository.getUserByUid(currentUserUid, tenantUid);
             if (currentUser) {
                 const currentUserDto = toUserDTO(currentUser);
@@ -56,7 +56,7 @@ export class UserService {
                 dtos.unshift(currentUserDto);
             }
         }
-        
+
         return dtos;
     }
 
@@ -115,7 +115,7 @@ export class UserService {
         if (data.password !== null && data.password !== undefined) {
             hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
         }
-        
+
         const payload: ICreateUserRequest = {
             ...data,
             password: hashedPassword
@@ -161,7 +161,7 @@ export class UserService {
         if (!existingUser) {
             throw new CustomError(USER_MESSAGES.NOT_FOUND, 404);
         }
-        
+
         if (existingUser.createdBy === "SYSTEM") {
             throw new CustomError(USER_MESSAGES.SYSTEM_USER_DELETE_ERROR, 400);
         }

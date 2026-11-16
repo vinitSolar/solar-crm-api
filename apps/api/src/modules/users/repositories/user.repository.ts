@@ -94,6 +94,7 @@ export class UserRepository {
                     u.is_deleted as "isDeleted", 
                     u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
                     u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName",
+                    COALESCE(r.can_sale, 0) as "canSale", COALESCE(r.can_site_survey, 0) as "canSiteSurvey", COALESCE(r.can_installation, 0) as "canInstallation",
                     ${ACTIVE_ASSIGNMENTS_SELECT_COLUMNS}
              FROM users u
              LEFT JOIN roles r ON u.role_uid = r.uid
@@ -157,7 +158,8 @@ export class UserRepository {
                     u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
                     u.is_deleted as "isDeleted", 
                     u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
-                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"${assignmentSelect}
+                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName",
+                    COALESCE(r.can_sale, 0) as "canSale", COALESCE(r.can_site_survey, 0) as "canSiteSurvey", COALESCE(r.can_installation, 0) as "canInstallation"${assignmentSelect}
              FROM users u
              LEFT JOIN roles r ON u.role_uid = r.uid
              ${assignmentJoin}
@@ -176,7 +178,8 @@ export class UserRepository {
                     u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
                     u.is_deleted as "isDeleted", 
                     u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
-                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"
+                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName",
+                    COALESCE(r.can_sale, 0) as "canSale", COALESCE(r.can_site_survey, 0) as "canSiteSurvey", COALESCE(r.can_installation, 0) as "canInstallation"
              FROM users u
              LEFT JOIN roles r ON u.role_uid = r.uid
              WHERE u.uid = $1 AND u.tenant_uid = $2`
@@ -185,7 +188,8 @@ export class UserRepository {
                     u.last_login as "lastLogin", u.is_active as "isActive", u.is_owner as "isOwner",
                     u.is_deleted as "isDeleted", 
                     u.created_at as "createdAt", u.updated_at as "updatedAt", u.created_by as "createdBy", 
-                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName"
+                    u.updated_by as "updatedBy", u.deleted_by as "deletedBy", r.name as "roleName",
+                    COALESCE(r.can_sale, 0) as "canSale", COALESCE(r.can_site_survey, 0) as "canSiteSurvey", COALESCE(r.can_installation, 0) as "canInstallation"
              FROM users u
              LEFT JOIN roles r ON u.role_uid = r.uid
              WHERE u.uid = $1`;

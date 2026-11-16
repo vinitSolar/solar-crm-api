@@ -4,12 +4,15 @@ import type { LeadStatusRepository } from "../repositories/lead-status.repositor
 import type { UserRepository } from "../../users/repositories/user.repository.js";
 import type { NoteService } from "../../notes/services/note.service.js";
 import type { RoleRepository } from "../../roles/repositories/role.repository.js";
+import type { FollowUpRepository } from "../repositories/follow-up.repository.js";
+import type { IFollowUp } from "../interfaces/follow-up.interface.js";
 import type { ICreateLead, IUpdateLead, ILeadSafe, IPaginationQuery, IPaginatedResponse, ICursorPaginationQuery, ICursorPaginatedResponse } from "../interfaces/lead.interface.js";
 import { toLeadSafe } from "../dto/lead.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { LEAD_MESSAGES, LEAD_SOURCE_MESSAGES, LEAD_STATUS_MESSAGES } from "../constants/lead.constants.js";
 import { logger } from "@packages/logger/index.js";
 import { notificationService, NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/index.js";
+import { statusEventBus, STATUS_EVENTS } from "../../automation/index.js";
 
 export class LeadService {
     private readonly repository: LeadRepository;
@@ -18,6 +21,7 @@ export class LeadService {
     private readonly userRepository: UserRepository;
     private readonly noteService: NoteService;
     private readonly roleRepository: RoleRepository;
+    private readonly followUpRepository: FollowUpRepository;
 
     constructor(
         repository: LeadRepository,
@@ -25,7 +29,8 @@ export class LeadService {
         statusRepository: LeadStatusRepository,
         userRepository: UserRepository,
         noteService: NoteService,
-        roleRepository: RoleRepository
+        roleRepository: RoleRepository,
+        followUpRepository: FollowUpRepository
     ) {
         this.repository = repository;
         this.sourceRepository = sourceRepository;
@@ -33,6 +38,7 @@ export class LeadService {
         this.userRepository = userRepository;
         this.noteService = noteService;
         this.roleRepository = roleRepository;
+        this.followUpRepository = followUpRepository;
     }
 
     async createLead(tenantUid: string, data: ICreateLead, createdBy: string): Promise<ILeadSafe> {
@@ -151,17 +157,46 @@ export class LeadService {
                 nextLeadNumber = `SS${String(nextNum).padStart(5, "0")}`;
             }
 
+            const isFollowUp = Boolean(
+                data.isFollowUp === true ||
+                data.isFollowUp === 1 ||
+                (data as any).isFollowUp === "true" ||
+                (data as any).isFollowUp === "1" ||
+                (data as any).is_follow_up === true ||
+                (data as any).is_follow_up === 1 ||
+                Boolean(data.followUpDate && String(data.followUpDate).trim().length > 0)
+            );
+
             const createData = {
                 ...data,
                 statusUid: finalStatusUid,
                 leadNumber: nextLeadNumber,
                 isQuickLead: isQuickLead ? 1 : 0,
+                isFollowUp: isFollowUp ? 1 : 0,
+                followUpDate: isFollowUp ? (data.followUpDate || null) : null,
             };
             const lead = await this.repository.create(tenantUid, createData, createdBy);
             
-            if (data.remarks) {
-                await this.noteService.handleIncomingNote(tenantUid, 'lead', lead.uid, data.remarks, createdBy);
-                lead.remarks = data.remarks;
+            const noteContent = (data as any).followUpReason || (data as any).reason || data.remarks;
+            if (noteContent && String(noteContent).trim()) {
+                await this.noteService.handleIncomingNote(tenantUid, 'lead', lead.uid, String(noteContent).trim(), createdBy);
+                lead.remarks = String(noteContent).trim();
+            }
+
+            if (isFollowUp && data.followUpDate) {
+                await this.followUpRepository.create(
+                    tenantUid,
+                    {
+                        leadUid: lead.uid,
+                        followUpDate: data.followUpDate,
+                        notes: (noteContent && String(noteContent).trim()) || null,
+                        status: "scheduled",
+                        assignedTo: lead.assignedTo || null,
+                    },
+                    createdBy
+                ).catch(err => {
+                    logger.error("Failed to create follow_up record:", err);
+                });
             }
 
             // Real-time Push Notification to assigned mobile user (Android / iOS)
@@ -426,15 +461,50 @@ export class LeadService {
         }
 
         try {
-            if (data.remarks !== undefined) {
-                await this.noteService.handleIncomingNote(tenantUid, 'lead', uid, data.remarks, updatedBy);
+            if (data.isFollowUp !== undefined) {
+                data.isFollowUp = (data.isFollowUp === true || data.isFollowUp === 1 || (data as any).isFollowUp === "1") ? 1 : 0;
+            } else if (data.followUpDate !== undefined) {
+                data.isFollowUp = data.followUpDate ? 1 : 0;
             }
+
+            const noteContent = (data as any).followUpReason || (data as any).reason || data.remarks;
+            if (noteContent !== undefined && String(noteContent).trim()) {
+                await this.noteService.handleIncomingNote(tenantUid, 'lead', uid, String(noteContent).trim(), updatedBy);
+                data.remarks = String(noteContent).trim();
+            }
+
             const updated = await this.repository.update(tenantUid, uid, data, updatedBy);
             if (!updated) {
                 throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
             }
-            if (data.remarks !== undefined) {
-                updated.remarks = data.remarks || null;
+            if (noteContent !== undefined && String(noteContent).trim()) {
+                updated.remarks = String(noteContent).trim();
+            }
+
+            // Sync follow_ups table
+            if (data.followUpDate && String(data.followUpDate).trim().length > 0) {
+                await this.followUpRepository.create(
+                    tenantUid,
+                    {
+                        leadUid: uid,
+                        followUpDate: data.followUpDate,
+                        notes: (noteContent !== undefined && String(noteContent).trim()) || updated.remarks || null,
+                        status: "scheduled",
+                        assignedTo: updated.assignedTo || null,
+                    },
+                    updatedBy
+                ).catch(err => {
+                    logger.error("Failed to sync follow_up record on lead update:", err);
+                });
+            } else if (data.isFollowUp === 0 || (data.followUpDate !== undefined && !data.followUpDate)) {
+                await this.followUpRepository.completeFollowUp(
+                    tenantUid,
+                    uid,
+                    (noteContent !== undefined && String(noteContent).trim()) || "Completed",
+                    updatedBy
+                ).catch(err => {
+                    logger.error("Failed to complete follow_up record on lead update:", err);
+                });
             }
 
             // Real-time Push Notification to newly assigned mobile user (or un-notified draft/quick lead assignee)
@@ -503,7 +573,6 @@ export class LeadService {
             if (existing.monthlyBillAmount === null || existing.monthlyBillAmount === undefined || isNaN(bill) || bill < 0) missing.push("Monthly Bill Amount");
             const size = Number(existing.systemSize);
             if (existing.systemSize === null || existing.systemSize === undefined || isNaN(size) || size <= 0) missing.push("Recommended System Size");
-            if (!existing.followUpDate) missing.push("Follow-up Date");
             if (!existing.assignedTo) missing.push("Assigned Salesperson");
 
             if (missing.length > 0) {
@@ -747,5 +816,100 @@ export class LeadService {
         }
     ) {
         return await this.repository.findDuplicates(tenantUid, params);
+    }
+
+    async getFollowUps(tenantUid: string, leadUid: string): Promise<IFollowUp[]> {
+        return this.followUpRepository.getHistoryByLeadUid(tenantUid, leadUid);
+    }
+
+    async scheduleFollowUp(
+        tenantUid: string,
+        leadUid: string,
+        data: { followUpDate: Date | string; notes?: string; assignedTo?: string },
+        userId: string
+    ): Promise<IFollowUp> {
+        const lead = await this.repository.getByUid(tenantUid, leadUid);
+        if (!lead) {
+            throw new CustomError(LEAD_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const followUp = await this.followUpRepository.create(
+            tenantUid,
+            {
+                leadUid,
+                followUpDate: data.followUpDate,
+                notes: data.notes || null,
+                status: "scheduled",
+                assignedTo: data.assignedTo || lead.assignedTo || null,
+            },
+            userId
+        );
+
+        // Also sync lead record for consistency
+        await this.repository.update(
+            tenantUid,
+            leadUid,
+            {
+                followUpDate: data.followUpDate,
+                isFollowUp: 1,
+                remarks: (data.notes || lead.remarks) || "",
+            },
+            userId
+        );
+
+        // Emit Follow-up Scheduled event for automated lead status progression
+        statusEventBus.emitEvent(STATUS_EVENTS.FOLLOWUP_SCHEDULED, {
+            tenantUid,
+            actorUid: userId,
+            entityType: "lead",
+            entityUid: leadUid,
+        });
+
+        return followUp;
+    }
+
+    async completeFollowUp(
+        tenantUid: string,
+        leadUid: string,
+        notes?: string,
+        userId?: string
+    ): Promise<IFollowUp | null> {
+        const lead = await this.repository.getByUid(tenantUid, leadUid);
+        if (!lead) {
+            throw new CustomError(LEAD_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const completed = await this.followUpRepository.completeFollowUp(
+            tenantUid,
+            leadUid,
+            notes,
+            userId
+        );
+
+        // Also sync lead record
+        await this.repository.update(
+            tenantUid,
+            leadUid,
+            {
+                followUpDate: null,
+                isFollowUp: 0,
+            },
+            userId || "SYSTEM"
+        );
+
+        return completed;
+    }
+
+    async getActiveFollowUps(
+        tenantUid: string,
+        userUid: string,
+        roleUid: string,
+        assignedToFilter?: string
+    ): Promise<any[]> {
+        const role = await this.roleRepository.getRoleByUid(roleUid, tenantUid);
+        const showAllLeads = role?.show_all_leads === 1;
+        const assignedTo = showAllLeads ? assignedToFilter : userUid;
+
+        return this.followUpRepository.getActiveFollowUps(tenantUid, assignedTo);
     }
 }

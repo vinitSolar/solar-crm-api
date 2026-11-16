@@ -19,6 +19,7 @@ import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constan
 import { storageService } from "@packages/storage/index.js";
 import { logger } from "@packages/logger/index.js";
 import path from "path";
+import { statusEventBus, STATUS_EVENTS } from "../../automation/index.js";
 
 export class PaymentService {
     private paymentRepository: PaymentRepository;
@@ -78,6 +79,15 @@ export class PaymentService {
             createdBy: userUid,
             ipAddress,
             userAgent,
+        });
+
+        // 3.1 Emit Payment Received event for automated project status progression
+        statusEventBus.emitEvent(STATUS_EVENTS.PAYMENT_RECEIVED, {
+            tenantUid,
+            actorUid: userUid,
+            entityType: "payment",
+            entityUid: payment.uid,
+            metadata: { leadUid: data.leadUid, amount: payment.amount }
         });
 
         // 4. Notification logic

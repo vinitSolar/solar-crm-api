@@ -96,6 +96,9 @@ const leadBodyBase = {
     is_draft: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     isQuickLead: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     is_quick_lead: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+    isFollowUp: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+    is_follow_up: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+    followUpReason: z.string().optional().nullable().or(z.literal("")),
     category: z.coerce.number().int().min(1).max(4).optional().nullable(),
 };
 

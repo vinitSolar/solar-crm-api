@@ -11,6 +11,7 @@ const LEAD_COLUMNS = `
     follow_up_date AS "followUpDate", lead_source_uid AS "leadSourceUid", 
     status_uid AS "statusUid", assigned_to AS "assignedTo",
     category, COALESCE(is_quick_lead, 0) AS "isQuickLead",
+    COALESCE(is_follow_up, 0) AS "isFollowUp",
     is_active AS "isActive", is_deleted AS "isDeleted", 
     created_at AS "createdAt", updated_at AS "updatedAt",
     created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
@@ -23,7 +24,10 @@ const LEAD_JOIN_COLUMNS = `
     l.email, l.address, l.landmark, l.locality, l.state, l.city, l.pin_code AS "pinCode",
     l.monthly_bill_amount AS "monthlyBillAmount", l.system_size AS "systemSize", 
     l.follow_up_date AS "followUpDate", l.lead_source_uid AS "leadSourceUid", 
-    l.status_uid AS "statusUid", l.assigned_to AS "assignedTo", l.category, COALESCE(l.is_quick_lead, 0) AS "isQuickLead", n.note AS "remarks",
+    l.status_uid AS "statusUid", l.assigned_to AS "assignedTo", l.category, 
+    COALESCE(l.is_quick_lead, 0) AS "isQuickLead",
+    COALESCE(l.is_follow_up, 0) AS "isFollowUp",
+    n.note AS "remarks",
     l.is_active AS "isActive", l.is_deleted AS "isDeleted", 
     l.created_at AS "createdAt", l.updated_at AS "updatedAt",
     l.created_by AS "createdBy", l.updated_by AS "updatedBy", l.deleted_by AS "deletedBy"
@@ -63,10 +67,10 @@ export class LeadRepository {
             INSERT INTO leads (
                 uid, tenant_uid, lead_number, first_name, last_name, mobile_number, alternate_number, email, 
                 address, landmark, locality, state, city, pin_code, monthly_bill_amount, system_size, follow_up_date, 
-                lead_source_uid, status_uid, assigned_to, category, is_quick_lead, created_by
+                lead_source_uid, status_uid, assigned_to, category, is_quick_lead, is_follow_up, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
             )
             RETURNING ${LEAD_COLUMNS}
         `;
@@ -75,7 +79,7 @@ export class LeadRepository {
             data.alternateNumber ?? null, data.email ?? null, data.address ?? null, 
             data.landmark ?? null, data.locality ?? null, data.state ?? null, data.city ?? null, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
             data.systemSize ?? null, data.followUpDate || null, data.leadSourceUid ?? null, 
-            data.statusUid, data.assignedTo ?? null, data.category ?? 1, data.isQuickLead ? 1 : 0, createdBy
+            data.statusUid, data.assignedTo ?? null, data.category ?? 1, data.isQuickLead ? 1 : 0, data.isFollowUp ? 1 : 0, createdBy
         ];
 
         const result = client 
@@ -242,6 +246,7 @@ export class LeadRepository {
         if (data.assignedTo !== undefined) { updates.push(`assigned_to = $${index++}`); values.push(data.assignedTo); }
         if (data.category !== undefined) { updates.push(`category = $${index++}`); values.push(data.category); }
         if (data.isQuickLead !== undefined) { updates.push(`is_quick_lead = $${index++}`); values.push(data.isQuickLead ? 1 : 0); }
+        if (data.isFollowUp !== undefined) { updates.push(`is_follow_up = $${index++}`); values.push(data.isFollowUp ? 1 : 0); }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 
@@ -387,6 +392,7 @@ export class LeadRepository {
             startDate?: string | undefined;
             endDate?: string | undefined;
             followUpDate?: string | undefined;
+            isFollowUp?: number | undefined;
             city?: string | undefined;
             state?: string | undefined;
             minCapacity?: number | undefined;
@@ -425,6 +431,11 @@ export class LeadRepository {
         if (filters.followUpDate) {
             baseParams.push(filters.followUpDate);
             baseWhereClause += ` AND l.follow_up_date = $${baseParams.length}`;
+        }
+
+        if (filters.isFollowUp !== undefined && !isNaN(Number(filters.isFollowUp))) {
+            baseParams.push(Number(filters.isFollowUp));
+            baseWhereClause += ` AND l.is_follow_up = $${baseParams.length}`;
         }
 
         if (filters.city) {

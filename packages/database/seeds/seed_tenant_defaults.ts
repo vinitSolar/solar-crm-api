@@ -133,5 +133,29 @@ export async function seedTenantDefaults(client: PoolClient, tenantUid: string, 
     // 9. Seed Installation Milestones
     await seedInstallationMilestones(client, tenantUid, createdBy);
 
+    // 10. Seed Workflow Automation Rules
+    const defaultRules = [
+        { key: 'FOLLOWUP_TO_CONTACTED', name: 'Auto-advance on Follow-up', desc: 'Automatically move lead from "New" to "Follow Up / Contacted" when first follow-up is scheduled.', sort: 1 },
+        { key: 'SURVEY_TO_LEAD_STATUS', name: 'Auto-advance on Survey Completion', desc: 'Automatically move lead to "Site Survey Completed" when survey engineer submits roof measurements.', sort: 2 },
+        { key: 'QUOTE_TO_LEAD_STATUS', name: 'Auto-advance on Quotation Sent', desc: 'Automatically move lead to "Quotation Sent" when a quotation PDF is generated and dispatched.', sort: 3 },
+        { key: 'APPROVAL_TO_WON', name: 'Auto-advance to Won on Approval', desc: 'Automatically move lead to "Won" when a quotation is approved by the customer or manager.', sort: 4 },
+        { key: 'APPROVAL_TO_PROJECT', name: 'Auto-create Project on Approval', desc: 'Automatically create a new Project with milestones and subsidy tracker when a quotation is approved.', sort: 5 },
+        { key: 'PAYMENT_TO_IN_PROGRESS', name: 'Auto-start Project on Payment', desc: 'Automatically move project from "Not Started" to "In Progress" when an advance payment is recorded.', sort: 6 },
+        { key: 'MILESTONES_TO_COMMISSIONED', name: 'Auto-commission on Completion', desc: 'Automatically move project to "Commissioned" when all 6 installation milestones are completed.', sort: 7 },
+    ];
+    for (const r of defaultRules) {
+        const existing = await client.query(
+            "SELECT 1 FROM workflow_automation_rules WHERE tenant_uid = $1 AND rule_key = $2",
+            [tenantUid, r.key]
+        );
+        if (existing.rowCount === 0) {
+            await client.query(
+                `INSERT INTO workflow_automation_rules (uid, tenant_uid, rule_key, rule_name, description, is_enabled, sort_order, created_by)
+                 VALUES ($1, $2, $3, $4, $5, 1, $6, $7)`,
+                [uuidv4(), tenantUid, r.key, r.name, r.desc, r.sort, createdBy]
+            );
+        }
+    }
+
     logger.info(`✅ Seeded tenant defaults for tenant: ${tenantUid} successfully!`);
 }

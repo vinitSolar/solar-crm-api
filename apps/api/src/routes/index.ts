@@ -28,6 +28,7 @@ import { paymentRoutes } from "../modules/payments/index.js";
 import { bankDetailRoutes } from "../modules/bank-details/index.js";
 import { notificationRoutes } from "../modules/notification/index.js";
 import { createWhatsAppRouter } from "../modules/whatsapp/index.js";
+import { automationRoutes } from "../modules/automation/index.js";
 
 const apiRouter = Router();
 const { apiRouter: whatsappApiRouter } = createWhatsAppRouter();
@@ -66,5 +67,6 @@ apiRouter.use("/payments", paymentRoutes);
 apiRouter.use("/bank-details", bankDetailRoutes);
 apiRouter.use("/notifications", notificationRoutes);
 apiRouter.use("/whatsapp", whatsappApiRouter);
+apiRouter.use("/automation", automationRoutes);
 
 export default apiRouter;

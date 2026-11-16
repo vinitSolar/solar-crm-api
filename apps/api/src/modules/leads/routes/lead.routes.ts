@@ -6,6 +6,7 @@ import { LeadSourceRepository } from "../repositories/lead-source.repository.js"
 import { LeadStatusRepository } from "../repositories/lead-status.repository.js";
 import { UserRepository } from "../../users/repositories/user.repository.js";
 import { RoleRepository } from "../../roles/repositories/role.repository.js";
+import { FollowUpRepository } from "../repositories/follow-up.repository.js";
 import {
     createLeadSchema,
     updateLeadSchema,
@@ -32,7 +33,8 @@ function createLeadRouter(): Router {
     const sourceRepository = new LeadSourceRepository(pool);
     const statusRepository = new LeadStatusRepository(pool);
     const roleRepository = new RoleRepository(pool);
-    const service = new LeadService(repository, sourceRepository, statusRepository, userRepository, noteService, roleRepository);
+    const followUpRepository = new FollowUpRepository(pool);
+    const service = new LeadService(repository, sourceRepository, statusRepository, userRepository, noteService, roleRepository, followUpRepository);
     const controller = new LeadController(service);
 
     router.use(authenticate);
@@ -159,6 +161,18 @@ function createLeadRouter(): Router {
         "/all",
         requirePermission("LEADS", "can_view"),
         controller.getAllLeads,
+    );
+
+    router.get(
+        "/active-follow-ups",
+        requirePermission("LEADS", "can_view"),
+        controller.getActiveFollowUps,
+    );
+
+    router.get(
+        "/follow-ups/active",
+        requirePermission("LEADS", "can_view"),
+        controller.getActiveFollowUps,
     );
 
     /**
@@ -492,6 +506,21 @@ function createLeadRouter(): Router {
         requirePermission("LEADS", "can_edit"),
         validateLeadRequest(getByUidSchema),
         controller.restoreLead,
+    );
+
+    router.get(
+        "/:uid/follow-ups",
+        controller.getFollowUps
+    );
+
+    router.post(
+        "/:uid/follow-ups",
+        controller.scheduleFollowUp
+    );
+
+    router.post(
+        "/:uid/follow-ups/complete",
+        controller.completeFollowUp
     );
 
     return router;

@@ -27,6 +27,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { notificationService, NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/index.js";
 import { calculateDynamicRuleSubsidy, calculateCentralSuryaGharSubsidy } from "../../state-subsidy-rules/utils/subsidy-calculator.js";
+import { statusEventBus, STATUS_EVENTS } from "../../automation/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -469,6 +470,15 @@ export class QuotationService {
                 pdfPath: null
             };
 
+            // Emit Quotation Sent event for automated lead status progression
+            statusEventBus.emitEvent(STATUS_EVENTS.QUOTATION_SENT, {
+                tenantUid,
+                actorUid: createdBy,
+                entityType: "quotation",
+                entityUid: quotation.uid,
+                metadata: { leadUid: quotation.leadUid }
+            });
+
             return toSafeQuotation(quotationWithPdf, createdItems, createdSows, createdTcs);
         } catch (error: any) {
             await client.query("ROLLBACK");
@@ -702,6 +712,17 @@ export class QuotationService {
 
             await client.query("COMMIT");
 
+            // Emit Quotation Approved/Converted event if status was updated
+            if (data.status === 2 || data.status === 4) {
+                statusEventBus.emitEvent(STATUS_EVENTS.QUOTATION_APPROVED, {
+                    tenantUid,
+                    actorUid: updatedBy,
+                    entityType: "quotation",
+                    entityUid: updatedQuotation.uid,
+                    metadata: { leadUid: updatedQuotation.leadUid }
+                });
+            }
+
             // Trigger background snapshot and PDF regeneration (non-blocking for fast API response)
             setImmediate(async () => {
                 try {
@@ -885,6 +906,15 @@ export class QuotationService {
             }
 
             await client.query("COMMIT");
+
+            // Emit Quotation Approved / Converted to trigger automated Lead -> Won and Project creation
+            statusEventBus.emitEvent(STATUS_EVENTS.QUOTATION_APPROVED, {
+                tenantUid,
+                actorUid: updatedBy,
+                entityType: "quotation",
+                entityUid: uid,
+                metadata: { leadUid: existing.leadUid }
+            });
 
             const [items, sows, tcs] = await Promise.all([
                 this.repository.findItemsByQuotationUid(updated.uid),

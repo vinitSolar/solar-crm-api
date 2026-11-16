@@ -13,6 +13,7 @@ import { SITE_SURVEY_MESSAGES } from "../constants/site-survey.constants.js";
 import { logger } from "@packages/logger/index.js";
 import { notificationService } from "../../notification/services/notification.service.js";
 import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
+import { statusEventBus, STATUS_EVENTS } from "../../automation/index.js";
 
 export class SiteSurveyService {
     private readonly repository: SiteSurveyRepository;
@@ -279,6 +280,15 @@ export class SiteSurveyService {
 
         try {
             const updated = await this.repository.update(tenantUid, uid, { status }, updatedBy);
+            if (status === 1) {
+                statusEventBus.emitEvent(STATUS_EVENTS.SURVEY_COMPLETED, {
+                    tenantUid,
+                    actorUid: updatedBy,
+                    entityType: "survey",
+                    entityUid: uid,
+                    metadata: { leadUid: existing.leadUid }
+                });
+            }
             return toSiteSurveySafe(updated);
         } catch (error) {
             if (error instanceof CustomError) throw error;
@@ -350,6 +360,15 @@ export class SiteSurveyService {
             }
             // Update survey status to Completed (1)
             const updatedSurvey = await this.repository.update(tenantUid, uid, { status: 1 }, userUid);
+
+            // Emit Survey Completed event for automated lead status progression
+            statusEventBus.emitEvent(STATUS_EVENTS.SURVEY_COMPLETED, {
+                tenantUid,
+                actorUid: userUid,
+                entityType: "survey",
+                entityUid: uid,
+                metadata: { leadUid: survey.leadUid }
+            });
 
             // Push Notification to assigned Sales Executive
             this.leadRepository.getByUid(tenantUid, survey.leadUid).then(lead => {

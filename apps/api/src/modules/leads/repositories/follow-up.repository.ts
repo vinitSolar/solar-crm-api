@@ -232,7 +232,8 @@ export class FollowUpRepository {
                 fu.follow_up_date AS "followUpDate",
                 fu.status AS "followUpStatus",
                 fu.notes AS "remarks",
-                fu.assigned_to AS "assignedTo",
+                COALESCE(fu.assigned_to, l.assigned_to) AS "assignedTo",
+                l.assigned_to AS "leadAssignedTo",
                 fu.is_active AS "isActive",
                 fu.created_at AS "createdAt",
                 fu.updated_at AS "updatedAt",
@@ -286,12 +287,56 @@ export class FollowUpRepository {
         const params: any[] = [tenantUid];
         if (assignedTo) {
             params.push(assignedTo);
-            query += ` AND (fu.assigned_to = $2 OR (fu.assigned_to IS NULL AND l.assigned_to = $2))`;
+            query += ` AND (fu.assigned_to = $2 OR (fu.assigned_to IS NULL AND l.assigned_to = $2) OR l.assigned_to = $2)`;
         }
         query += ` ORDER BY fu.follow_up_date ASC, fu.id DESC`;
 
         const result = await executor.query(query, params);
         return result.rows;
+    }
+
+    async findConflict(
+        tenantUid: string,
+        followUpDate: Date | string,
+        excludeLeadUid?: string | null,
+        client?: PoolClient
+    ): Promise<{
+        uid: string;
+        leadNumber: string;
+        customerName: string;
+        followUpDate: Date | string;
+        assignedTo?: string | null;
+        assignedToName?: string | null;
+    } | null> {
+        const executor = client || this.pool;
+        const query = `
+            SELECT 
+                l.uid,
+                l.lead_number AS "leadNumber",
+                TRIM(CONCAT(l.first_name, ' ', COALESCE(l.last_name, ''))) AS "customerName",
+                COALESCE(fu.follow_up_date, l.follow_up_date) AS "followUpDate",
+                l.assigned_to AS "assignedTo",
+                COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))), ''), u.email) AS "assignedToName"
+            FROM leads l
+            LEFT JOIN follow_ups fu 
+                ON fu.lead_uid = l.uid 
+                AND fu.is_active = 1 
+                AND fu.is_deleted = 0 
+                AND fu.status = 'scheduled'
+            LEFT JOIN users u 
+                ON l.assigned_to = u.uid
+            WHERE l.tenant_uid = $1
+              AND l.is_deleted = 0
+              AND (
+                (l.is_follow_up = 1 AND l.follow_up_date IS NOT NULL AND date_trunc('minute', l.follow_up_date AT TIME ZONE 'UTC') = date_trunc('minute', $2::timestamptz AT TIME ZONE 'UTC'))
+                OR
+                (fu.id IS NOT NULL AND date_trunc('minute', fu.follow_up_date AT TIME ZONE 'UTC') = date_trunc('minute', $2::timestamptz AT TIME ZONE 'UTC'))
+              )
+              AND ($3::varchar IS NULL OR l.uid != $3)
+            LIMIT 1
+        `;
+        const result = await executor.query(query, [tenantUid, followUpDate, excludeLeadUid || null]);
+        return result.rows.length > 0 ? (result.rows[0] as any) : null;
     }
 }
 

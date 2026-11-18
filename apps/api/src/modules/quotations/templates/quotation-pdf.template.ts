@@ -9,6 +9,11 @@ export interface IQuotationPdfData {
         state: string | null;
         pinCode: string | null;
     };
+    preparedBy?: {
+        name?: string | null;
+        phone?: string | null;
+        email?: string | null;
+    } | null;
     customer: {
         firstName: string;
         lastName: string | null;
@@ -40,6 +45,7 @@ export interface IQuotationPdfData {
         packageRecommendedPrice?: number | null;
         notes: string | null;
         createdAt: string;
+        createdByName?: string | null;
     };
     items: Array<{
         productName: string;

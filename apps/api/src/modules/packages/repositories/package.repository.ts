@@ -307,6 +307,8 @@ export class PackageRepository {
             sortOrder: row.sort_order
         }));
         
+        pkg.brandNames = Array.from(new Set(pkg.products.map((p: any) => p.brandName).filter(Boolean)));
+
         return pkg;
     }
 
@@ -360,7 +362,21 @@ export class PackageRepository {
         const dataQuery = `
             SELECT 
                 p.*,
-                (SELECT COUNT(*) FROM package_products pp JOIN products prod ON prod.uid::text = pp.product_uid::text WHERE pp.package_uid = p.uid AND pp.is_deleted = false AND prod.is_deleted = 0) AS products_count
+                (SELECT COUNT(*) FROM package_products pp JOIN products prod ON prod.uid::text = pp.product_uid::text WHERE pp.package_uid = p.uid AND pp.is_deleted = false AND prod.is_deleted = 0) AS products_count,
+                (
+                    SELECT COALESCE(ARRAY_AGG(DISTINCT b.name) FILTER (WHERE b.name IS NOT NULL), '{}')
+                    FROM package_products pp 
+                    JOIN products prod ON prod.uid::text = pp.product_uid::text 
+                    LEFT JOIN product_brands b ON b.uid::text = prod.brand_uid::text
+                    WHERE pp.package_uid = p.uid AND pp.is_deleted = false AND prod.is_deleted = 0
+                ) AS brand_names,
+                (
+                    SELECT COALESCE(ARRAY_AGG(DISTINCT b.uid::text) FILTER (WHERE b.uid IS NOT NULL), '{}')
+                    FROM package_products pp 
+                    JOIN products prod ON prod.uid::text = pp.product_uid::text 
+                    LEFT JOIN product_brands b ON b.uid::text = prod.brand_uid::text
+                    WHERE pp.package_uid = p.uid AND pp.is_deleted = false AND prod.is_deleted = 0
+                ) AS brand_uids
             FROM packages p 
             WHERE ${whereClause} 
             ORDER BY p.created_at DESC 
@@ -372,6 +388,8 @@ export class PackageRepository {
         const data = dataResult.rows.map(row => {
             const pkg = this.mapRowToPackage(row);
             pkg.productsCount = Number(row.products_count);
+            pkg.brandNames = row.brand_names || [];
+            pkg.brandUids = row.brand_uids || [];
             return pkg;
         });
 

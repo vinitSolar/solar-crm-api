@@ -271,4 +271,33 @@ export class LeadController {
             next(error);
         }
     };
+
+    checkScheduleConflict = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const followUpDate = req.query.followUpDate as string | undefined;
+            const excludeLeadUid = req.query.excludeLeadUid as string | undefined;
+
+            if (!followUpDate) {
+                res.status(400).json({
+                    success: false,
+                    message: "followUpDate query parameter is required",
+                });
+                return;
+            }
+
+            const conflict = await this.service.checkScheduleConflict(tenantUid, followUpDate, excludeLeadUid || null);
+            res.status(200).json({
+                success: true,
+                message: conflict ? "Schedule conflict detected" : "Time slot is available",
+                data: {
+                    hasConflict: Boolean(conflict),
+                    conflict: conflict || null,
+                },
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

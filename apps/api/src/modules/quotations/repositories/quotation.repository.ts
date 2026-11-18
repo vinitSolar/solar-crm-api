@@ -184,8 +184,9 @@ export class QuotationRepository {
     async findByUid(tenantUid: string, uid: string): Promise<IQuotation | null> {
         const query = `
             SELECT q.*,
-                   COALESCE(TRIM(CONCAT(uc.first_name, ' ', uc.last_name)), q.created_by) AS creator_name,
-                   COALESCE(TRIM(CONCAT(uu.first_name, ' ', uu.last_name)), q.updated_by) AS updater_name
+                   COALESCE(NULLIF(TRIM(CONCAT(uc.first_name, ' ', uc.last_name)), ''), uc.email, q.created_by) AS creator_name,
+                   uc.email AS creator_email,
+                   COALESCE(NULLIF(TRIM(CONCAT(uu.first_name, ' ', uu.last_name)), ''), uu.email, q.updated_by) AS updater_name
             FROM quotations q
             LEFT JOIN users uc ON q.created_by = uc.uid
             LEFT JOIN users uu ON q.updated_by = uu.uid

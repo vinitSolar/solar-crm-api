@@ -358,23 +358,43 @@ class PushProvider {
         const registrationTokens = deviceTokens.map(t => t.deviceToken);
 
         // 4. Build multicast FCM message for mobile devices
+        const safeData: Record<string, string> = {};
+        for (const [k, v] of Object.entries(data)) {
+            if (v !== undefined && v !== null) {
+                safeData[k] = String(v);
+            }
+        }
+        safeData.title = title;
+        safeData.body = body;
+
         const multicastMessage: MulticastMessage = {
             tokens: registrationTokens,
             notification: {
                 title,
                 body,
             },
-            data,
+            data: safeData,
             android: {
                 priority: "high",
                 notification: {
+                    title,
+                    body,
                     sound: "default",
                     channelId: "crm_high_priority_notifications",
+                    priority: "high",
+                    defaultSound: true,
+                    defaultVibrateTimings: true,
+                    visibility: "public",
+                    icon: "ic_launcher_foreground",
                 }
             },
             apns: {
                 payload: {
                     aps: {
+                        alert: {
+                            title,
+                            body,
+                        },
                         sound: "default",
                         badge: 1,
                         contentAvailable: true,

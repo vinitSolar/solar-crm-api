@@ -402,7 +402,10 @@ function formatINR(amount: number): string {
 }
 
 export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
-  const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy } = data;
+  const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy, preparedBy } = data;
+
+  const preparedByName = (preparedBy?.name || quotation.createdByName || franchise.name || '').trim();
+  const preparedByPhone = (preparedBy?.phone || franchise.mobile || '').trim();
 
   const coverBgBase64 = getCoverBgBase64();
   const coverLogoBase64 = getCoverLogoBase64();
@@ -1811,8 +1814,8 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
         <div class="section-title">PREPARED BY</div>
       </div>
       <div class="section-body">
-        <div class="prepared-company">${franchise.name || ''}</div>
-        <div class="prepared-phone">Phone: <strong>${franchise.mobile || ''}</strong></div>
+        <div class="prepared-company">${preparedByName}</div>
+        <div class="prepared-phone">Phone: <strong>${preparedByPhone}</strong></div>
       </div>
     </div>
   </div>

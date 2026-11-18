@@ -484,7 +484,10 @@ function resolveImageToBase64Sync(imagePathOrUrl: string | null | undefined): st
 }
 
 export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
-  const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy, bankDetails } = data;
+  const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy, bankDetails, preparedBy } = data;
+
+  const preparedByName = (preparedBy?.name || quotation.createdByName || franchise.name || '').trim();
+  const preparedByPhone = (preparedBy?.phone || franchise.mobile || '').trim();
 
   const bankName = bankDetails?.bankName || 'HDFC Bank';
   const accountHolderName = bankDetails?.accountHolderName || (bankDetails as any)?.accountName || franchise.name || 'SunSelect Solar Private Limited';
@@ -510,7 +513,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   // Logo for page 2+: Always use Asset 1@2x-8.png
   const page2LogoHtml = otherPagesLogoBase64
-    ? `<img src="${otherPagesLogoBase64}" alt="Sunselect Solar" class="page-top-logo" />`
+    ? `<img src="${otherPagesLogoBase64}" alt="Sunselect Private Limited" class="page-top-logo" />`
     : (franchise.logo ? `<img src="${franchise.logo}" alt="${franchise.name}" class="page-top-logo" />` : `<div class="logo-slot">${franchise.name.substring(0, 2).toUpperCase()}</div>`);
 
   // Build 2-column Proposal Pricing Breakdown matching Sunselect Theme & Exact Flow
@@ -881,7 +884,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
               <div class="bom-td" style="width:70px;">${p.quantity ? `${p.quantity} ${p.unitName || 'Nos'}` : '-'}</div>
               <div class="bom-td bom-td-grow bom-td-name">${p.productName || '-'}</div>
               <div class="bom-td" style="width:85px;">${p.brandName || '-'}</div>
-              <div class="bom-td" style="width:80px;">${p.warranty || '-'}</div>
+              <div class="bom-td" style="width:80px;">${p.warranty && String(p.warranty).trim() ? (String(p.warranty).toLowerCase().includes('year') ? String(p.warranty).trim() : `${String(p.warranty).trim()} Year`) : '-'}</div>
             </div>
           `;
         }).join('');
@@ -903,7 +906,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       } else {
         const p = panelItems[0]!;
         const wattPeak = extractWattPeak(p);
-        const warrantyVal = p.warranty ? (p.warranty.toLowerCase().includes('year') ? p.warranty : `${p.warranty} Year`) : '12 Year';
+        const warrantyVal = p.warranty && String(p.warranty).trim() ? (String(p.warranty).toLowerCase().includes('year') ? String(p.warranty).trim() : `${String(p.warranty).trim()} Year`) : '-';
         panelContentHtml = `
           <div class="bom-panel-row">
             <div class="bom-field">
@@ -984,7 +987,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
               <div class="bom-td" style="width:85px;">${kwSize || '-'}</div>
               <div class="bom-td" style="width:80px;">${inv.quantity ? `${inv.quantity} ${inv.unitName || 'Nos'}` : '-'}</div>
               <div class="bom-td bom-td-grow bom-td-name">${inv.brandName || inv.productName || '-'}</div>
-              <div class="bom-td" style="width:90px;">${inv.warranty || '-'}</div>
+              <div class="bom-td" style="width:90px;">${inv.warranty && String(inv.warranty).trim() ? (String(inv.warranty).toLowerCase().includes('year') ? String(inv.warranty).trim() : `${String(inv.warranty).trim()} Year`) : '-'}</div>
             </div>
           `;
         }).join('');
@@ -1005,7 +1008,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       } else {
         const inv = inverterItems[0]!;
         const kwSize = extractKwSize(inv);
-        const invWarranty = inv.warranty ? (inv.warranty.toLowerCase().includes('year') ? inv.warranty : `${inv.warranty} Year`) : '5-7 Year';
+        const invWarranty = inv.warranty && String(inv.warranty).trim() ? (String(inv.warranty).toLowerCase().includes('year') ? String(inv.warranty).trim() : `${String(inv.warranty).trim()} Year`) : '-';
 
         inverterContentHtml = `
           <div class="bom-inverter-top">
@@ -1105,63 +1108,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       </div>
       `;
     }).join('');
-  } else {
-    // Standard system cables fallback
-    bomCablesHtml = `
-      <div class="bom-card">
-        <div class="bom-card-inner">
-          <div class="bom-card-icon">
-            <svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="#E65100" stroke-width="3" stroke-linecap="round">
-              <path d="M4 14 Q 10 8, 16 14 T 28 14"/>
-              <path d="M4 20 Q 10 14, 16 20 T 28 20" stroke="#FB8C00" stroke-width="2"/>
-            </svg>
-          </div>
-          <div class="bom-card-content">
-            <div class="bom-cable-grid-4">
-              <div class="bom-cable-col">
-                <div class="bom-cable-type">AC Cable:</div>
-                <div class="bom-cable-make">Polycab / KEI</div>
-                <div class="bom-cable-qty">Qty: 25 Meter</div>
-                <div class="bom-cable-spec">A.C 4.0 SQMM 4 CORE COPPER</div>
-              </div>
-              <div class="bom-cable-col">
-                <div class="bom-cable-type">DC Cable:</div>
-                <div class="bom-cable-make">Waaree / Polycab</div>
-                <div class="bom-cable-qty">Qty: 20 Meter</div>
-                <div class="bom-cable-spec">D.C CABLE RED 4.0 SQMM (UV)</div>
-              </div>
-              <div class="bom-cable-col">
-                <div class="bom-cable-type">DC Cable:</div>
-                <div class="bom-cable-make">Waaree / Polycab</div>
-                <div class="bom-cable-qty">Qty: 20 Meter</div>
-                <div class="bom-cable-spec">D.C CABLE BLACK 4.0 SQMM (UV)</div>
-              </div>
-              <div class="bom-cable-col">
-                <div class="bom-cable-type">Earthing Cable:</div>
-                <div class="bom-cable-make">Earthcab / Polycab</div>
-                <div class="bom-cable-qty">Qty: 50 Meter</div>
-                <div class="bom-cable-spec">COPPER EARTHING 16 SQMM GREEN</div>
-              </div>
-            </div>
-            <div class="bom-cable-grid-2" style="margin-top:6px;">
-              <div class="bom-cable-col">
-                <div class="bom-cable-type">LA Cable:</div>
-                <div class="bom-cable-make">Earthcab / Polycab</div>
-                <div class="bom-cable-qty">Qty: 25 Meter</div>
-                <div class="bom-cable-spec">LIGHTNING ARRESTER COPPER 25 SQMM</div>
-              </div>
-              <div class="bom-cable-col">
-                <div class="bom-cable-type">Communication Cable:</div>
-                <div class="bom-cable-make">D-Link / Polycab</div>
-                <div class="bom-cable-qty">Qty: 10 Meter</div>
-                <div class="bom-cable-spec">RS485 / CAT6 SHIELDED CABLE</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <span class="bom-card-tag">Cables</span>
-      </div>
-    `;
   }
 
   // ── Structure Section HTML ──
@@ -1217,47 +1163,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
       </div>
       `;
     }).join('');
-  } else {
-    // Standard structure fallback matching system panels
-    const totalPanels = bomGroups.panel.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0) || Math.round(Number(quotation.systemSize) * 2) || 9;
-    bomStructureHtml = `
-      <div class="bom-card">
-        <div class="bom-card-inner">
-          <div class="bom-card-icon">
-            <svg viewBox="0 0 32 32" width="32" height="32" fill="#475569">
-              <rect x="4" y="12" width="24" height="8" rx="1.5"/>
-              <rect x="4" y="7" width="6" height="18" rx="1.5"/>
-              <rect x="22" y="7" width="6" height="18" rx="1.5"/>
-            </svg>
-          </div>
-          <div class="bom-card-content">
-            <div class="bom-struct-list">
-              <div class="bom-struct-grid-row">
-                <div>
-                  <div class="bom-struct-lbl">Product:</div>
-                  <div class="bom-struct-v">Galvanized Iron Structure 80 Micron (HDGI) - ${totalPanels} Modules</div>
-                </div>
-                <div>
-                  <div class="bom-struct-lbl">Make:</div>
-                  <div class="bom-struct-v">SunSelect Standard Heavy Duty Galvanized</div>
-                </div>
-              </div>
-              <div class="bom-struct-grid-row">
-                <div>
-                  <div class="bom-struct-lbl">Product:</div>
-                  <div class="bom-struct-v">Aluminium Mid Clamps & End Clamps with SS304 Hardware</div>
-                </div>
-                <div>
-                  <div class="bom-struct-lbl">Make:</div>
-                  <div class="bom-struct-v">Anodized High Grade Aluminium AL6005-T5</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <span class="bom-card-tag">Structure</span>
-      </div>
-    `;
   }
 
   // ── Accessories Section HTML (Components & Distribution Boxes) ──
@@ -1384,106 +1289,6 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
     `;
 
     bomAccessoriesHtml = nonDbCardHtml + dbCardHtml;
-  } else {
-    // Standard accessories and distribution boxes fallback
-    bomAccessoriesHtml = `
-      <div class="bom-card">
-        <div class="bom-card-inner">
-          <div class="bom-card-icon">
-            <svg viewBox="0 0 32 32" width="32" height="32" fill="none">
-              <rect x="3" y="3" width="12" height="12" rx="2" fill="#1e293b"/>
-              <rect x="17" y="3" width="12" height="12" rx="2" fill="#ea580c"/>
-              <rect x="3" y="17" width="12" height="12" rx="2" fill="#ea580c"/>
-              <rect x="17" y="17" width="12" height="12" rx="2" fill="#1e293b"/>
-            </svg>
-          </div>
-          <div class="bom-card-content">
-            <div class="bom-struct-list">
-              <div class="bom-struct-grid-row">
-                <div>
-                  <div class="bom-struct-lbl">Product:</div>
-                  <div class="bom-struct-v">MC4 Connectors (1000V DC / 1500V DC IP68 Rated)</div>
-                </div>
-                <div>
-                  <div class="bom-struct-lbl">Make:</div>
-                  <div class="bom-struct-v">Waaree / Staubli Multi-Contact</div>
-                </div>
-              </div>
-              <div class="bom-struct-grid-row">
-                <div>
-                  <div class="bom-struct-lbl">Product:</div>
-                  <div class="bom-struct-v">Copper Bonded Chemical Earthing Rods (17.2mm Dia x 3m Length)</div>
-                </div>
-                <div>
-                  <div class="bom-struct-lbl">Make:</div>
-                  <div class="bom-struct-v">Earthcab / SunSelect Certified (250 Micron)</div>
-                </div>
-              </div>
-              <div class="bom-struct-grid-row">
-                <div>
-                  <div class="bom-struct-lbl">Product:</div>
-                  <div class="bom-struct-v">Conventional Lightning Arrester 1-Meter Pure Copper Spike</div>
-                </div>
-                <div>
-                  <div class="bom-struct-lbl">Make:</div>
-                  <div class="bom-struct-v">SunSelect Standard Copper Spike with Base</div>
-                </div>
-              </div>
-              <div class="bom-struct-grid-row">
-                <div>
-                  <div class="bom-struct-lbl">Product:</div>
-                  <div class="bom-struct-v">PVC UV-Resistant Conduits, Cable Trays & SS304 Fasteners</div>
-                </div>
-                <div>
-                  <div class="bom-struct-lbl">Make:</div>
-                  <div class="bom-struct-v">Precision / Astral / Standard Industry Grade</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <span class="bom-card-tag">Accessories</span>
-      </div>
-
-      <div class="bom-card">
-        <div class="bom-card-inner">
-          <div class="bom-card-icon">
-            <svg viewBox="0 0 32 32" width="32" height="32" fill="none">
-              <rect x="2" y="2" width="28" height="28" rx="4" fill="#0f172a"/>
-              <rect x="5" y="5" width="10" height="10" rx="1.5" fill="#38bdf8"/>
-              <rect x="17" y="5" width="10" height="10" rx="1.5" fill="#f97316"/>
-              <rect x="5" y="17" width="10" height="10" rx="1.5" fill="#22c55e"/>
-              <rect x="17" y="17" width="10" height="10" rx="1.5" fill="#eab308"/>
-            </svg>
-          </div>
-          <div class="bom-card-content">
-            <div class="bom-db-row">
-              <div class="bom-db-col">
-                <div class="bom-db-lbl">ACDB:</div>
-                <div class="bom-db-v">3-Phase ACDB with MCB & Type II SPD</div>
-              </div>
-              <div class="bom-db-col">
-                <div class="bom-db-lbl">DCDB:</div>
-                <div class="bom-db-v">1000V DCDB with 15A Fuse & SPD</div>
-              </div>
-              <div class="bom-db-col">
-                <div class="bom-db-lbl">Earthing:</div>
-                <div class="bom-db-v">Dual Earth Pit with Chemical Compound</div>
-              </div>
-              <div class="bom-db-col">
-                <div class="bom-db-lbl">Lightening Arrestor:</div>
-                <div class="bom-db-v">Class B+C Surge Protection Device</div>
-              </div>
-              <div class="bom-db-col">
-                <div class="bom-db-lbl">Miscellaneous:</div>
-                <div class="bom-db-v">Cable Ties, Danger Board, Warning Stickers</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <span class="bom-card-tag">Balance of System</span>
-      </div>
-    `;
   }
 
   // ── Other Categories (Batteries, Custom Equipment) ──
@@ -1533,14 +1338,13 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   const bomSectionsHtml = bomPanelHtml + bomInverterHtml + bomCablesHtml + bomStructureHtml + bomAccessoriesHtml + bomOtherHtml;
 
   // Calculate total row weight to dynamically choose density class and scale text
-  const panelRowsCount = Math.max(1, bomGroups.panel.length);
-  const inverterRowsCount = Math.max(1, bomGroups.inverter.length);
-  const cablesRowsCount = bomGroups.cables.length > 4 ? 2 : 1;
-  const structRowsCount = bomGroups.structure.length > 0 ? bomGroups.structure.length : 3;
-  const accRowsCount = bomGroups.accessories.length > 0
-    ? bomGroups.accessories.filter(i => !/acdb|dcdb|earthing|arrestor|arrester|lightning|lightening/i.test(i.productName)).length
-    : 4;
-  const bosRowsCount = 1;
+  const panelRowsCount = bomGroups.panel.length;
+  const inverterRowsCount = bomGroups.inverter.length;
+  const cablesRowsCount = bomGroups.cables.length > 4 ? 2 : (bomGroups.cables.length > 0 ? 1 : 0);
+  const structRowsCount = bomGroups.structure.length;
+  const isDbItemFilter = (item: (typeof items)[0]) => /acdb|dcdb|earthing|arrestor|arrester|lightning|lightening/i.test(item.productName);
+  const accRowsCount = bomGroups.accessories.filter(i => !isDbItemFilter(i)).length;
+  const bosRowsCount = bomGroups.accessories.some(isDbItemFilter) ? 1 : 0;
   let otherRowsCount = 0;
   for (const oItems of bomGroups.other.values()) {
     otherRowsCount += oItems.length;
@@ -1561,15 +1365,15 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
   const effectiveScopeOfWork = (scopeOfWork && scopeOfWork.length > 0)
     ? scopeOfWork
     : [
-        { title: "Roof Top Area @ 10 Sq.Mtr./KWp", value: "Customer Scope" },
-        { title: "Civil Works", value: "Included" },
-        { title: "Module Mounting Structure", value: "Included" },
-        { title: "Mounting, Erection & Commissioning", value: "Included" },
-        { title: "Power Evacuation (Solar Plant to Mains)", value: "Included @ 20 Mtr" },
-        { title: "Earthing System", value: "Included" },
-        { title: "DISCOM & Net Meter Charges", value: "Included" },
-        { title: "Free Operation & Maintenance", value: "Included for 5 Years" },
-      ];
+      { title: "Roof Top Area @ 10 Sq.Mtr./KWp", value: "Customer Scope" },
+      { title: "Civil Works", value: "Included" },
+      { title: "Module Mounting Structure", value: "Included" },
+      { title: "Mounting, Erection & Commissioning", value: "Included" },
+      { title: "Power Evacuation (Solar Plant to Mains)", value: "Included @ 20 Mtr" },
+      { title: "Earthing System", value: "Included" },
+      { title: "DISCOM & Net Meter Charges", value: "Included" },
+      { title: "Free Operation & Maintenance", value: "Included for 5 Years" },
+    ];
 
   let sowContentHtml = "";
   if (effectiveScopeOfWork && effectiveScopeOfWork.length > 0) {
@@ -1687,37 +1491,37 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
   const tcHtml = (termsConditions && termsConditions.length > 0)
     ? termsConditions.map((tc, idx) => {
-        const rawTitle = (tc.title || '').trim();
-        const displayTitle = /^\d+[\.\)]/.test(rawTitle)
-          ? (rawTitle.endsWith(':') ? rawTitle : `${rawTitle}:`)
-          : `${idx + 1}. ${rawTitle.endsWith(':') ? rawTitle : `${rawTitle}:`}`;
+      const rawTitle = (tc.title || '').trim();
+      const displayTitle = /^\d+[\.\)]/.test(rawTitle)
+        ? (rawTitle.endsWith(':') ? rawTitle : `${rawTitle}:`)
+        : `${idx + 1}. ${rawTitle.endsWith(':') ? rawTitle : `${rawTitle}:`}`;
 
-        let descContent = '';
-        if (Array.isArray(tc.description)) {
-          const lines = tc.description.map(s => String(s || '').trim()).filter(Boolean);
-          if (lines.length === 1) {
-            descContent = `<div class="tc-sub-text">${lines[0]}</div>`;
-          } else {
-            descContent = lines.map((line, lIdx) => {
-              const hasBulletOrNum = /^(\d+[\.\)]|[-•*])\s*/.test(line);
-              const prefix = hasBulletOrNum ? '' : `${lIdx + 1}. `;
-              return `<div class="tc-sub-text">${prefix}${line}</div>`;
-            }).join('');
-          }
-        } else if (typeof tc.description === 'string' && tc.description.trim()) {
-          const lines = tc.description.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-          if (lines.length <= 1) {
-            descContent = `<div class="tc-sub-text">${tc.description.trim()}</div>`;
-          } else {
-            descContent = lines.map((line, lIdx) => {
-              const hasBulletOrNum = /^(\d+[\.\)]|[-•*])\s*/.test(line);
-              const prefix = hasBulletOrNum ? '' : `${lIdx + 1}. `;
-              return `<div class="tc-sub-text">${prefix}${line}</div>`;
-            }).join('');
-          }
+      let descContent = '';
+      if (Array.isArray(tc.description)) {
+        const lines = tc.description.map(s => String(s || '').trim()).filter(Boolean);
+        if (lines.length === 1) {
+          descContent = `<div class="tc-sub-text">${lines[0]}</div>`;
+        } else {
+          descContent = lines.map((line, lIdx) => {
+            const hasBulletOrNum = /^(\d+[\.\)]|[-•*])\s*/.test(line);
+            const prefix = hasBulletOrNum ? '' : `${lIdx + 1}. `;
+            return `<div class="tc-sub-text">${prefix}${line}</div>`;
+          }).join('');
         }
+      } else if (typeof tc.description === 'string' && tc.description.trim()) {
+        const lines = tc.description.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        if (lines.length <= 1) {
+          descContent = `<div class="tc-sub-text">${tc.description.trim()}</div>`;
+        } else {
+          descContent = lines.map((line, lIdx) => {
+            const hasBulletOrNum = /^(\d+[\.\)]|[-•*])\s*/.test(line);
+            const prefix = hasBulletOrNum ? '' : `${lIdx + 1}. `;
+            return `<div class="tc-sub-text">${prefix}${line}</div>`;
+          }).join('');
+        }
+      }
 
-        return `
+      return `
           <div class="tc-item">
             <div class="tc-item-title">${displayTitle}</div>
             <div class="tc-item-body">
@@ -1725,7 +1529,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
             </div>
           </div>
         `;
-      }).join('')
+    }).join('')
     : `<div class="tc-item"><div class="tc-item-body">Standard terms and conditions apply.</div></div>`;
 
   return `
@@ -3754,8 +3558,8 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
         <div class="section-title">PREPARED BY</div>
       </div>
       <div class="section-body">
-        <div class="prepared-company">${franchise.name || ''}</div>
-        <div class="prepared-phone">Phone: <strong>${franchise.mobile || ''}</strong></div>
+        <div class="prepared-company">${preparedByName}</div>
+        <div class="prepared-phone">Phone: <strong>${preparedByPhone}</strong></div>
       </div>
     </div>
   </div>
@@ -3806,7 +3610,7 @@ export function generateQuotationHtmlV3(data: IQuotationPdfData): string {
 
             <div class="welcome-closing">
               <p class="thank-you">Thank You,</p>
-              <p class="company-sign">Sunselect Solar</p>
+              <p class="company-sign">Sunselect Private Limited</p>
             </div>
           </div>
         </div>

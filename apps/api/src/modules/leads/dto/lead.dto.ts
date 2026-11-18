@@ -23,6 +23,7 @@ export function toLeadSafe(lead: ILead): ILeadSafe {
         city: lead.city,
         pinCode: lead.pinCode,
         monthlyBillAmount: lead.monthlyBillAmount ? Number(lead.monthlyBillAmount) : null,
+        consumerAccountNumber: lead.consumerAccountNumber || null,
         systemSize: lead.systemSize ? Number(lead.systemSize) : null,
         followUpDate: lead.followUpDate,
         leadSourceUid: lead.leadSourceUid,

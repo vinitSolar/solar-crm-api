@@ -234,9 +234,8 @@ export class WorkflowAutomationService {
         const currentStatus = await this.leadStatusRepository.getByUid(tenantUid, lead.statusUid);
         if (!currentStatus) return;
 
-        // Only transition if the lead is currently New or Draft
-        const isNew = currentStatus.isDefault === 1 || currentStatus.name.toLowerCase().includes("new");
-        if (!isNew) return;
+        // Only transition if the lead is not closed (Won or Lost)
+        if (currentStatus.isClosed === 1) return;
 
         const targetStatus = await this.resolveLeadStatus(tenantUid, "FOLLOW_UP");
         if (!targetStatus || targetStatus.uid === currentStatus.uid) return;

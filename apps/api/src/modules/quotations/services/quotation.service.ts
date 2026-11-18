@@ -1114,11 +1114,49 @@ export class QuotationService {
                 qrCodeStorageKey: rawBankDetails.qrCode,
             } : null;
 
+            // Resolve Sales Executive (who is creating or created this quotation)
+            let salesExecutiveName = quotation.createdByName;
+            const isUuid = (val?: string | null) => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim()));
+
+            if (!salesExecutiveName || isUuid(salesExecutiveName)) {
+                const userUid = (quotation.createdBy && !isUuid(quotation.createdBy) ? null : quotation.createdBy) || createdBy;
+                if (userUid) {
+                    const userRes = await pool.query(
+                        `SELECT NULLIF(TRIM(CONCAT(first_name, ' ', last_name)), '') AS name, email FROM users WHERE uid = $1`,
+                        [userUid]
+                    );
+                    if (userRes.rows.length > 0) {
+                        salesExecutiveName = userRes.rows[0].name || userRes.rows[0].email || null;
+                    }
+                }
+            }
+
+            // Fallback to assigned sales executive on the lead
+            if (!salesExecutiveName || isUuid(salesExecutiveName)) {
+                if (quotation.leadUid) {
+                    const leadAssignedRes = await pool.query(
+                        `SELECT NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS name, u.email
+                         FROM leads l
+                         JOIN users u ON l.assigned_to = u.uid
+                         WHERE l.uid = $1`,
+                        [quotation.leadUid]
+                    );
+                    if (leadAssignedRes.rows.length > 0) {
+                        salesExecutiveName = leadAssignedRes.rows[0].name || leadAssignedRes.rows[0].email || null;
+                    }
+                }
+            }
+
             // Prepare PDF Data payload
             const pdfData = {
                 franchise: {
                     ...franchise,
                     logo: franchise.logo || getDefaultLogoBase64()
+                },
+                preparedBy: {
+                    name: salesExecutiveName || franchise.name || '',
+                    phone: franchise.mobile || '',
+                    email: franchise.email || ''
                 },
                 bankDetails,
                 customer,
@@ -1137,7 +1175,8 @@ export class QuotationService {
                     packageDescription,
                     packageRecommendedPrice,
                     notes: quotation.notes,
-                    createdAt: formatDate(quotation.createdAt)
+                    createdAt: formatDate(quotation.createdAt),
+                    createdByName: salesExecutiveName || quotation.createdByName || null
                 },
                 items: mappedItems,
                 scopeOfWork: scopeOfWork.map(s => ({ title: s.title, value: s.value })),

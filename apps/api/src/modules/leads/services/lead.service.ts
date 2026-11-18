@@ -167,6 +167,29 @@ export class LeadService {
                 Boolean(data.followUpDate && String(data.followUpDate).trim().length > 0)
             );
 
+            if (isFollowUp && data.followUpDate) {
+                const conflict = await this.followUpRepository.findConflict(
+                    tenantUid,
+                    data.followUpDate,
+                    null
+                );
+                if (conflict) {
+                    const leadLabel = conflict.leadNumber
+                        ? `${conflict.leadNumber} (${conflict.customerName})`
+                        : conflict.customerName;
+                    throw new CustomError(
+                        `A follow-up is already scheduled for this slot (${leadLabel}). Please choose a different date or time.`,
+                        409,
+                        [
+                            {
+                                field: "followUpDate",
+                                message: `Time slot already booked for ${leadLabel}. Please select another time slot.`,
+                            }
+                        ]
+                    );
+                }
+            }
+
             const createData = {
                 ...data,
                 statusUid: finalStatusUid,
@@ -465,6 +488,29 @@ export class LeadService {
                 data.isFollowUp = (data.isFollowUp === true || data.isFollowUp === 1 || (data as any).isFollowUp === "1") ? 1 : 0;
             } else if (data.followUpDate !== undefined) {
                 data.isFollowUp = data.followUpDate ? 1 : 0;
+            }
+
+            if (data.followUpDate && String(data.followUpDate).trim().length > 0) {
+                const conflict = await this.followUpRepository.findConflict(
+                    tenantUid,
+                    data.followUpDate,
+                    uid
+                );
+                if (conflict) {
+                    const leadLabel = conflict.leadNumber
+                        ? `${conflict.leadNumber} (${conflict.customerName})`
+                        : conflict.customerName;
+                    throw new CustomError(
+                        `A follow-up is already scheduled for this slot (${leadLabel}). Please choose a different date or time.`,
+                        409,
+                        [
+                            {
+                                field: "followUpDate",
+                                message: `Time slot already booked for ${leadLabel}. Please select another time slot.`,
+                            }
+                        ]
+                    );
+                }
             }
 
             const noteContent = (data as any).followUpReason || (data as any).reason || data.remarks;
@@ -825,12 +871,35 @@ export class LeadService {
     async scheduleFollowUp(
         tenantUid: string,
         leadUid: string,
-        data: { followUpDate: Date | string; notes?: string; assignedTo?: string },
+        data: { followUpDate: Date | string; notes?: string; assignedTo?: string; statusUid?: string },
         userId: string
     ): Promise<IFollowUp> {
         const lead = await this.repository.getByUid(tenantUid, leadUid);
         if (!lead) {
             throw new CustomError(LEAD_MESSAGES.NOT_FOUND, 404);
+        }
+
+        if (data.followUpDate) {
+            const conflict = await this.followUpRepository.findConflict(
+                tenantUid,
+                data.followUpDate,
+                leadUid
+            );
+            if (conflict) {
+                const leadLabel = conflict.leadNumber
+                    ? `${conflict.leadNumber} (${conflict.customerName})`
+                    : conflict.customerName;
+                throw new CustomError(
+                    `A follow-up is already scheduled for this slot (${leadLabel}). Please choose a different date or time.`,
+                    409,
+                    [
+                        {
+                            field: "followUpDate",
+                            message: `Time slot already booked for ${leadLabel}. Please select another time slot.`,
+                        }
+                    ]
+                );
+            }
         }
 
         const followUp = await this.followUpRepository.create(
@@ -853,6 +922,7 @@ export class LeadService {
                 followUpDate: data.followUpDate,
                 isFollowUp: 1,
                 remarks: (data.notes || lead.remarks) || "",
+                ...(data.statusUid ? { statusUid: data.statusUid } : {}),
             },
             userId
         );
@@ -908,8 +978,16 @@ export class LeadService {
     ): Promise<any[]> {
         const role = await this.roleRepository.getRoleByUid(roleUid, tenantUid);
         const showAllLeads = role?.show_all_leads === 1;
-        const assignedTo = showAllLeads ? assignedToFilter : userUid;
+        const assignedTo = assignedToFilter || (!showAllLeads ? userUid : undefined);
 
         return this.followUpRepository.getActiveFollowUps(tenantUid, assignedTo);
+    }
+
+    async checkScheduleConflict(
+        tenantUid: string,
+        followUpDate: Date | string,
+        excludeLeadUid?: string | null
+    ) {
+        return this.followUpRepository.findConflict(tenantUid, followUpDate, excludeLeadUid);
     }
 }

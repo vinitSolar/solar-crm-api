@@ -41,6 +41,18 @@ export class DeviceTokenRepository {
         createdBy: string
     ): Promise<IUserDeviceToken> {
         const uid = uuidv4();
+        const trimmedToken = data.deviceToken.trim();
+
+        // Deactivate older tokens for this same physical device to avoid sending to stale rotated tokens
+        if (data.deviceName) {
+            await this.pool.query(
+                `UPDATE user_device_tokens
+                 SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+                 WHERE tenant_uid = $1 AND user_uid = $2 AND device_name = $3 AND device_token != $4 AND is_active = 1`,
+                [tenantUid, userUid, data.deviceName, trimmedToken]
+            ).catch(() => undefined);
+        }
+
         const query = `
             INSERT INTO user_device_tokens (
                 uid, tenant_uid, user_uid, device_token, device_type, device_name, is_active, created_by, updated_by
@@ -66,7 +78,7 @@ export class DeviceTokenRepository {
             uid,
             tenantUid,
             userUid,
-            data.deviceToken.trim(),
+            trimmedToken,
             data.deviceType,
             data.deviceName || null,
             createdBy

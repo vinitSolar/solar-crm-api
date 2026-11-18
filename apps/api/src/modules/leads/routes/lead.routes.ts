@@ -164,6 +164,12 @@ function createLeadRouter(): Router {
     );
 
     router.get(
+        "/check-schedule-conflict",
+        requirePermission("LEADS", "can_view"),
+        controller.checkScheduleConflict,
+    );
+
+    router.get(
         "/active-follow-ups",
         requirePermission("LEADS", "can_view"),
         controller.getActiveFollowUps,

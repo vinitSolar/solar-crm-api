@@ -51,6 +51,7 @@ export interface ILead {
     city: string;
     pinCode: string | null;
     monthlyBillAmount: number | null;
+    consumerAccountNumber?: string | null;
     systemSize: number | null;
     followUpDate: Date | null;
     leadSourceUid: string;
@@ -141,6 +142,7 @@ export interface ICreateLead {
     city: string;
     pinCode: string;
     monthlyBillAmount?: number;
+    consumerAccountNumber?: string | null;
     systemSize: number;
     followUpDate?: Date | string | null;
     leadSourceUid?: string;
@@ -174,6 +176,7 @@ export interface ILeadSafe {
     city: string;
     pinCode: string | null;
     monthlyBillAmount: number | null;
+    consumerAccountNumber?: string | null;
     systemSize: number | null;
     followUpDate: Date | null;
     leadSourceUid: string;

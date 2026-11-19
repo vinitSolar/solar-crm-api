@@ -46,7 +46,26 @@ const LEAD_RELATIONS_COLUMNS = `
         WHERE q.lead_uid::varchar = l.uid AND q.is_deleted = 0 
         ORDER BY q.created_at DESC 
         LIMIT 1
-    ) AS "finalSystemSize"
+    ) AS "finalSystemSize",
+    (
+        SELECT COUNT(*)::int
+        FROM follow_ups fu
+        WHERE fu.lead_uid = l.uid AND fu.is_deleted = 0
+    ) AS "followUpCount",
+    (
+        SELECT EXISTS(
+            SELECT 1
+            FROM site_surveys ss
+            WHERE ss.lead_uid = l.uid AND ss.is_deleted = 0 AND ss.status = 1
+        )
+    ) AS "isSurveyDone",
+    (
+        SELECT EXISTS(
+            SELECT 1
+            FROM site_surveys ss
+            WHERE ss.lead_uid = l.uid AND ss.is_deleted = 0 AND ss.status IN (0, 1, 3)
+        )
+    ) AS "hasSurvey"
 `;
 
 export class LeadRepository {
@@ -479,14 +498,34 @@ export class LeadRepository {
             whereClause += ` AND l.status_uid = $${params.length}`;
         }
 
-        // Keyset Pagination cursor condition (created_at DESC, id DESC).
-        // Compare against the cursor row's exact database created_at to avoid JS Date microsecond truncation or local TZ shifts.
+        const sortBy = filters.sortBy || "created_at";
+        const sortOrder = (filters.sortOrder || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
+        const isAsc = sortOrder === "ASC";
+        const op = isAsc ? ">" : "<";
+
+        let sortColExpr = "l.created_at";
+        let cursorDbSelectExpr = "created_at";
+
+        if (sortBy === "updated_at") {
+            sortColExpr = "COALESCE(l.updated_at, l.created_at)";
+            cursorDbSelectExpr = "COALESCE(updated_at, created_at)";
+        } else if (sortBy === "first_name") {
+            sortColExpr = "LOWER(COALESCE(l.first_name, ''))";
+            cursorDbSelectExpr = "LOWER(COALESCE(first_name, ''))";
+        } else if (sortBy === "system_size") {
+            sortColExpr = "COALESCE(l.system_size, 0)";
+            cursorDbSelectExpr = "COALESCE(system_size, 0)";
+        } else {
+            sortColExpr = "l.created_at";
+            cursorDbSelectExpr = "created_at";
+        }
+
+        // Keyset Pagination cursor condition
         if (cursorData) {
-            params.push(cursorData.createdAt.toISOString(), Number(cursorData.id));
-            const cDateIdx = params.length - 1;
+            params.push(Number(cursorData.id));
             const cIdIdx = params.length;
-            const cursorCreatedAtExpr = `COALESCE((SELECT created_at FROM leads WHERE id = $${cIdIdx}), $${cDateIdx}::timestamptz)`;
-            whereClause += ` AND (l.created_at < ${cursorCreatedAtExpr} OR (l.created_at = ${cursorCreatedAtExpr} AND l.id < $${cIdIdx}))`;
+            const cursorValExpr = `(SELECT ${cursorDbSelectExpr} FROM leads WHERE id = $${cIdIdx}::bigint)`;
+            whereClause += ` AND (${sortColExpr} ${op} ${cursorValExpr} OR (${sortColExpr} = ${cursorValExpr} AND l.id ${op} $${cIdIdx}::bigint))`;
         }
 
         // Fetch limit + 1 to know if there's a next page without scanning every row
@@ -501,7 +540,7 @@ export class LeadRepository {
             LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
             LEFT JOIN users u ON l.assigned_to = u.uid
             WHERE ${whereClause} 
-            ORDER BY l.created_at DESC, l.id DESC 
+            ORDER BY ${sortColExpr} ${sortOrder}, l.id ${sortOrder} 
             LIMIT $${params.length}
         `;
 

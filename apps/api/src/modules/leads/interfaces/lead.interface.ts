@@ -84,6 +84,9 @@ export interface ILead {
     category?: number | null;
     isQuickLead?: number | null;
     isFollowUp?: number | null;
+    followUpCount?: number | null;
+    isSurveyDone?: boolean | number | null;
+    hasSurvey?: boolean | number | null;
 }
 
 export interface ILeadFilter {
@@ -195,6 +198,9 @@ export interface ILeadSafe {
     category?: number | null;
     isQuickLead?: number | null;
     isFollowUp?: number | null;
+    followUpCount?: number | null;
+    isSurveyDone?: boolean | number | null;
+    hasSurvey?: boolean | number | null;
 }
 
 export interface ILeadSourceSafe {

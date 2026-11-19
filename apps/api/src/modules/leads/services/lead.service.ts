@@ -413,8 +413,14 @@ export class LeadService {
                 throw new CustomError("No draft lead status found", 400);
             }
             data.statusUid = draftStatus.uid;
-        } else if (existing.isQuickLead === 1) {
+        } else if (existing.isQuickLead === 1 || existing.statusIsDraft === 1) {
             data.isQuickLead = 0;
+            if (!data.statusUid && existing.statusIsDraft === 1) {
+                const defaultStatus = await this.statusRepository.getDefault(tenantUid);
+                if (defaultStatus) {
+                    data.statusUid = defaultStatus.uid;
+                }
+            }
         }
 
         let newStatusName: string | undefined;

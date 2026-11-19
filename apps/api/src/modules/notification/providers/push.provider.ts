@@ -385,7 +385,7 @@ class PushProvider {
                     defaultSound: true,
                     defaultVibrateTimings: true,
                     visibility: "public",
-                    icon: "ic_launcher_foreground",
+                    icon: "ic_notification",
                 }
             },
             apns: {

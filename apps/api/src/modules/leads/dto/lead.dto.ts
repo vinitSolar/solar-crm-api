@@ -40,6 +40,9 @@ export function toLeadSafe(lead: ILead): ILeadSafe {
         category: lead.category !== null && lead.category !== undefined ? Number(lead.category) : 1,
         isQuickLead: lead.isQuickLead !== null && lead.isQuickLead !== undefined ? Number(lead.isQuickLead) : 0,
         isFollowUp: lead.isFollowUp !== null && lead.isFollowUp !== undefined ? Number(lead.isFollowUp) : (lead.followUpDate ? 1 : 0),
+        followUpCount: lead.followUpCount !== null && lead.followUpCount !== undefined ? Number(lead.followUpCount) : 0,
+        isSurveyDone: Boolean(lead.isSurveyDone),
+        hasSurvey: Boolean(lead.hasSurvey),
         leadSource: lead.leadSourceUid ? {
             uid: lead.leadSourceUid,
             name: lead.sourceName || "",

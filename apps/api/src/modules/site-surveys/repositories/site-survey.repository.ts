@@ -42,10 +42,12 @@ export class SiteSurveyRepository {
             ? await client.query(query, values) 
             : await this.pool.query(query, values);
             
-        return result.rows[0] as ISiteSurvey;
+        const created = result.rows[0] as ISiteSurvey;
+        if (!created) return created;
+        return (await this.getByUid(tenantUid, created.uid, client)) ?? created;
     }
 
-    async getByUid(tenantUid: string, uid: string): Promise<ISiteSurvey | null> {
+    async getByUid(tenantUid: string, uid: string, client?: PoolClient): Promise<ISiteSurvey | null> {
         const query = `
             SELECT ${SITE_SURVEY_COLUMNS},
                    TRIM(CONCAT(l.first_name, ' ', COALESCE(l.last_name, ''))) AS "leadName",
@@ -56,7 +58,9 @@ export class SiteSurveyRepository {
             LEFT JOIN users u ON ss.assigned_to = u.uid
             WHERE ss.uid = $1 AND ss.tenant_uid = $2 AND ss.is_deleted = 0
         `;
-        const result = await this.pool.query(query, [uid, tenantUid]);
+        const result = client
+            ? await client.query(query, [uid, tenantUid])
+            : await this.pool.query(query, [uid, tenantUid]);
         return result.rows.length > 0 ? (result.rows[0] as ISiteSurvey) : null;
     }
 
@@ -201,7 +205,9 @@ export class SiteSurveyRepository {
             ? await client.query(query, values)
             : await this.pool.query(query, values);
 
-        return result.rows[0] as ISiteSurvey;
+        const created = result.rows[0] as ISiteSurvey;
+        if (!created) return created;
+        return (await this.getByUid(tenantUid, created.uid, client)) ?? created;
     }
 
     async softDelete(tenantUid: string, uid: string, deletedBy: string): Promise<boolean> {

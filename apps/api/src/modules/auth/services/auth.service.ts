@@ -209,19 +209,12 @@ export class AuthService {
         // Step 1: Look up session to identify the user before deleting session
         const session = await this.authRepository.findSessionByToken(refreshToken);
 
-        // Step 2: Deactivate device token(s) so logged-out users do not receive push notifications
+        // Step 2: Deactivate device token(s) if logging out from a mobile device
         if (deviceToken) {
-            // Specific device token provided: deactivate this device
+            // Specific mobile device token provided: deactivate this device
             await this.deviceTokenRepository.deactivateByToken(deviceToken);
             logger.info("Deactivated specific mobile device token during logout", {
                 deviceTokenPrefix: deviceToken.substring(0, 15) + "..."
-            });
-        } else if (session && session.user_uid) {
-            // No specific deviceToken provided: deactivate all active device tokens for this user
-            const count = await this.deviceTokenRepository.deactivateAllByUser(session.user_uid);
-            logger.info("Deactivated all active mobile device tokens for user during logout", {
-                userUid: session.user_uid,
-                deactivatedCount: count
             });
         }
 

@@ -385,7 +385,6 @@ class PushProvider {
                     defaultSound: true,
                     defaultVibrateTimings: true,
                     visibility: "public",
-                    icon: "ic_notification",
                 }
             },
             apns: {
@@ -415,6 +414,8 @@ class PushProvider {
                 response.responses.forEach((resp: SendResponse, idx: number) => {
                     if (!resp.success && resp.error) {
                         const errorCode = resp.error.code;
+                        const errorMsg = resp.error.message;
+                        logger.error(`FCM send failure for device token index ${idx} [User: ${userUid}]: Code=${errorCode}, Message=${errorMsg}`);
                         if (
                             errorCode === "messaging/registration-token-not-registered" ||
                             errorCode === "messaging/invalid-registration-token" ||

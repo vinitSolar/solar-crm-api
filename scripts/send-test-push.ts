@@ -1,19 +1,66 @@
+import "dotenv/config";
 import { Pool } from "pg";
 import { pushProvider } from "../apps/api/src/modules/notification/providers/push.provider.js";
 import { env } from "../packages/config/index.js";
+
+function createPool(forceNoSsl = false): Pool {
+  const connectionString = process.env.DATABASE_URL || (env as any).DATABASE?.URL;
+  const isSsl = !forceNoSsl && (
+    process.env.DB_SSL === "true" ||
+    (process.env.DB_SSL !== "false" && Boolean(connectionString && (
+      connectionString.includes("sslmode=require") ||
+      connectionString.includes("neon.tech") ||
+      connectionString.includes("supabase.co")
+    )))
+  );
+
+  return new Pool(
+    connectionString
+      ? {
+          connectionString,
+          ...(isSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+        }
+      : {
+          host: process.env.DB_HOST,
+          port: Number(process.env.DB_PORT) || 5432,
+          user: process.env.DB_USER,
+          password: process.env.DB_PASSWORD,
+          database: process.env.DB_NAME,
+          ...(isSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+        }
+  );
+}
 
 async function main() {
   console.log("====================================================");
   console.log("   SolarSetu — Push Notification Test Tool");
   console.log("====================================================\n");
 
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || (env as any).DATABASE?.URL,
-    ssl: { rejectUnauthorized: false },
-  });
+  let pool = createPool();
 
   try {
-    // 1. Fetch active devices
+    // Test query and auto-fallback if SSL is unsupported by the server
+    try {
+      await pool.query("SELECT 1");
+    } catch (err: any) {
+      if (err.message?.includes("does not support SSL") || err.message?.includes("server does not support SSL")) {
+        console.log("ℹ️  Server does not support SSL — reconnecting without SSL...");
+        await pool.end().catch(() => {});
+        pool = createPool(true);
+        await pool.query("SELECT 1");
+      } else {
+        throw err;
+      }
+    }
+    // 1. Ensure latest Xiaomi physical phone is active if found
+    await pool.query(`
+      UPDATE user_device_tokens 
+      SET is_active = 1 
+      WHERE device_name = 'Xiaomi 2201117TI' 
+        AND updated_at = (SELECT MAX(updated_at) FROM user_device_tokens WHERE device_name = 'Xiaomi 2201117TI')
+    `);
+
+    // Fetch devices
     const query = `
       SELECT 
         u.uid AS user_uid,
@@ -24,30 +71,31 @@ async function main() {
         t.device_name,
         t.device_type,
         t.device_token,
+        t.is_active,
         t.updated_at
       FROM user_device_tokens t
       JOIN users u ON u.uid = t.user_uid
-      WHERE t.is_active = 1
       ORDER BY t.updated_at DESC
       LIMIT 10
     `;
 
     const result = await pool.query(query);
 
-    if (result.rows.length === 0) {
+    console.log(`📱 Found ${result.rows.length} total device records in database:`);
+    result.rows.forEach((row, idx) => {
+      console.log(`   [${idx + 1}] User: ${row.first_name} (${row.email}) | Device: ${row.device_name || "Unknown"} | Active: ${row.is_active} | Updated: ${row.updated_at}`);
+    });
+    console.log("");
+
+    const activeRows = result.rows.filter(r => r.is_active === 1);
+    if (activeRows.length === 0) {
       console.warn("⚠️  No active mobile device tokens found in database!");
       console.warn("   Make sure you have logged in to the SolarSetu mobile app on your phone.\n");
       return;
     }
 
-    console.log(`📱 Found ${result.rows.length} active registered device(s):`);
-    result.rows.forEach((row, idx) => {
-      console.log(`   [${idx + 1}] User: ${row.first_name} ${row.last_name || ""} (${row.email}) | Device: ${row.device_name || "Unknown"} (${row.device_type})`);
-    });
-    console.log("");
-
-    // Target the first user with active token
-    const target = result.rows[0];
+    // Target the first active row (preferring non-emulator if available)
+    const target = activeRows.find(r => !r.device_name?.includes("sdk_gphone")) || activeRows[0];
     const timestamp = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" });
     const title = process.argv[2] || "SolarSetu Push Test";
     const body = process.argv[3] || `🔔 Test notification at ${timestamp}. Notification is working properly!`;

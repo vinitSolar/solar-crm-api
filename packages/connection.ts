@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Pool, types } from "pg";
 
 // Parse TIMESTAMP (OID 1114) without timezone directly as UTC Date
@@ -10,18 +11,21 @@ types.setTypeParser(1082, (stringValue) => {
     return stringValue || null;
 });
 
-const isSsl = process.env.DB_SSL !== undefined
-    ? process.env.DB_SSL === "true"
-    : (
-        (Boolean(process.env.DB_HOST) && process.env.DB_HOST !== "localhost" && process.env.DB_HOST !== "127.0.0.1" && process.env.DB_HOST !== "host.docker.internal")
-        || Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("localhost") && !process.env.DATABASE_URL.includes("host.docker.internal"))
-    );
+const rawDbUrl = process.env.DATABASE_URL || "";
+const hasExplicitSslDisable = process.env.DB_SSL === "false" || rawDbUrl.includes("sslmode=disable");
+const hasExplicitSslEnable = process.env.DB_SSL === "true" || rawDbUrl.includes("sslmode=require") || rawDbUrl.includes("sslmode=verify-full") || rawDbUrl.includes("neon.tech") || rawDbUrl.includes("supabase.co");
+
+const isSsl = hasExplicitSslDisable
+    ? false
+    : hasExplicitSslEnable
+        ? true
+        : false;
 
 const pool = new Pool(
     process.env.DATABASE_URL
         ? {
             connectionString: process.env.DATABASE_URL,
-            password: process.env.DB_PASSWORD,
+            ...(process.env.DB_PASSWORD ? { password: process.env.DB_PASSWORD } : {}),
             ssl: isSsl ? { rejectUnauthorized: false } : false,
             max: 20,
             idleTimeoutMillis: 30000,

@@ -289,6 +289,24 @@ class PushProvider {
                 };
             }
 
+            case NOTIFICATION_TEMPLATE.FOLLOW_UP_REMINDER: {
+                const customerName = v.customer_name || "Customer";
+                const leadNumber = v.lead_number ? ` (${v.lead_number})` : "";
+                const scheduledTime = v.scheduled_time || "now";
+                const notesExcerpt = v.notes ? `: "${v.notes}"` : "";
+                return {
+                    title: "Follow-up Reminder",
+                    body: `Follow-up with ${customerName}${leadNumber} is scheduled for ${scheduledTime}${notesExcerpt}.`,
+                    data: {
+                        module: "follow_up",
+                        referenceUid: v.lead_uid || referenceUid,
+                        leadUid: v.lead_uid || referenceUid,
+                        followUpUid: v.follow_up_uid || "",
+                        customerName
+                    }
+                };
+            }
+
             case NOTIFICATION_TEMPLATE.TEST_PUSH: {
                 return {
                     title: v.title || "SunSelect Test Notification",
@@ -355,7 +373,9 @@ class PushProvider {
             return;
         }
 
-        const registrationTokens = deviceTokens.map(t => t.deviceToken);
+        const registrationTokens = Array.from(
+            new Set(deviceTokens.map(t => t.deviceToken?.trim()))
+        ).filter((token): token is string => Boolean(token));
 
         // 4. Build multicast FCM message for mobile devices
         const safeData: Record<string, string> = {};
@@ -385,6 +405,7 @@ class PushProvider {
                     defaultSound: true,
                     defaultVibrateTimings: true,
                     visibility: "public",
+                    icon: "ic_notification",
                 }
             },
             apns: {

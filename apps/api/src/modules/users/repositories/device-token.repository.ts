@@ -51,6 +51,13 @@ export class DeviceTokenRepository {
                  WHERE tenant_uid = $1 AND user_uid = $2 AND device_name = $3 AND device_token != $4 AND is_active = 1`,
                 [tenantUid, userUid, data.deviceName, trimmedToken]
             ).catch(() => undefined);
+        } else {
+            await this.pool.query(
+                `UPDATE user_device_tokens
+                 SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+                 WHERE tenant_uid = $1 AND user_uid = $2 AND device_type = $3 AND device_token != $4 AND is_active = 1`,
+                [tenantUid, userUid, data.deviceType, trimmedToken]
+            ).catch(() => undefined);
         }
 
         const query = `

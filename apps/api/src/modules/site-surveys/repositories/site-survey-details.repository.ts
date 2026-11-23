@@ -61,6 +61,32 @@ export class SiteSurveyDetailsRepository {
         return result.rows.length > 0 ? (result.rows[0] as ISiteSurveyDetails) : null;
     }
 
+    async getBySiteSurveyUids(
+        tenantUid: string,
+        siteSurveyUids: string[],
+        client?: PoolClient
+    ): Promise<Map<string, ISiteSurveyDetails>> {
+        if (!siteSurveyUids || siteSurveyUids.length === 0) {
+            return new Map();
+        }
+
+        const query = `
+            SELECT ${SITE_SURVEY_DETAILS_COLUMNS}
+            FROM site_survey_details ssd
+            LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'site_survey_details' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = ssd.uid
+            WHERE ssd.site_survey_uid = ANY($1) AND ssd.tenant_uid = $2 AND ssd.is_deleted = 0
+        `;
+        const result = client
+            ? await client.query(query, [siteSurveyUids, tenantUid])
+            : await this.pool.query(query, [siteSurveyUids, tenantUid]);
+
+        const map = new Map<string, ISiteSurveyDetails>();
+        for (const row of result.rows) {
+            map.set(row.siteSurveyUid, row as ISiteSurveyDetails);
+        }
+        return map;
+    }
+
     async update(
         tenantUid: string,
         siteSurveyUid: string,

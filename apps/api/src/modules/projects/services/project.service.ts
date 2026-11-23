@@ -107,9 +107,11 @@ export class ProjectService {
         const systemSize = lead.systemSize || "0";
         const projectName = `${fullName} - ${systemSize}kW - ${projectNumber}`;
 
-        // 6. Insert Project
+        // 6. Insert Project with guaranteed assigned manager (fallback to lead's assignedTo or creator)
+        const assignedManagerUid = data.projectManagerUid || lead.assignedTo || createdBy;
         const createData = {
             ...data,
+            projectManagerUid: assignedManagerUid,
             projectName,
             leadUid: quotation.leadUid,
             statusUid: defaultStatus.uid,

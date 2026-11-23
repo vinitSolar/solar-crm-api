@@ -316,11 +316,11 @@ function createAutomationRouter(): Router {
                 `SELECT uid, module, record_uid AS "recordUid", action, message, 
                         created_at AS "createdAt", created_by AS "createdBy"
                  FROM audit_logs 
-                 WHERE tenant_uid = $1 
+                 WHERE tenant_uid::varchar = $1 
                    AND (
-                       (module = 'Lead' AND record_uid = $2)
-                       OR (module = 'Project' AND record_uid IN (
-                           SELECT uid::varchar FROM projects WHERE lead_uid = $2 AND tenant_uid = $1::uuid
+                       (module = 'Lead' AND record_uid::varchar = $2)
+                       OR (module = 'Project' AND record_uid::varchar IN (
+                           SELECT uid::varchar FROM projects WHERE lead_uid::varchar = $2 AND tenant_uid::varchar = $1
                        ))
                    )
                    AND message ILIKE '%automatically%'

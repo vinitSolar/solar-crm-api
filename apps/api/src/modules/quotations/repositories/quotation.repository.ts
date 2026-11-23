@@ -613,8 +613,8 @@ export class QuotationRepository {
                 t.code,
                 t.name AS tenant_name,
                 t.logo,
-                t.email,
-                t.mobile,
+                COALESCE(t.email, fo.email) AS email,
+                COALESCE(NULLIF(TRIM(t.mobile), ''), NULLIF(TRIM(fo.mobile_number), ''), NULLIF(TRIM(fo.alternate_number), '')) AS mobile,
                 fb.business_name,
                 fb.business_address,
                 fb.city,
@@ -622,6 +622,7 @@ export class QuotationRepository {
                 fb.pin_code
             FROM tenants t
             LEFT JOIN franchise_business_details fb ON t.uid = fb.tenant_uid AND fb.is_deleted = 0
+            LEFT JOIN franchise_owner_details fo ON t.uid = fo.tenant_uid AND fo.is_deleted = 0
             WHERE t.uid = $1 AND t.is_deleted = 0
             LIMIT 1
         `;

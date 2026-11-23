@@ -8,6 +8,7 @@ import { connectDatabase } from "@packages/index.js";
 import { connectRedis } from "@packages/redis/index.js";
 import { startNotificationWorker, emailProvider } from "./modules/notification/index.js";
 import { startQuotationWorker } from "./modules/quotations/index.js";
+import { startFollowUpReminderScheduler } from "./modules/leads/index.js";
 import { workflowAutomationService } from "./modules/automation/index.js";
 import http from "http";
 
@@ -30,6 +31,9 @@ async function startServer() {
 
     // Start quotation snapshot worker (fail-safe too)
     startQuotationWorker();
+
+    // Start automated follow-up reminder scheduler
+    startFollowUpReminderScheduler();
 
     server.listen(env.APP.PORT, () => {
         console.log(`

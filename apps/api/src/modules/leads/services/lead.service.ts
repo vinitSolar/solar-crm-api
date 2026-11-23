@@ -44,11 +44,34 @@ export class LeadService {
     async createLead(tenantUid: string, data: ICreateLead, createdBy: string): Promise<ILeadSafe> {
         logger.info("LeadService.createLead", { tenantUid });
 
+        const isQuickLead = Boolean(
+            data.isQuickLead === true ||
+            data.isQuickLead === 1 ||
+            (data as any).isQuickLead === "true" ||
+            (data as any).isQuickLead === "1" ||
+            (data as any).is_quick_lead === true ||
+            (data as any).is_quick_lead === 1
+        );
+
         // Ensure lead source belongs to this tenant if provided
         if (data.leadSourceUid) {
             const leadSource = await this.sourceRepository.getByUid(tenantUid, data.leadSourceUid);
             if (!leadSource) {
-                throw new CustomError(LEAD_SOURCE_MESSAGES.NOT_FOUND, 400);
+                if (isQuickLead || data.isDraft) {
+                    logger.warn("Lead source UID not found for tenant, falling back to default source", {
+                        tenantUid,
+                        requestedSourceUid: data.leadSourceUid,
+                    });
+                    const allSources = await this.sourceRepository.getAll(tenantUid, "active");
+                    const defaultSource = allSources.find((s) => s.isDefault === 1) || allSources[0];
+                    if (defaultSource) {
+                        data.leadSourceUid = defaultSource.uid;
+                    } else {
+                        throw new CustomError(LEAD_SOURCE_MESSAGES.NOT_FOUND, 400);
+                    }
+                } else {
+                    throw new CustomError(LEAD_SOURCE_MESSAGES.NOT_FOUND, 400);
+                }
             }
         }
 
@@ -88,15 +111,6 @@ export class LeadService {
                 ]);
             }
         }
-
-        const isQuickLead = Boolean(
-            data.isQuickLead === true ||
-            data.isQuickLead === 1 ||
-            (data as any).isQuickLead === "true" ||
-            (data as any).isQuickLead === "1" ||
-            (data as any).is_quick_lead === true ||
-            (data as any).is_quick_lead === 1
-        );
 
         const isDraft = Boolean(
             isQuickLead ||
@@ -826,7 +840,53 @@ export class LeadService {
     }
 
     async getFollowUps(tenantUid: string, leadUid: string): Promise<IFollowUp[]> {
-        return this.followUpRepository.getHistoryByLeadUid(tenantUid, leadUid);
+        const history = await this.followUpRepository.getHistoryByLeadUid(tenantUid, leadUid);
+        if (history.length > 0) {
+            return history;
+        }
+
+        // If no records in follow_ups table, check if the lead itself has a follow-up date
+        const lead = await this.repository.getByUid(tenantUid, leadUid);
+        if (lead && lead.followUpDate) {
+            try {
+                const created = await this.followUpRepository.create(
+                    tenantUid,
+                    {
+                        leadUid: lead.uid,
+                        followUpDate: lead.followUpDate,
+                        notes: lead.remarks || null,
+                        status: "scheduled",
+                        assignedTo: lead.assignedTo || null,
+                    },
+                    lead.createdBy || "SYSTEM"
+                );
+                if (created) {
+                    return [created];
+                }
+            } catch (err) {
+                logger.warn("Could not auto-create follow_up from lead.followUpDate:", err);
+            }
+
+            return [{
+                id: 0,
+                uid: `fu-${lead.uid}`,
+                tenantUid,
+                leadUid: lead.uid,
+                followUpDate: lead.followUpDate as any,
+                status: "scheduled",
+                notes: lead.remarks || null,
+                assignedTo: lead.assignedTo || null,
+                isActive: 1,
+                isDeleted: 0,
+                createdAt: lead.createdAt as any,
+                updatedAt: lead.updatedAt as any,
+                createdBy: lead.createdBy || null,
+                assignedToName: (lead as any).assignedToName || null,
+                createdByName: (lead as any).createdByName || "Team member",
+            } as any];
+        }
+
+        return [];
     }
 
     async scheduleFollowUp(
@@ -838,6 +898,25 @@ export class LeadService {
         const lead = await this.repository.getByUid(tenantUid, leadUid);
         if (!lead) {
             throw new CustomError(LEAD_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const targetDate = new Date(data.followUpDate);
+        if (isNaN(targetDate.getTime())) {
+            throw new CustomError("Invalid follow-up date and time.", 400);
+        }
+
+        const targetMinutes = Math.floor(targetDate.getTime() / 60000);
+
+        // Check if this lead already has an active follow-up at the exact same minute
+        const activeFollowUp = await this.followUpRepository.getActiveByLeadUid(tenantUid, leadUid);
+        if (activeFollowUp && activeFollowUp.status === "scheduled" && activeFollowUp.followUpDate) {
+            const activeMinutes = Math.floor(new Date(activeFollowUp.followUpDate).getTime() / 60000);
+            if (activeMinutes === targetMinutes) {
+                throw new CustomError(
+                    "A follow-up is already scheduled for this exact date and time. Same date is acceptable, but please choose a different time.",
+                    400
+                );
+            }
         }
 
         const followUp = await this.followUpRepository.create(
@@ -924,8 +1003,9 @@ export class LeadService {
     async checkScheduleConflict(
         tenantUid: string,
         followUpDate: Date | string,
-        excludeLeadUid?: string | null
+        excludeLeadUid?: string | null,
+        assignedTo?: string | null
     ) {
-        return this.followUpRepository.findConflict(tenantUid, followUpDate, excludeLeadUid);
+        return this.followUpRepository.findConflict(tenantUid, followUpDate, excludeLeadUid, assignedTo);
     }
 }

@@ -97,7 +97,7 @@ function formatINR(amount: number): string {
 }
 
 export function generateQuotationHtml(data: IQuotationPdfData): string {
-    const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy } = data;
+    const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy, preparedBy } = data;
 
     // Build logo section
     const logoHtml = franchise.logo 
@@ -574,6 +574,12 @@ export function generateQuotationHtml(data: IQuotationPdfData): string {
                 <span class="info-label">Status:</span>
                 <span class="info-value">${quotation.statusText}</span>
             </div>
+            ${preparedBy?.name ? `
+            <div class="info-row">
+                <span class="info-label">Prepared By:</span>
+                <span class="info-value">${preparedBy.name}${preparedBy.phone ? ` (${preparedBy.phone})` : ''}</span>
+            </div>
+            ` : ''}
         </div>
     </div>
 

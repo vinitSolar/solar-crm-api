@@ -278,6 +278,7 @@ export class LeadController {
             const tenantUid = authReq.tenantUid;
             const followUpDate = req.query.followUpDate as string | undefined;
             const excludeLeadUid = req.query.excludeLeadUid as string | undefined;
+            const assignedTo = (req.query.assignedTo as string | undefined) || (req.query.userId as string | undefined);
 
             if (!followUpDate) {
                 res.status(400).json({
@@ -287,7 +288,7 @@ export class LeadController {
                 return;
             }
 
-            const conflict = await this.service.checkScheduleConflict(tenantUid, followUpDate, excludeLeadUid || null);
+            const conflict = await this.service.checkScheduleConflict(tenantUid, followUpDate, excludeLeadUid || null, assignedTo || null);
             res.status(200).json({
                 success: true,
                 message: conflict ? "Schedule conflict detected" : "Time slot is available",

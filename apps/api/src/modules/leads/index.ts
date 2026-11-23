@@ -32,3 +32,4 @@ export {
 export { LeadRepository } from "./repositories/lead.repository.js";
 export { LeadSourceRepository } from "./repositories/lead-source.repository.js";
 export { LeadStatusRepository } from "./repositories/lead-status.repository.js";
+export { followUpReminderService, startFollowUpReminderScheduler } from "./services/follow-up-reminder.service.js";

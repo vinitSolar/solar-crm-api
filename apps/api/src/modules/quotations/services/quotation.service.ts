@@ -1155,7 +1155,7 @@ export class QuotationService {
                 },
                 preparedBy: {
                     name: salesExecutiveName || franchise.name || '',
-                    phone: franchise.mobile || '',
+                    phone: franchise.mobile || '+91 98765 43210',
                     email: franchise.email || ''
                 },
                 bankDetails,

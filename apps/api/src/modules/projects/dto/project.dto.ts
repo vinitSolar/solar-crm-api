@@ -21,6 +21,7 @@ export function toProjectStatusSafe(status: IProjectStatus): IProjectStatusSafe 
 
 export function toProjectSafe(project: IProject): IProjectSafe {
     const customerName = [project.customerFirstName, project.customerLastName].filter(Boolean).join(" ");
+    const customerAddress = [project.customerAddress, project.customerCity, project.customerState, project.customerPinCode].filter(Boolean).join(", ");
     
     return {
         uid: project.uid,
@@ -38,7 +39,9 @@ export function toProjectSafe(project: IProject): IProjectSafe {
         projectManagerName: project.projectManagerName ?? null,
         customerName: customerName.length > 0 ? customerName : null,
         customerMobileNumber: project.customerMobileNumber ?? null,
-        finalSystemSize: project.finalSystemSize ?? null,
+        customerAddress: customerAddress.length > 0 ? customerAddress : null,
+        finalSystemSize: project.finalSystemSize !== undefined && project.finalSystemSize !== null ? Number(project.finalSystemSize) : null,
+        quotedPrice: project.quotedPrice !== undefined && project.quotedPrice !== null ? Number(project.quotedPrice) : null,
         projectStatus: project.projectStatusUid ? {
             uid: project.projectStatusUid,
             name: project.statusName || "",

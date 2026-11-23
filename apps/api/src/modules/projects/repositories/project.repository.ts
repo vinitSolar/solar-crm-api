@@ -13,9 +13,17 @@ const PROJECT_COLUMNS = `
 
 const PROJECT_RELATIONS_COLUMNS = `
     ps.name AS "statusName", ps.color AS "statusColor", ps.sort_order AS "statusSortOrder", ps.is_closed AS "statusIsClosed",
-    TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS "projectManagerName",
+    COALESCE(
+        NULLIF(TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))), ''),
+        NULLIF(TRIM(CONCAT(lu.first_name, ' ', COALESCE(lu.last_name, ''))), ''),
+        NULLIF(TRIM(CONCAT(cu.first_name, ' ', COALESCE(cu.last_name, ''))), ''),
+        'Unassigned'
+    ) AS "projectManagerName",
+    COALESCE(p.project_manager_uid::varchar, l.assigned_to::varchar, p.created_by::varchar) AS "effectiveProjectManagerUid",
     l.first_name AS "customerFirstName", l.last_name AS "customerLastName", l.mobile_number AS "customerMobileNumber",
-    q.system_size AS "finalSystemSize"
+    l.address AS "customerAddress", l.city AS "customerCity", l.state AS "customerState", l.pin_code AS "customerPinCode",
+    COALESCE(q.system_size, l.system_size) AS "finalSystemSize",
+    COALESCE(NULLIF(q.net_customer_cost, 0), q.grand_total, 0) AS "quotedPrice"
 `;
 
 export class ProjectRepository {
@@ -65,6 +73,8 @@ export class ProjectRepository {
              LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid 
              LEFT JOIN users u ON p.project_manager_uid::varchar = u.uid
              LEFT JOIN leads l ON p.lead_uid::varchar = l.uid
+             LEFT JOIN users lu ON l.assigned_to::varchar = lu.uid
+             LEFT JOIN users cu ON p.created_by::varchar = cu.uid
              LEFT JOIN quotations q ON p.quotation_uid::varchar = q.uid
              WHERE p.uid::varchar = $1 AND p.tenant_uid::varchar = $2 AND p.is_deleted = 0
         `;
@@ -167,7 +177,9 @@ export class ProjectRepository {
                 l.first_name ILIKE $${searchIndex} OR
                 l.last_name ILIKE $${searchIndex} OR
                 l.mobile_number ILIKE $${searchIndex} OR
-                u.first_name ILIKE $${searchIndex}
+                u.first_name ILIKE $${searchIndex} OR
+                lu.first_name ILIKE $${searchIndex} OR
+                cu.first_name ILIKE $${searchIndex}
             )`;
         }
 
@@ -184,6 +196,8 @@ export class ProjectRepository {
             FROM projects p
             LEFT JOIN users u ON p.project_manager_uid::varchar = u.uid
             LEFT JOIN leads l ON p.lead_uid::varchar = l.uid
+            LEFT JOIN users lu ON l.assigned_to::varchar = lu.uid
+            LEFT JOIN users cu ON p.created_by::varchar = cu.uid
             WHERE ${baseWhereClause}
             GROUP BY p.project_status_uid
         `;
@@ -198,6 +212,8 @@ export class ProjectRepository {
             LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid 
             LEFT JOIN users u ON p.project_manager_uid::varchar = u.uid
             LEFT JOIN leads l ON p.lead_uid::varchar = l.uid
+            LEFT JOIN users lu ON l.assigned_to::varchar = lu.uid
+            LEFT JOIN users cu ON p.created_by::varchar = cu.uid
             LEFT JOIN quotations q ON p.quotation_uid::varchar = q.uid
             WHERE ${whereClause} 
             ORDER BY p.created_at DESC 

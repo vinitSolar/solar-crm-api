@@ -177,8 +177,16 @@ export class SiteSurveyService {
             query.leadUid
         );
 
+        const surveyUids = result.rows.map((survey) => survey.uid);
+        const detailsMap = surveyUids.length > 0
+            ? await this.detailsRepository.getBySiteSurveyUids(tenantUid, surveyUids)
+            : new Map();
+
         return {
-            data: result.rows.map(survey => toSiteSurveySafe(survey)),
+            data: result.rows.map(survey => {
+                const details = detailsMap.get(survey.uid);
+                return toSiteSurveySafe(survey, details ? toSiteSurveyDetailsSafe(details) : undefined);
+            }),
             meta: {
                 total: result.total,
                 page,
@@ -198,7 +206,15 @@ export class SiteSurveyService {
         const assignedTo = showAllSurveys ? undefined : userUid;
 
         const surveys = await this.repository.getAll(tenantUid, status, assignedTo);
-        return surveys.map(survey => toSiteSurveySafe(survey));
+        const surveyUids = surveys.map((survey) => survey.uid);
+        const detailsMap = surveyUids.length > 0
+            ? await this.detailsRepository.getBySiteSurveyUids(tenantUid, surveyUids)
+            : new Map();
+
+        return surveys.map(survey => {
+            const details = detailsMap.get(survey.uid);
+            return toSiteSurveySafe(survey, details ? toSiteSurveyDetailsSafe(details) : undefined);
+        });
     }
 
     async updateSiteSurvey(tenantUid: string, uid: string, data: IUpdateSiteSurvey, updatedBy: string, roleUid?: string): Promise<ISiteSurveySafe> {
@@ -252,7 +268,9 @@ export class SiteSurveyService {
                 });
             }
 
-            return toSiteSurveySafe(updated);
+            const details = await this.detailsRepository.getBySiteSurveyUid(tenantUid, uid);
+            const detailsSafe = details ? toSiteSurveyDetailsSafe(details) : undefined;
+            return toSiteSurveySafe(updated, detailsSafe);
         } catch (error) {
             if (error instanceof CustomError) throw error;
             logger.error("SiteSurveyService.updateSiteSurvey error", { error });
@@ -289,7 +307,9 @@ export class SiteSurveyService {
                     metadata: { leadUid: existing.leadUid }
                 });
             }
-            return toSiteSurveySafe(updated);
+            const details = await this.detailsRepository.getBySiteSurveyUid(tenantUid, uid);
+            const detailsSafe = details ? toSiteSurveyDetailsSafe(details) : undefined;
+            return toSiteSurveySafe(updated, detailsSafe);
         } catch (error) {
             if (error instanceof CustomError) throw error;
             logger.error("SiteSurveyService.changeSiteSurveyStatus error", { error });

@@ -130,10 +130,12 @@ export class PaymentRepository {
                 , 0) AS "totalAmountDue"
             FROM payments p
             LEFT JOIN LATERAL (
-                SELECT net_customer_cost
+                SELECT COALESCE(NULLIF(net_customer_cost, 0), grand_total, 0) AS net_customer_cost
                 FROM quotations
-                WHERE lead_uid = p.lead_uid::TEXT AND tenant_uid = p.tenant_uid::TEXT AND is_active = 1 AND is_deleted = 0
-                ORDER BY created_at DESC
+                WHERE lead_uid = p.lead_uid::TEXT AND tenant_uid = p.tenant_uid::TEXT AND is_deleted = 0
+                ORDER BY 
+                    (CASE WHEN status = 2 THEN 1 WHEN status = 4 THEN 2 WHEN is_active = 1 THEN 3 ELSE 4 END),
+                    created_at DESC
                 LIMIT 1
             ) q ON true
             LEFT JOIN payments p2
@@ -215,10 +217,12 @@ export class PaymentRepository {
                 , 0) AS "totalAmountDue"
             FROM payments p
             LEFT JOIN LATERAL (
-                SELECT net_customer_cost
+                SELECT COALESCE(NULLIF(net_customer_cost, 0), grand_total, 0) AS net_customer_cost
                 FROM quotations
-                WHERE lead_uid = p.lead_uid::TEXT AND tenant_uid = p.tenant_uid::TEXT AND is_active = 1 AND is_deleted = 0
-                ORDER BY created_at DESC
+                WHERE lead_uid = p.lead_uid::TEXT AND tenant_uid = p.tenant_uid::TEXT AND is_deleted = 0
+                ORDER BY 
+                    (CASE WHEN status = 2 THEN 1 WHEN status = 4 THEN 2 WHEN is_active = 1 THEN 3 ELSE 4 END),
+                    created_at DESC
                 LIMIT 1
             ) q ON true
             LEFT JOIN payments p2

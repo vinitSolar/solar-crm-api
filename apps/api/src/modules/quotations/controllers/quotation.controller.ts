@@ -132,13 +132,14 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
     const tenantUid = authReq.user.tenantUid;
     const uid = req.params.uid as string;
     const createdBy = authReq.user.uid;
-    const isSync = req.query.sync === "true" || req.body?.sync === true;
+    const isExplicitAsync = req.query.async === "true" || req.body?.async === true;
+    const isSync = !isExplicitAsync || req.query.sync === "true" || req.body?.sync === true;
     const isForce = req.query.force === "true" || req.body?.force === true || req.query.regenerate === "true" || Boolean(req.query.version) || Boolean(req.query.templateVersion);
     const templateVersion = ((req.query.version || req.query.templateVersion || req.body?.templateVersion || "v3") as string).toLowerCase() === "v2" ? "v2" : "v3";
 
     // 1. If PDF already exists and forced regeneration is not requested, return immediately
     const existing = await quotationService.getByUid(tenantUid, uid);
-    if (!isSync && !isForce && existing.pdfUrl) {
+    if (!isForce && existing.pdfUrl) {
         return res.status(200).json({
             success: true,
             message: "Quotation PDF retrieved successfully.",
@@ -174,7 +175,7 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
         });
     }
 
-    // 3. If sync parameter was explicitly requested, await generation directly
+    // 3. Await generation directly when in sync mode (default for preview & downloads)
     if (isSync) {
         const { pdfUrl, pdfPath } = await quotationService.generatePdf(tenantUid, uid, createdBy, templateVersion);
         return res.status(200).json({
@@ -188,7 +189,7 @@ export const generateQuotationPdf = asyncHandler(async (req: Request, res: Respo
         });
     }
 
-    // 4. Trigger PDF generation in background (non-blocking for fast API response)
+    // 4. Trigger PDF generation in background (only if caller explicitly requested async)
     setImmediate(async () => {
         try {
             await quotationService.generatePdf(tenantUid, uid, createdBy, templateVersion);

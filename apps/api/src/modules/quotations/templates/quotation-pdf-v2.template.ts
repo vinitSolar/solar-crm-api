@@ -404,8 +404,19 @@ function formatINR(amount: number): string {
 export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
   const { franchise, customer, quotation, items, scopeOfWork, termsConditions, subsidy, preparedBy } = data;
 
-  const preparedByName = (preparedBy?.name || quotation.createdByName || franchise.name || '').trim();
-  const preparedByPhone = (preparedBy?.phone || franchise.mobile || '').trim();
+  const formatPhoneNumber = (val?: string | null): string => {
+    if (!val) return '';
+    const clean = val.replace(/[^\d+]/g, '').trim();
+    if (!clean) return '';
+    if (clean.startsWith('+')) return clean;
+    if (clean.length === 10) return `+91 ${clean}`;
+    if (clean.length === 12 && clean.startsWith('91')) return `+${clean.slice(0, 2)} ${clean.slice(2)}`;
+    return `+91 ${clean}`;
+  };
+
+  const preparedByName = (preparedBy?.name || quotation.createdByName || franchise.name || 'Sunselect Solar').trim();
+  const rawPreparedPhone = (preparedBy?.phone || franchise.mobile || '').trim();
+  const preparedByPhone = formatPhoneNumber(rawPreparedPhone) || (franchise.mobile ? formatPhoneNumber(franchise.mobile) : '+91 98765 43210');
 
   const coverBgBase64 = getCoverBgBase64();
   const coverLogoBase64 = getCoverLogoBase64();
@@ -1796,7 +1807,7 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
 
           <div class="field-group">
             <div class="field-label">Phone</div>
-            <div class="field-val">${customer.mobileNumber || ''}</div>
+            <div class="field-val">${formatPhoneNumber(customer.mobileNumber) || customer.mobileNumber || ''}</div>
           </div>
         </div>
       </div>
@@ -1814,8 +1825,14 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
         <div class="section-title">PREPARED BY</div>
       </div>
       <div class="section-body">
-        <div class="prepared-company">${preparedByName}</div>
-        <div class="prepared-phone">Phone: <strong>${preparedByPhone}</strong></div>
+        <div class="field-group">
+          <div class="field-label">Name</div>
+          <div class="field-val">${preparedByName}</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Phone</div>
+          <div class="field-val">${preparedByPhone}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1993,8 +2010,6 @@ export function generateQuotationHtmlV2(data: IQuotationPdfData): string {
              </table>
          </div>
       </div>
-
-      ${quotation.notes ? `<p class="notice">Note: ${quotation.notes}</p>` : ''}
     </div>
 
     <div class="footer">

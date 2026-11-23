@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import type { IFollowUp, ICreateFollowUp } from "../interfaces/follow-up.interface.js";
+import { CustomError } from "../../../middlewares/error.middleware.js";
 import { v4 as uuidv4 } from "uuid";
 
 const FOLLOW_UP_COLUMNS = `
@@ -35,7 +36,38 @@ export class FollowUpRepository {
                 await executor.query("BEGIN");
             }
 
-            // 1. Deactivate any existing active follow-up for this lead
+            // 0. Row-level lock on the lead to prevent concurrent duplicate follow-up creation
+            await executor.query(
+                `SELECT id FROM leads WHERE uid = $1 AND tenant_uid = $2 FOR UPDATE`,
+                [data.leadUid, tenantUid]
+            );
+
+            // 1. Check if a follow-up is already active or recently scheduled for this lead at the exact same minute
+            const conflictCheck = await executor.query(
+                `
+                SELECT id
+                FROM follow_ups
+                WHERE tenant_uid = $1 
+                  AND lead_uid = $2 
+                  AND is_deleted = 0
+                  AND (
+                    (is_active = 1 AND date_trunc('minute', follow_up_date AT TIME ZONE 'UTC') = date_trunc('minute', $3::timestamptz AT TIME ZONE 'UTC'))
+                    OR
+                    (created_at >= NOW() - INTERVAL '5 seconds' AND date_trunc('minute', follow_up_date AT TIME ZONE 'UTC') = date_trunc('minute', $3::timestamptz AT TIME ZONE 'UTC'))
+                  )
+                LIMIT 1
+                `,
+                [tenantUid, data.leadUid, data.followUpDate]
+            );
+
+            if (conflictCheck.rows.length > 0) {
+                throw new CustomError(
+                    "A follow-up is already scheduled for this exact date and time. Same date is acceptable, but please choose a different time.",
+                    400
+                );
+            }
+
+            // 2. Deactivate any existing active follow-up for this lead
             await executor.query(
                 `
                 UPDATE follow_ups
@@ -49,7 +81,7 @@ export class FollowUpRepository {
                 [createdBy || null, tenantUid, data.leadUid]
             );
 
-            // 2. Insert new active follow-up
+            // 3. Insert new active follow-up
             const uid = uuidv4();
             const insertQuery = `
                 WITH inserted AS (
@@ -115,7 +147,18 @@ export class FollowUpRepository {
             FROM follow_ups fu
             LEFT JOIN users u ON fu.assigned_to = u.uid
             LEFT JOIN users cu ON fu.created_by = cu.uid
-            WHERE fu.tenant_uid = $1 AND fu.lead_uid = $2 AND fu.is_deleted = 0
+            WHERE fu.tenant_uid = $1 
+              AND (
+                fu.lead_uid = $2 
+                OR fu.lead_uid = (
+                    SELECT l.uid 
+                    FROM leads l 
+                    WHERE (l.uid = $2 OR l.id::varchar = $2 OR l.lead_number = $2) 
+                      AND l.tenant_uid = $1 
+                    LIMIT 1
+                )
+              ) 
+              AND fu.is_deleted = 0
             ORDER BY fu.created_at DESC, fu.id DESC
         `;
         const result = await executor.query(query, [tenantUid, leadUid]);
@@ -299,6 +342,7 @@ export class FollowUpRepository {
         tenantUid: string,
         followUpDate: Date | string,
         excludeLeadUid?: string | null,
+        assignedTo?: string | null,
         client?: PoolClient
     ): Promise<{
         uid: string;
@@ -308,6 +352,10 @@ export class FollowUpRepository {
         assignedTo?: string | null;
         assignedToName?: string | null;
     } | null> {
+        if (!assignedTo || !assignedTo.trim()) {
+            return null;
+        }
+
         const executor = client || this.pool;
         const query = `
             SELECT 
@@ -315,7 +363,7 @@ export class FollowUpRepository {
                 l.lead_number AS "leadNumber",
                 TRIM(CONCAT(l.first_name, ' ', COALESCE(l.last_name, ''))) AS "customerName",
                 COALESCE(fu.follow_up_date, l.follow_up_date) AS "followUpDate",
-                l.assigned_to AS "assignedTo",
+                COALESCE(fu.assigned_to, l.assigned_to) AS "assignedTo",
                 COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))), ''), u.email) AS "assignedToName"
             FROM leads l
             LEFT JOIN follow_ups fu 
@@ -324,7 +372,7 @@ export class FollowUpRepository {
                 AND fu.is_deleted = 0 
                 AND fu.status = 'scheduled'
             LEFT JOIN users u 
-                ON l.assigned_to = u.uid
+                ON COALESCE(fu.assigned_to, l.assigned_to) = u.uid
             WHERE l.tenant_uid = $1
               AND l.is_deleted = 0
               AND (
@@ -333,9 +381,10 @@ export class FollowUpRepository {
                 (fu.id IS NOT NULL AND date_trunc('minute', fu.follow_up_date AT TIME ZONE 'UTC') = date_trunc('minute', $2::timestamptz AT TIME ZONE 'UTC'))
               )
               AND ($3::varchar IS NULL OR l.uid != $3)
+              AND COALESCE(fu.assigned_to, l.assigned_to)::varchar = $4::varchar
             LIMIT 1
         `;
-        const result = await executor.query(query, [tenantUid, followUpDate, excludeLeadUid || null]);
+        const result = await executor.query(query, [tenantUid, followUpDate, excludeLeadUid || null, assignedTo.trim()]);
         return result.rows.length > 0 ? (result.rows[0] as any) : null;
     }
 }

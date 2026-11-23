@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+import puppeteer, { type Browser, type Page } from "puppeteer";
 import { generateQuotationHtmlV2 } from "../templates/quotation-pdf-v2.template.js";
 import { generateQuotationHtmlV3 } from "../templates/quotation-pdf-v3.template.js";
 import type { IQuotationPdfData } from "../templates/quotation-pdf.template.js";
@@ -35,9 +35,62 @@ function releaseRenderSlot(): void {
     }
 }
 
+let sharedBrowser: Browser | null = null;
+let browserInitPromise: Promise<Browser> | null = null;
+
+async function getSharedBrowser(): Promise<Browser> {
+    if (sharedBrowser && sharedBrowser.connected) {
+        return sharedBrowser;
+    }
+    if (browserInitPromise) {
+        return browserInitPromise;
+    }
+
+    const launchOptions = {
+        ...(process.env.PUPPETEER_EXECUTABLE_PATH ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH } : {}),
+        args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--window-position=-2400,-2400",
+            "--window-size=1920,1080",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--mute-audio"
+        ]
+    };
+
+    browserInitPromise = (async () => {
+        try {
+            sharedBrowser = await puppeteer.launch({
+                ...launchOptions,
+                headless: "shell"
+            });
+        } catch {
+            sharedBrowser = await puppeteer.launch({
+                ...launchOptions,
+                headless: true
+            });
+        }
+        sharedBrowser.on("disconnected", () => {
+            sharedBrowser = null;
+        });
+        return sharedBrowser;
+    })();
+
+    try {
+        return await browserInitPromise;
+    } finally {
+        browserInitPromise = null;
+    }
+}
+
 export class QuotationPdfGenerator {
     /**
-     * Spins up a headless browser, renders the formatted quotation HTML,
+     * Spins up or reuses a headless browser, renders the formatted quotation HTML,
      * and compiles it into an A4 PDF document buffer.
      * Uses a concurrency queue to protect Docker server memory.
      * 
@@ -50,37 +103,10 @@ export class QuotationPdfGenerator {
         logger.info(`Acquired PDF render slot for Quote #: ${data.quotation.quotationNumber} [Active: ${activeRenders}/${MAX_CONCURRENT_PDF_RENDERS}, Queued: ${renderQueue.length}]`);
         const html = templateVersion === 'v2' ? generateQuotationHtmlV2(data) : generateQuotationHtmlV3(data);
         
-        let browser;
+        let page: Page | null = null;
         try {
-            const launchOptions = {
-                ...(process.env.PUPPETEER_EXECUTABLE_PATH ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH } : {}),
-                args: [
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-gpu",
-                    "--no-first-run",
-                    "--no-default-browser-check",
-                    "--window-position=-2400,-2400",
-                    "--window-size=1920,1080",
-                    "--disable-extensions",
-                    "--disable-background-networking",
-                    "--mute-audio"
-                ]
-            };
-
-            try {
-                browser = await puppeteer.launch({
-                    ...launchOptions,
-                    headless: "shell"
-                });
-            } catch {
-                browser = await puppeteer.launch({
-                    ...launchOptions,
-                    headless: true
-                });
-            }
-            const page = await browser.newPage();
+            const browser = await getSharedBrowser();
+            page = await browser.newPage();
             
             // Set HTML content and wait for fonts to resolve (all images/fonts are embedded base64 data URIs)
             await page.setContent(html, { waitUntil: "load" });
@@ -104,8 +130,8 @@ export class QuotationPdfGenerator {
             logger.error("Failed to render PDF using Puppeteer", error);
             throw error;
         } finally {
-            if (browser) {
-                await browser.close().catch(() => {});
+            if (page) {
+                await page.close().catch(() => {});
             }
             releaseRenderSlot();
             logger.info(`Released PDF render slot for Quote #: ${data.quotation.quotationNumber} [Active: ${activeRenders}/${MAX_CONCURRENT_PDF_RENDERS}, Queued: ${renderQueue.length}]`);

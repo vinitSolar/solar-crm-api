@@ -34,6 +34,23 @@ async function confirmPrompt(message: string): Promise<boolean> {
   });
 }
 
+async function safeDelete(
+  client: any,
+  tableName: string,
+  whereClause: string = ''
+): Promise<{ rowCount: number; existed: boolean }> {
+  const check = await client.query(
+    `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1`,
+    [tableName]
+  );
+  if ((check.rowCount ?? 0) === 0) {
+    return { rowCount: 0, existed: false };
+  }
+  const query = whereClause ? `DELETE FROM "${tableName}" WHERE ${whereClause}` : `DELETE FROM "${tableName}"`;
+  const result = await client.query(query);
+  return { rowCount: result.rowCount ?? 0, existed: true };
+}
+
 async function run() {
   const isForce = process.argv.includes('--force') || process.argv.includes('-f');
 
@@ -74,83 +91,95 @@ async function run() {
     await client.query('BEGIN');
 
     // 1. Delete Quotation Children & Quotations
-    const qItems = await client.query('DELETE FROM quotation_items');
-    console.log(`[✓] Deleted ${qItems.rowCount ?? 0} quotation items`);
+    const qItems = await safeDelete(client, 'quotation_items');
+    if (qItems.existed) console.log(`[✓] Deleted ${qItems.rowCount} quotation items`);
 
-    const qScope = await client.query('DELETE FROM quotation_scope_of_work_items');
-    console.log(`[✓] Deleted ${qScope.rowCount ?? 0} quotation scope items`);
+    const qScope = await safeDelete(client, 'quotation_scope_of_work_items');
+    if (qScope.existed) console.log(`[✓] Deleted ${qScope.rowCount} quotation scope items`);
 
-    const qTerms = await client.query('DELETE FROM quotation_terms_conditions_items');
-    console.log(`[✓] Deleted ${qTerms.rowCount ?? 0} quotation terms items`);
+    const qTerms = await safeDelete(client, 'quotation_terms_conditions_items');
+    if (qTerms.existed) console.log(`[✓] Deleted ${qTerms.rowCount} quotation terms items`);
 
-    const quotations = await client.query('DELETE FROM quotations');
-    console.log(`[✓] Deleted ${quotations.rowCount ?? 0} quotations`);
+    const quotations = await safeDelete(client, 'quotations');
+    if (quotations.existed) console.log(`[✓] Deleted ${quotations.rowCount} quotations`);
 
     // 2. Delete Project Milestones, Documents, Subsidy Trackers & Projects
-    const milestoneDocs = await client.query('DELETE FROM project_installation_milestone_documents');
-    console.log(`[✓] Deleted ${milestoneDocs.rowCount ?? 0} project milestone documents/photos`);
+    const milestoneDocs = await safeDelete(client, 'project_installation_milestone_documents');
+    if (milestoneDocs.existed) console.log(`[✓] Deleted ${milestoneDocs.rowCount} project milestone documents/photos`);
 
-    const milestoneRows = await client.query('DELETE FROM project_installation_milestones');
-    console.log(`[✓] Deleted ${milestoneRows.rowCount ?? 0} project installation milestones`);
+    const milestoneRows = await safeDelete(client, 'project_installation_milestones');
+    if (milestoneRows.existed) console.log(`[✓] Deleted ${milestoneRows.rowCount} project installation milestones`);
 
-    const projSubsidyDocs = await client.query('DELETE FROM project_subsidy_documents');
-    console.log(`[✓] Deleted ${projSubsidyDocs.rowCount ?? 0} project subsidy documents`);
+    const projSubsidyDocs = await safeDelete(client, 'project_subsidy_documents');
+    if (projSubsidyDocs.existed) console.log(`[✓] Deleted ${projSubsidyDocs.rowCount} project subsidy documents`);
 
-    const subsidyTrackers = await client.query('DELETE FROM subsidy_trackers');
-    console.log(`[✓] Deleted ${subsidyTrackers.rowCount ?? 0} subsidy tracker records`);
+    const subsidyTrackers = await safeDelete(client, 'subsidy_trackers');
+    if (subsidyTrackers.existed) console.log(`[✓] Deleted ${subsidyTrackers.rowCount} subsidy tracker records`);
 
-    const payments = await client.query('DELETE FROM payments');
-    console.log(`[✓] Deleted ${payments.rowCount ?? 0} payment records`);
+    const payments = await safeDelete(client, 'payments');
+    if (payments.existed) console.log(`[✓] Deleted ${payments.rowCount} payment records`);
 
-    const projects = await client.query('DELETE FROM projects');
-    console.log(`[✓] Deleted ${projects.rowCount ?? 0} projects`);
+    const projects = await safeDelete(client, 'projects');
+    if (projects.existed) console.log(`[✓] Deleted ${projects.rowCount} projects`);
 
     // 3. Delete Site Surveys, Details & Survey Documents
-    const surveyDocs = await client.query('DELETE FROM site_survey_documents');
-    console.log(`[✓] Deleted ${surveyDocs.rowCount ?? 0} site survey documents`);
+    const surveyDocs = await safeDelete(client, 'site_survey_documents');
+    if (surveyDocs.existed) console.log(`[✓] Deleted ${surveyDocs.rowCount} site survey documents`);
 
-    const surveyDetails = await client.query('DELETE FROM site_survey_details');
-    console.log(`[✓] Deleted ${surveyDetails.rowCount ?? 0} site survey detail records`);
+    const surveyDetails = await safeDelete(client, 'site_survey_details');
+    if (surveyDetails.existed) console.log(`[✓] Deleted ${surveyDetails.rowCount} site survey detail records`);
 
-    const siteSurveys = await client.query('DELETE FROM site_surveys');
-    console.log(`[✓] Deleted ${siteSurveys.rowCount ?? 0} site surveys`);
+    const siteSurveys = await safeDelete(client, 'site_surveys');
+    if (siteSurveys.existed) console.log(`[✓] Deleted ${siteSurveys.rowCount} site surveys`);
 
-    // 4. Delete Follow Ups & Lead Notes
-    const followUps = await client.query('DELETE FROM follow_ups');
-    console.log(`[✓] Deleted ${followUps.rowCount ?? 0} follow ups`);
+    // 4. Delete Follow Ups & Notes
+    const followUps = await safeDelete(client, 'follow_ups');
+    if (followUps.existed) console.log(`[✓] Deleted ${followUps.rowCount} follow ups`);
 
-    const leadNotes = await client.query('DELETE FROM lead_notes');
-    console.log(`[✓] Deleted ${leadNotes.rowCount ?? 0} lead notes`);
+    const leadNotes = await safeDelete(client, 'lead_notes');
+    if (leadNotes.existed) console.log(`[✓] Deleted ${leadNotes.rowCount} lead notes`);
+
+    const notes = await safeDelete(
+      client,
+      'notes',
+      `module IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')`
+    );
+    if (notes.existed) console.log(`[✓] Deleted ${notes.rowCount} operational notes`);
 
     // 5. Delete Document Associations & Master Documents linked to Leads/Surveys/Projects/Payments
-    const docAssoc = await client.query(`
-      DELETE FROM document_associations 
-      WHERE module IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
-         OR context_type IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
-    `);
-    console.log(`[✓] Deleted ${docAssoc.rowCount ?? 0} document associations`);
+    const docAssoc = await safeDelete(
+      client,
+      'document_associations',
+      `module IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
+       OR context_type IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')`
+    );
+    if (docAssoc.existed) console.log(`[✓] Deleted ${docAssoc.rowCount} document associations`);
 
-    const masterDocs = await client.query(`
-      DELETE FROM master_documents 
-      WHERE entity_type IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
-         OR entity_type IS NULL
-    `);
-    console.log(`[✓] Deleted ${masterDocs.rowCount ?? 0} uploaded master documents`);
+    const masterDocs = await safeDelete(
+      client,
+      'master_documents',
+      `entity_type IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
+       OR entity_type IS NULL`
+    );
+    if (masterDocs.existed) console.log(`[✓] Deleted ${masterDocs.rowCount} uploaded master documents`);
 
     // 6. Delete WhatsApp Messages & Sessions
-    const waMessages = await client.query('DELETE FROM whatsapp_messages');
-    console.log(`[✓] Deleted ${waMessages.rowCount ?? 0} WhatsApp messages`);
+    const waMessages = await safeDelete(client, 'whatsapp_messages');
+    if (waMessages.existed) console.log(`[✓] Deleted ${waMessages.rowCount} WhatsApp messages`);
 
-    const waSessions = await client.query('DELETE FROM whatsapp_customer_sessions');
-    console.log(`[✓] Deleted ${waSessions.rowCount ?? 0} WhatsApp customer sessions`);
+    const waSessions = await safeDelete(client, 'whatsapp_customer_sessions');
+    if (waSessions.existed) console.log(`[✓] Deleted ${waSessions.rowCount} WhatsApp customer sessions`);
 
     // 7. Delete Notifications
-    const notifications = await client.query('DELETE FROM notifications');
-    console.log(`[✓] Deleted ${notifications.rowCount ?? 0} notifications`);
+    const notifications = await safeDelete(client, 'notifications');
+    if (notifications.existed) console.log(`[✓] Deleted ${notifications.rowCount} notifications`);
+
+    const notifLogs = await safeDelete(client, 'notification_logs');
+    if (notifLogs.existed) console.log(`[✓] Deleted ${notifLogs.rowCount} notification logs`);
 
     // 8. Delete All Leads
-    const leads = await client.query('DELETE FROM leads');
-    console.log(`[✓] Deleted ${leads.rowCount ?? 0} leads`);
+    const leads = await safeDelete(client, 'leads');
+    if (leads.existed) console.log(`[✓] Deleted ${leads.rowCount} leads`);
 
     await client.query('COMMIT');
     console.log('\n================================================================');

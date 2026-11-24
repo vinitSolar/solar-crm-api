@@ -150,15 +150,14 @@ async function run() {
     const docAssoc = await safeDelete(
       client,
       'document_associations',
-      `module IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
-       OR context_type IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')`
+      `module IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')`
     );
     if (docAssoc.existed) console.log(`[✓] Deleted ${docAssoc.rowCount} document associations`);
 
     const masterDocs = await safeDelete(
       client,
       'master_documents',
-      `entity_type IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
+      `entity_type IN ('customer', 'lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
        OR entity_type IS NULL`
     );
     if (masterDocs.existed) console.log(`[✓] Deleted ${masterDocs.rowCount} uploaded master documents`);

@@ -467,59 +467,89 @@ export class WorkflowAutomationService {
      * Check if ALL milestones for the project are now completed (status = 2).
      * If so, auto-advance the Project to 'Commissioned' and record actualEndDate.
      */
+    /**
+     * 5. When a milestone status is updated:
+     * - Auto-advances the Project to 'In Progress' if currently 'Not Started'
+     * - If ALL milestones for the project are completed (status = 2), auto-advances to 'Commissioned'
+     */
     async onMilestoneCompleted(tenantUid: string, projectUid: string, milestoneUid: string | undefined, actorUid: string): Promise<void> {
-        if (!await this.isRuleEnabled(tenantUid, "MILESTONES_TO_COMMISSIONED")) return;
+        const project = await this.projectRepository.getByUid(tenantUid, projectUid);
+        if (!project || !project.projectStatusUid) return;
 
-        const statsRes = await this.pool.query(
-            `SELECT 
-                COUNT(*) as total, 
-                COUNT(*) FILTER (WHERE status = 2) as completed 
-             FROM project_installation_milestones 
-             WHERE tenant_uid = $1 AND project_uid = $2 AND is_deleted = 0`,
-            [tenantUid, projectUid]
-        );
+        const currentStatus = await this.projectStatusRepository.getByUid(tenantUid, project.projectStatusUid);
+        if (!currentStatus) return;
 
-        const row = statsRes.rows[0];
-        if (!row) return;
+        // 5a. If currently 'Not Started' or default status, auto-advance project to 'In Progress'
+        const isNotStarted = currentStatus.isDefault === 1 || currentStatus.name.toLowerCase().includes("not started");
+        if (isNotStarted) {
+            const inProgressStatus = await this.resolveProjectStatus(tenantUid, "IN_PROGRESS");
+            if (inProgressStatus && inProgressStatus.uid !== currentStatus.uid) {
+                await this.pool.query(
+                    `UPDATE projects 
+                     SET project_status_uid = $1::uuid, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
+                     WHERE tenant_uid = $3::uuid AND uid = $4::uuid`,
+                    [inProgressStatus.uid, actorUid, tenantUid, projectUid]
+                );
+                logger.info(`[WorkflowAutomation] Project ${projectUid} auto-advanced to '${inProgressStatus.name}' upon milestone status update.`);
+                await this.auditLogService.log({
+                    tenantUid,
+                    module: "Project",
+                    recordUid: projectUid,
+                    action: AUDIT_LOG_ACTIONS.UPDATE,
+                    message: `Project status automatically advanced to '${inProgressStatus.name}' upon milestone update.`,
+                    createdBy: actorUid || "SYSTEM"
+                });
+            }
+        }
 
-        const total = Number(row.total || 0);
-        const completed = Number(row.completed || 0);
-
-        if (total > 0 && total === completed) {
-            // All milestones completed! Advance project to Commissioned
-            const commissionedStatus = await this.resolveProjectStatus(tenantUid, "COMMISSIONED");
-            if (!commissionedStatus) return;
-
-            const project = await this.projectRepository.getByUid(tenantUid, projectUid);
-            if (!project || project.projectStatusUid === commissionedStatus.uid) return;
-
-            await this.pool.query(
-                `UPDATE projects 
-                 SET project_status_uid = $1::uuid, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
-                 WHERE tenant_uid = $3::uuid AND uid = $4::uuid`,
-                [commissionedStatus.uid, actorUid, tenantUid, projectUid]
+        // 5b. If all milestones are completed, advance to Commissioned
+        if (await this.isRuleEnabled(tenantUid, "MILESTONES_TO_COMMISSIONED")) {
+            const statsRes = await this.pool.query(
+                `SELECT 
+                    COUNT(*) as total, 
+                    COUNT(*) FILTER (WHERE status = 2) as completed 
+                 FROM project_installation_milestones 
+                 WHERE tenant_uid = $1 AND project_uid = $2 AND is_deleted = 0`,
+                [tenantUid, projectUid]
             );
 
-            logger.info(`[WorkflowAutomation] Project ${projectUid} auto-advanced to '${commissionedStatus.name}' as all milestones are complete.`);
+            const row = statsRes.rows[0];
+            if (row) {
+                const total = Number(row.total || 0);
+                const completed = Number(row.completed || 0);
 
-            await this.auditLogService.log({
-                tenantUid,
-                module: "Project",
-                recordUid: projectUid,
-                action: AUDIT_LOG_ACTIONS.UPDATE,
-                message: `Project status automatically advanced to '${commissionedStatus.name}' as all ${total} installation milestones were completed.`,
-                createdBy: actorUid || "SYSTEM"
-            });
+                if (total > 0 && total === completed) {
+                    const commissionedStatus = await this.resolveProjectStatus(tenantUid, "COMMISSIONED");
+                    if (commissionedStatus && project.projectStatusUid !== commissionedStatus.uid) {
+                        await this.pool.query(
+                            `UPDATE projects 
+                             SET project_status_uid = $1::uuid, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
+                             WHERE tenant_uid = $3::uuid AND uid = $4::uuid`,
+                            [commissionedStatus.uid, actorUid, tenantUid, projectUid]
+                        );
+
+                        logger.info(`[WorkflowAutomation] Project ${projectUid} auto-advanced to '${commissionedStatus.name}' as all milestones are complete.`);
+
+                        await this.auditLogService.log({
+                            tenantUid,
+                            module: "Project",
+                            recordUid: projectUid,
+                            action: AUDIT_LOG_ACTIONS.UPDATE,
+                            message: `Project status automatically advanced to '${commissionedStatus.name}' as all ${total} installation milestones were completed.`,
+                            createdBy: actorUid || "SYSTEM"
+                        });
+                    }
+                }
+            }
         }
     }
 
     /**
      * 6. When a payment is recorded against a project or lead:
-     * If the project is still in 'Not Started', advance to 'In Progress'.
+     * - If complete payment is cleared (totalPaid >= quotation total), auto-advance to 'Commissioned'.
+     * - If still in 'Not Started', advance to 'In Progress'.
      */
     async onPaymentReceived(tenantUid: string, entityUid: string, actorUid: string, metadata?: Record<string, any>): Promise<void> {
-        if (!await this.isRuleEnabled(tenantUid, "PAYMENT_TO_IN_PROGRESS")) return;
-
         let projectUid = entityUid;
         if (metadata?.leadUid) {
             const res = await this.pool.query(
@@ -538,6 +568,51 @@ export class WorkflowAutomationService {
 
         const currentStatus = await this.projectStatusRepository.getByUid(tenantUid, project.projectStatusUid);
         if (!currentStatus) return;
+
+        // 6a. Check if complete payment is done
+        if (project.quotationUid) {
+            const quoteRes = await this.pool.query(
+                `SELECT net_customer_cost, grand_total FROM quotations WHERE tenant_uid = $1::uuid AND uid = $2::uuid`,
+                [tenantUid, project.quotationUid]
+            );
+            const quote = quoteRes.rows[0];
+            const quoteAmount = Number(quote?.net_customer_cost || quote?.grand_total || 0);
+
+            if (quoteAmount > 0) {
+                const paymentsRes = await this.pool.query(
+                    `SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE tenant_uid = $1::uuid AND lead_uid = $2::uuid AND status = 1 AND is_deleted = 0`,
+                    [tenantUid, project.leadUid]
+                );
+                const totalPaid = Number(paymentsRes.rows[0]?.total_paid || 0);
+
+                if (totalPaid >= quoteAmount) {
+                    const commissionedStatus = await this.resolveProjectStatus(tenantUid, "COMMISSIONED");
+                    if (commissionedStatus && project.projectStatusUid !== commissionedStatus.uid) {
+                        await this.pool.query(
+                            `UPDATE projects 
+                             SET project_status_uid = $1::uuid, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
+                             WHERE tenant_uid = $3::uuid AND uid = $4::uuid`,
+                            [commissionedStatus.uid, actorUid, tenantUid, projectUid]
+                        );
+
+                        logger.info(`[WorkflowAutomation] Project ${projectUid} auto-advanced to '${commissionedStatus.name}' as complete payment was received (${totalPaid} of ${quoteAmount}).`);
+
+                        await this.auditLogService.log({
+                            tenantUid,
+                            module: "Project",
+                            recordUid: projectUid,
+                            action: AUDIT_LOG_ACTIONS.UPDATE,
+                            message: `Project status automatically advanced to '${commissionedStatus.name}' as complete payment was received (Total paid: ₹${totalPaid} / Approved quote: ₹${quoteAmount}).`,
+                            createdBy: actorUid || "SYSTEM"
+                        });
+                        return;
+                    }
+                }
+            }
+        }
+
+        // 6b. If not completed payment, check if 'Not Started' -> advance to 'In Progress'
+        if (!await this.isRuleEnabled(tenantUid, "PAYMENT_TO_IN_PROGRESS")) return;
 
         const isNotStarted = currentStatus.isDefault === 1 || currentStatus.name.toLowerCase().includes("not started");
         if (!isNotStarted) return;

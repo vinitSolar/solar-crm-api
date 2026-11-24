@@ -331,7 +331,7 @@ export class MasterDocumentTypeRepository {
     const query = `
             UPDATE master_document_types
             SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = $2, updated_at = CURRENT_TIMESTAMP
-            WHERE uid = $1 AND is_system = 0 AND is_deleted = 0
+            WHERE uid = $1 AND is_deleted = 0
         `;
     const result = await executor.query(query, [uid, deletedBy]);
     return (result.rowCount ?? 0) > 0;

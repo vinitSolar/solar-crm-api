@@ -260,8 +260,8 @@ export class MasterDocumentTypeService {
     if (!existing) {
       throw new CustomError(MASTER_DOCUMENT_TYPE_MESSAGES.NOT_FOUND, 404);
     }
-    if (existing.isSystem === 1) {
-      throw new CustomError(MASTER_DOCUMENT_TYPE_MESSAGES.SYSTEM_DELETE, 400);
+    if (existing.isRequired === 1) {
+      throw new CustomError("Required document types cannot be deleted.", 400);
     }
 
     const success = await this.repository.softDelete(uid, deletedBy);

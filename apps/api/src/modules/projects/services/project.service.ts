@@ -19,7 +19,7 @@ import { AUDIT_LOG_ACTIONS } from "../../audit-logs/constants/audit-logs.constan
 import { logger } from "@packages/logger/index.js";
 import { notificationService } from "../../notification/services/notification.service.js";
 import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
-import { statusEventBus, STATUS_EVENTS } from "../../automation/index.js";
+import { statusEventBus, STATUS_EVENTS, workflowAutomationService } from "../../automation/index.js";
 
 export class ProjectService {
     private readonly repository: ProjectRepository;
@@ -484,16 +484,25 @@ export class ProjectService {
         // Start next milestone if marked as complete
         if (status === 2) {
             hasNext = await this.milestoneRepository.startNextMilestone(tenantUid, projectUid, milestone.sequenceNo, updatedBy);
-
-            // Emit Milestone Updated event for automated status progression (e.g. all milestones complete -> Commissioned)
-            statusEventBus.emitEvent(STATUS_EVENTS.MILESTONE_UPDATED, {
-                tenantUid,
-                actorUid: updatedBy,
-                entityType: "project",
-                entityUid: projectUid,
-                metadata: { milestoneUid, sequenceNo: milestone.sequenceNo, hasNext }
-            });
         }
+
+        // Direct execution of automated status progression (advance to In Progress, or all complete -> Commissioned)
+        try {
+            await workflowAutomationService.onMilestoneCompleted(tenantUid, projectUid, milestoneUid, updatedBy);
+        } catch (autoErr) {
+            logger.error("[ProjectService] onMilestoneCompleted automation error", { autoErr });
+        }
+
+        // Also emit Milestone Updated event for other asynchronous listeners
+        statusEventBus.emitEvent(STATUS_EVENTS.MILESTONE_UPDATED, {
+            tenantUid,
+            actorUid: updatedBy,
+            entityType: "project",
+            entityUid: projectUid,
+            metadata: { milestoneUid, sequenceNo: milestone.sequenceNo, status, hasNext }
+        });
+
+        const refreshedProject = await this.repository.getByUid(tenantUid, projectUid);
 
         await this.auditLogService.log({
             tenantUid,
@@ -504,7 +513,7 @@ export class ProjectService {
             createdBy: updatedBy
         });
 
-        return { updated: true, nextStarted: hasNext };
+        return { updated: true, nextStarted: hasNext, project: refreshedProject ? toProjectSafe(refreshedProject) : null };
     }
 
     async uploadMilestoneDocument(tenantUid: string, projectUid: string, milestoneUid: string, file: Express.Multer.File, createdBy: string) {

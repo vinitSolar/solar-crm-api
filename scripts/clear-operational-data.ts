@@ -157,7 +157,7 @@ async function run() {
     const masterDocs = await safeDelete(
       client,
       'master_documents',
-      `entity_type IN ('customer', 'lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
+      `entity_type IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
        OR entity_type IS NULL`
     );
     if (masterDocs.existed) console.log(`[✓] Deleted ${masterDocs.rowCount} uploaded master documents`);
@@ -176,7 +176,11 @@ async function run() {
     const notifLogs = await safeDelete(client, 'notification_logs');
     if (notifLogs.existed) console.log(`[✓] Deleted ${notifLogs.rowCount} notification logs`);
 
-    // 8. Delete All Leads
+    // 8. Delete Customer Histories
+    const customerHistories = await safeDelete(client, 'customer_histories');
+    if (customerHistories.existed) console.log(`[✓] Deleted ${customerHistories.rowCount} customer history records`);
+
+    // 9. Delete All Leads
     const leads = await safeDelete(client, 'leads');
     if (leads.existed) console.log(`[✓] Deleted ${leads.rowCount} leads`);
 

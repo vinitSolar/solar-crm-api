@@ -101,6 +101,8 @@ const leadBodyBase = {
     is_follow_up: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
     followUpReason: z.string().optional().nullable().or(z.literal("")),
     category: z.coerce.number().int().min(1).max(4).optional().nullable(),
+    notifyWithEmail: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
+    notify_with_email: z.union([z.boolean(), z.number().int(), z.string()]).optional(),
 };
 
 /** Fields that are required when isDraft is false (normal lead creation) */

@@ -12,6 +12,7 @@ const LEAD_COLUMNS = `
     status_uid AS "statusUid", assigned_to AS "assignedTo",
     category, COALESCE(is_quick_lead, 0) AS "isQuickLead",
     COALESCE(is_follow_up, 0) AS "isFollowUp",
+    COALESCE(notify_with_email, 0) AS "notifyWithEmail",
     is_active AS "isActive", is_deleted AS "isDeleted", 
     created_at AS "createdAt", updated_at AS "updatedAt",
     created_by AS "createdBy", updated_by AS "updatedBy", deleted_by AS "deletedBy"
@@ -27,6 +28,7 @@ const LEAD_JOIN_COLUMNS = `
     l.status_uid AS "statusUid", l.assigned_to AS "assignedTo", l.category, 
     COALESCE(l.is_quick_lead, 0) AS "isQuickLead",
     COALESCE(l.is_follow_up, 0) AS "isFollowUp",
+    COALESCE(l.notify_with_email, 0) AS "notifyWithEmail",
     n.note AS "remarks",
     l.is_active AS "isActive", l.is_deleted AS "isDeleted", 
     l.created_at AS "createdAt", l.updated_at AS "updatedAt",
@@ -86,19 +88,20 @@ export class LeadRepository {
             INSERT INTO leads (
                 uid, tenant_uid, lead_number, first_name, last_name, mobile_number, alternate_number, email, 
                 address, landmark, locality, state, city, pin_code, monthly_bill_amount, consumer_account_number, system_size, follow_up_date, 
-                lead_source_uid, status_uid, assigned_to, category, is_quick_lead, is_follow_up, created_by
+                lead_source_uid, status_uid, assigned_to, category, is_quick_lead, is_follow_up, notify_with_email, created_by
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
             )
             RETURNING ${LEAD_COLUMNS}
         `;
+        const notifyWithEmailVal = (data.notifyWithEmail === 1 || data.notifyWithEmail === true || (data as any).notify_with_email === 1 || (data as any).notify_with_email === true) ? 1 : 0;
         const values = [
             uid, tenantUid, data.leadNumber, data.firstName, data.lastName ?? null, data.mobileNumber ?? null, 
             data.alternateNumber ?? null, data.email ?? null, data.address ?? null, 
             data.landmark ?? null, data.locality ?? null, data.state ?? null, data.city ?? null, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
             data.consumerAccountNumber ?? null, data.systemSize ?? null, data.followUpDate || null, data.leadSourceUid ?? null, 
-            data.statusUid, data.assignedTo ?? null, data.category ?? 1, data.isQuickLead ? 1 : 0, data.isFollowUp ? 1 : 0, createdBy
+            data.statusUid, data.assignedTo ?? null, data.category ?? 1, data.isQuickLead ? 1 : 0, data.isFollowUp ? 1 : 0, notifyWithEmailVal, createdBy
         ];
 
         const result = client 
@@ -267,6 +270,12 @@ export class LeadRepository {
         if (data.category !== undefined) { updates.push(`category = $${index++}`); values.push(data.category); }
         if (data.isQuickLead !== undefined) { updates.push(`is_quick_lead = $${index++}`); values.push(data.isQuickLead ? 1 : 0); }
         if (data.isFollowUp !== undefined) { updates.push(`is_follow_up = $${index++}`); values.push(data.isFollowUp ? 1 : 0); }
+        if (data.notifyWithEmail !== undefined || (data as any).notify_with_email !== undefined) {
+            const rawVal = data.notifyWithEmail !== undefined ? data.notifyWithEmail : (data as any).notify_with_email;
+            const flag = (rawVal === 1 || rawVal === true || rawVal === "1" || rawVal === "true") ? 1 : 0;
+            updates.push(`notify_with_email = $${index++}`);
+            values.push(flag);
+        }
 
         if (updates.length === 0) return this.getByUid(tenantUid, uid);
 

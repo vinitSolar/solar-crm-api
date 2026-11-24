@@ -11,8 +11,10 @@ import { toLeadSafe } from "../dto/lead.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { LEAD_MESSAGES, LEAD_SOURCE_MESSAGES, LEAD_STATUS_MESSAGES } from "../constants/lead.constants.js";
 import { logger } from "@packages/logger/index.js";
-import { notificationService, NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/index.js";
+import { notificationService, NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE, emailProvider } from "../../notification/index.js";
 import { statusEventBus, STATUS_EVENTS } from "../../automation/index.js";
+import pool from "@packages/connection.js";
+import { CustomerHistoryService } from "../../customer-history/index.js";
 
 export class LeadService {
     private readonly repository: LeadRepository;
@@ -22,6 +24,7 @@ export class LeadService {
     private readonly noteService: NoteService;
     private readonly roleRepository: RoleRepository;
     private readonly followUpRepository: FollowUpRepository;
+    private readonly customerHistoryService: CustomerHistoryService;
 
     constructor(
         repository: LeadRepository,
@@ -30,7 +33,8 @@ export class LeadService {
         userRepository: UserRepository,
         noteService: NoteService,
         roleRepository: RoleRepository,
-        followUpRepository: FollowUpRepository
+        followUpRepository: FollowUpRepository,
+        customerHistoryService?: CustomerHistoryService
     ) {
         this.repository = repository;
         this.sourceRepository = sourceRepository;
@@ -39,6 +43,7 @@ export class LeadService {
         this.noteService = noteService;
         this.roleRepository = roleRepository;
         this.followUpRepository = followUpRepository;
+        this.customerHistoryService = customerHistoryService || new CustomerHistoryService(pool);
     }
 
     async createLead(tenantUid: string, data: ICreateLead, createdBy: string): Promise<ILeadSafe> {
@@ -181,6 +186,17 @@ export class LeadService {
                 Boolean(data.followUpDate && String(data.followUpDate).trim().length > 0)
             );
 
+            const notifyWithEmail = Boolean(
+                data.notifyWithEmail === 1 ||
+                data.notifyWithEmail === true ||
+                (data as any).notifyWithEmail === "1" ||
+                (data as any).notifyWithEmail === "true" ||
+                (data as any).notify_with_email === 1 ||
+                (data as any).notify_with_email === true ||
+                (data as any).notify_with_email === "1" ||
+                (data as any).notify_with_email === "true"
+            );
+
             // Follow-up slot check is advisory; do not block lead creation
             const createData = {
                 ...data,
@@ -189,6 +205,7 @@ export class LeadService {
                 isQuickLead: isQuickLead ? 1 : 0,
                 isFollowUp: isFollowUp ? 1 : 0,
                 followUpDate: isFollowUp ? (data.followUpDate || null) : null,
+                notifyWithEmail: notifyWithEmail ? 1 : 0,
             };
             const lead = await this.repository.create(tenantUid, createData, createdBy);
             
@@ -225,6 +242,13 @@ export class LeadService {
             if (!isDraft) {
                 this.sendLeadCreatedWhatsAppNotification(tenantUid, lead, createdBy).catch(err => {
                     logger.error("Failed to trigger lead creation WhatsApp notification:", err);
+                });
+            }
+
+            // Email Notification only if notifyWithEmail is true/1
+            if (notifyWithEmail && !isDraft) {
+                this.sendLeadCreatedEmailNotification(tenantUid, lead, createdBy).catch(err => {
+                    logger.error("Failed to trigger lead creation email notification:", err);
                 });
             }
             
@@ -416,10 +440,12 @@ export class LeadService {
         }
 
         let newStatusName: string | undefined;
+        let targetLeadStatus: any = null;
         if (data.statusUid) {
             const leadStatus = await this.statusRepository.getByUid(tenantUid, data.statusUid);
             if (!leadStatus) throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 400);
             newStatusName = leadStatus.name;
+            targetLeadStatus = leadStatus;
         }
 
         const previousAssignedTo = existing.assignedTo ? String(existing.assignedTo).trim() : null;
@@ -561,6 +587,27 @@ export class LeadService {
                 });
             }
 
+            // If moved to a closed state (Won / Lost / Closed), update customer history with full project and payment data
+            if (targetLeadStatus) {
+                const isClosedStatus = Boolean(
+                    targetLeadStatus.isClosed === 1 ||
+                    String(targetLeadStatus.name).trim().toLowerCase() === "won" ||
+                    String(targetLeadStatus.name).trim().toLowerCase() === "lost" ||
+                    String(targetLeadStatus.name).trim().toLowerCase().includes("closed")
+                );
+                if (isClosedStatus) {
+                    this.customerHistoryService.recordLeadClosedHistory(
+                        tenantUid,
+                        uid,
+                        targetLeadStatus.name,
+                        updatedBy,
+                        data.remarks
+                    ).catch(err => {
+                        logger.error(`Failed to record customer closed history for lead ${uid}:`, err);
+                    });
+                }
+            }
+
             return toLeadSafe(updated);
         } catch (error) {
             logger.error("LeadService.updateLead error", { error });
@@ -632,6 +679,25 @@ export class LeadService {
                     updatedBy
                 ).catch(err => {
                     logger.error("Failed to trigger lead status change WhatsApp notification:", err);
+                });
+            }
+
+            // If moved to a closed state (Won / Lost / Closed), update customer history with full project and payment data
+            const isClosedStatus = Boolean(
+                leadStatus.isClosed === 1 ||
+                String(leadStatus.name).trim().toLowerCase() === "won" ||
+                String(leadStatus.name).trim().toLowerCase() === "lost" ||
+                String(leadStatus.name).trim().toLowerCase().includes("closed")
+            );
+            if (isClosedStatus) {
+                this.customerHistoryService.recordLeadClosedHistory(
+                    tenantUid,
+                    uid,
+                    leadStatus.name,
+                    updatedBy,
+                    existing.remarks
+                ).catch(err => {
+                    logger.error(`Failed to record customer closed history for lead ${uid}:`, err);
                 });
             }
 
@@ -783,6 +849,45 @@ export class LeadService {
             });
         } catch (err) {
             logger.error("Error dispatching lead created WhatsApp notification:", err);
+        }
+    }
+
+    /**
+     * Helper to dispatch email notification to customer when lead is created and notifyWithEmail is true (1)
+     */
+    private async sendLeadCreatedEmailNotification(
+        tenantUid: string,
+        lead: any,
+        createdBy?: string
+    ): Promise<void> {
+        try {
+            if (!lead.email || !String(lead.email).trim()) {
+                logger.info("Lead creation email skipped: No customer email provided for lead", { leadUid: lead.uid });
+                return;
+            }
+
+            const customerName = `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Valued Customer";
+            const leadNum = lead.leadNumber || "Lead";
+            const subject = `Welcome to SunSelect Solar - Lead Created (${leadNum})`;
+            const html = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h2 style="color: #0f172a; margin-top: 0;">Welcome to SunSelect Solar</h2>
+                    <p>Dear <strong>${customerName}</strong>,</p>
+                    <p>Your solar consultation inquiry has been successfully registered with us.</p>
+                    <div style="background-color: #f8fafc; border-left: 4px solid #f59e0b; padding: 16px; margin: 20px 0; border-radius: 4px;">
+                        <p style="margin: 4px 0;"><strong>Lead Number:</strong> ${leadNum}</p>
+                        ${lead.systemSize ? `<p style="margin: 4px 0;"><strong>Proposed System Size:</strong> ${lead.systemSize} kW</p>` : ""}
+                        ${lead.city ? `<p style="margin: 4px 0;"><strong>Location:</strong> ${lead.city}${lead.state ? `, ${lead.state}` : ""}</p>` : ""}
+                    </div>
+                    <p>Our solar engineering specialist will review your requirements and reach out to you shortly.</p>
+                    <p style="margin-top: 24px; color: #64748b; font-size: 13px;">Warm regards,<br/><strong>SunSelect Solar Team</strong></p>
+                </div>
+            `;
+
+            await emailProvider.sendEmail(lead.email.trim(), subject, html);
+            logger.info("Lead created email notification sent successfully", { leadUid: lead.uid, to: lead.email });
+        } catch (err) {
+            logger.error("Error dispatching lead created email notification:", err);
         }
     }
 

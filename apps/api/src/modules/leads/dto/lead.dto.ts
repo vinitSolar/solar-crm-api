@@ -41,6 +41,7 @@ export function toLeadSafe(lead: ILead): ILeadSafe {
         isQuickLead: lead.isQuickLead !== null && lead.isQuickLead !== undefined ? Number(lead.isQuickLead) : 0,
         isFollowUp: lead.isFollowUp !== null && lead.isFollowUp !== undefined ? Number(lead.isFollowUp) : (lead.followUpDate ? 1 : 0),
         followUpCount: lead.followUpCount !== null && lead.followUpCount !== undefined ? Number(lead.followUpCount) : 0,
+        notifyWithEmail: lead.notifyWithEmail !== undefined && lead.notifyWithEmail !== null ? Number(lead.notifyWithEmail) : (lead as any).notify_with_email !== undefined && (lead as any).notify_with_email !== null ? Number((lead as any).notify_with_email) : 0,
         isSurveyDone: Boolean(lead.isSurveyDone),
         hasSurvey: Boolean(lead.hasSurvey),
         leadSource: lead.leadSourceUid ? {

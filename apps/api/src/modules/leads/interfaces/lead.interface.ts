@@ -85,6 +85,7 @@ export interface ILead {
     isQuickLead?: number | null;
     isFollowUp?: number | null;
     followUpCount?: number | null;
+    notifyWithEmail?: number | null;
     isSurveyDone?: boolean | number | null;
     hasSurvey?: boolean | number | null;
 }
@@ -160,6 +161,8 @@ export interface ICreateLead {
     is_follow_up?: boolean | number;
     followUpReason?: string;
     category?: number;
+    notifyWithEmail?: boolean | number;
+    notify_with_email?: boolean | number;
 }
 
 export interface IUpdateLead extends Partial<ICreateLead> {}
@@ -199,6 +202,7 @@ export interface ILeadSafe {
     isQuickLead?: number | null;
     isFollowUp?: number | null;
     followUpCount?: number | null;
+    notifyWithEmail?: number | null;
     isSurveyDone?: boolean | number | null;
     hasSurvey?: boolean | number | null;
 }

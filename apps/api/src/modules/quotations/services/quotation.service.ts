@@ -28,6 +28,7 @@ import { fileURLToPath } from "url";
 import { notificationService, NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/index.js";
 import { calculateDynamicRuleSubsidy, calculateCentralSuryaGharSubsidy } from "../../state-subsidy-rules/utils/subsidy-calculator.js";
 import { statusEventBus, STATUS_EVENTS } from "../../automation/index.js";
+import { CustomerHistoryService } from "../../customer-history/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,11 +133,13 @@ export class QuotationService {
     private readonly repository: QuotationRepository;
     private readonly scopeOfWorkRepo: QuotationScopeOfWorkRepository;
     private readonly termsConditionRepo: QuotationTermsConditionRepository;
+    private readonly customerHistoryService: CustomerHistoryService;
 
     constructor() {
         this.repository = new QuotationRepository();
         this.scopeOfWorkRepo = new QuotationScopeOfWorkRepository();
         this.termsConditionRepo = new QuotationTermsConditionRepository();
+        this.customerHistoryService = new CustomerHistoryService(pool);
     }
 
     async create(tenantUid: string, data: ICreateQuotationRequest, createdBy: string): Promise<SafeQuotationResponse> {
@@ -439,6 +442,17 @@ export class QuotationService {
             }
 
             await client.query("COMMIT");
+
+            // Record customer history snapshot with assigned package and exact pricing details
+            this.customerHistoryService.recordQuotationHistory(
+                tenantUid,
+                lead,
+                quotation,
+                createdItems,
+                createdBy
+            ).catch(err => {
+                logger.error(`Failed to record quotation history for lead ${quotation.leadUid}`, err);
+            });
 
             // Deactivate other quotations for this lead in the background
             this.repository.deactivateOtherQuotations(tenantUid, quotation.leadUid, quotation.uid, createdBy).catch(err => {

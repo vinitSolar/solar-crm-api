@@ -47,13 +47,12 @@ DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name 
 -- Documents & Associations
 DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'document_associations') THEN 
   DELETE FROM document_associations 
-  WHERE module IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
-     OR context_type IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment');
+  WHERE module IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment');
 END IF; END $$;
 
 DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'master_documents') THEN 
   DELETE FROM master_documents 
-  WHERE entity_type IN ('lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
+  WHERE entity_type IN ('customer', 'lead', 'site_survey', 'project', 'subsidy_tracker', 'finance', 'payment')
      OR entity_type IS NULL;
 END IF; END $$;
 

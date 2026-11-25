@@ -90,19 +90,9 @@ export class ProjectService {
         }
 
         const openLeadProjects = existingLeadProjects.filter((p) => p.isClosed !== 1);
-        if (openLeadProjects.length > 0) {
-            const cancelledStatus = await this.statusRepository.getByName(tenantUid, "Cancelled");
-            if (cancelledStatus) {
-                for (const openProj of openLeadProjects) {
-                    await this.repository.update(
-                        tenantUid,
-                        openProj.uid,
-                        { projectStatusUid: cancelledStatus.uid },
-                        createdBy
-                    );
-                }
-            }
-        }
+        const cancelledStatus = openLeadProjects.length > 0
+            ? await this.statusRepository.getByName(tenantUid, "Cancelled")
+            : null;
 
         // 3. Get default project status
         let defaultStatus = await this.statusRepository.getDefault(tenantUid);
@@ -143,22 +133,40 @@ export class ProjectService {
         };
 
         try {
-            const project = await this.repository.create(tenantUid, createData, createdBy);
+            const project = await this.repository.runInTransaction(async (client) => {
+                if (openLeadProjects.length > 0 && cancelledStatus) {
+                    for (const openProj of openLeadProjects) {
+                        await this.repository.update(
+                            tenantUid,
+                            openProj.uid,
+                            { projectStatusUid: cancelledStatus.uid },
+                            createdBy,
+                            client
+                        );
+                    }
+                }
+
+                const created = await this.repository.create(tenantUid, createData, createdBy, client);
+
+                // Generate Milestones from Templates
+                await this.milestoneRepository.bulkInsertFromTemplates(tenantUid, created.uid, createdBy, client);
+
+                // Auto-create Subsidy Tracker
+                await this.subsidyTrackerRepository.create(tenantUid, {
+                    projectUid: created.uid,
+                    leadUid: created.leadUid,
+                    name: created.projectName,
+                }, createdBy, client);
+
+                return created;
+            });
 
             if (data.remarks) {
-                await this.noteService.handleIncomingNote(tenantUid, 'project', project.uid, data.remarks, createdBy);
+                await this.noteService.handleIncomingNote(tenantUid, 'project', project.uid, data.remarks, createdBy).catch((noteErr) => {
+                    logger.error("Failed to save initial project note:", noteErr);
+                });
                 project.remarks = data.remarks;
             }
-
-            // Generate Milestones from Templates
-            await this.milestoneRepository.bulkInsertFromTemplates(tenantUid, project.uid, createdBy);
-
-            // Auto-create Subsidy Tracker
-            await this.subsidyTrackerRepository.create(tenantUid, {
-                projectUid: project.uid,
-                leadUid: project.leadUid,
-                name: project.projectName,
-            }, createdBy);
 
             // Audit Log
             await this.auditLogService.log({
@@ -170,6 +178,8 @@ export class ProjectService {
                 ipAddress,
                 userAgent,
                 createdBy
+            }).catch((auditErr) => {
+                logger.error("Failed to write project creation audit log:", auditErr);
             });
 
             // Push Notification to assigned Sales Executive

@@ -33,6 +33,21 @@ export class ProjectRepository {
         this.pool = pool;
     }
 
+    async runInTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+        const client = await this.pool.connect();
+        try {
+            await client.query("BEGIN");
+            const result = await fn(client);
+            await client.query("COMMIT");
+            return result;
+        } catch (error) {
+            await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
     async create(
         tenantUid: string,
         data: ICreateProject & { leadUid: string; projectNumber: string; statusUid: string },
@@ -200,6 +215,7 @@ export class ProjectRepository {
             baseWhereClause += ` AND (
                 p.project_number ILIKE $${searchIndex} OR
                 p.project_name ILIKE $${searchIndex} OR 
+                l.lead_number ILIKE $${searchIndex} OR
                 l.first_name ILIKE $${searchIndex} OR
                 l.last_name ILIKE $${searchIndex} OR
                 l.mobile_number ILIKE $${searchIndex} OR
@@ -265,7 +281,7 @@ export class ProjectRepository {
         return { rows: result.rows as IProject[], total, allCount, statusCounts };
     }
 
-    async update(tenantUid: string, uid: string, data: IUpdateProject, updatedBy: string): Promise<IProject | null> {
+    async update(tenantUid: string, uid: string, data: IUpdateProject, updatedBy: string, client?: PoolClient): Promise<IProject | null> {
         const updates: string[] = [];
         const values: any[] = [];
         let index = 1;
@@ -275,7 +291,7 @@ export class ProjectRepository {
         if (data.projectManagerUid !== undefined) { updates.push(`project_manager_uid = $${index++}`); values.push(data.projectManagerUid || null); }
         if (data.projectDate !== undefined) { updates.push(`project_date = $${index++}`); values.push(data.projectDate || null); }
 
-        if (updates.length === 0) return this.getByUid(tenantUid, uid);
+        if (updates.length === 0) return this.getByUid(tenantUid, uid, client);
 
         updates.push(`updated_by = $${index++}`);
         values.push(updatedBy);
@@ -283,13 +299,14 @@ export class ProjectRepository {
 
         values.push(uid, tenantUid);
 
-        const result = await this.pool.query(
+        const executor = client || this.pool;
+        const result = await executor.query(
             `UPDATE projects SET ${updates.join(", ")}
              WHERE uid::varchar = $${index} AND tenant_uid::varchar = $${index + 1} AND is_deleted = 0
              RETURNING uid`,
             values
         );
-        return result.rows.length > 0 ? this.getByUid(tenantUid, uid) : null;
+        return result.rows.length > 0 ? this.getByUid(tenantUid, uid, client) : null;
     }
 
     async softDelete(tenantUid: string, uid: string, deletedBy: string): Promise<boolean> {

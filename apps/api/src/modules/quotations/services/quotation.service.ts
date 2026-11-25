@@ -733,7 +733,7 @@ export class QuotationService {
                     actorUid: updatedBy,
                     entityType: "quotation",
                     entityUid: updatedQuotation.uid,
-                    metadata: { leadUid: updatedQuotation.leadUid }
+                    metadata: { leadUid: updatedQuotation.leadUid, status: data.status }
                 });
             }
 
@@ -927,7 +927,7 @@ export class QuotationService {
                 actorUid: updatedBy,
                 entityType: "quotation",
                 entityUid: uid,
-                metadata: { leadUid: existing.leadUid }
+                metadata: { leadUid: existing.leadUid, status: 4, isConvertToProject: true }
             });
 
             const [items, sows, tcs] = await Promise.all([

@@ -85,7 +85,7 @@ export class WorkflowAutomationService {
 
         statusEventBus.on(STATUS_EVENTS.QUOTATION_APPROVED, async (payload: IStatusEventPayload) => {
             try {
-                await this.onQuotationApproved(payload.tenantUid, payload.entityUid, payload.actorUid);
+                await this.onQuotationApproved(payload.tenantUid, payload.entityUid, payload.actorUid, payload.metadata);
             } catch (err) {
                 logger.error("[WorkflowAutomation] Error in QUOTATION_APPROVED handler", { err });
             }
@@ -357,7 +357,12 @@ export class WorkflowAutomationService {
      * - Auto-advance Lead status to 'Won'
      * - Auto-create Project with 6 Milestones & Subsidy Tracker
      */
-    async onQuotationApproved(tenantUid: string, quotationUid: string, actorUid: string): Promise<{ projectUid?: string }> {
+    async onQuotationApproved(
+        tenantUid: string,
+        quotationUid: string,
+        actorUid: string,
+        metadata?: Record<string, any>
+    ): Promise<{ projectUid?: string }> {
         const quote = await this.quotationRepository.findByUid(tenantUid, quotationUid);
         if (!quote || !quote.leadUid) return {};
 
@@ -383,6 +388,12 @@ export class WorkflowAutomationService {
                     createdBy: actorUid || "SYSTEM"
                 });
             }
+        }
+
+        // Only auto-create project when explicitly triggered via convertToProject,
+        // never when creating, updating, or approving a quotation.
+        if (!metadata?.isConvertToProject) {
+            return {};
         }
 
         // Check if auto-project creation is enabled

@@ -96,11 +96,14 @@ export class LeadRepository {
             RETURNING ${LEAD_COLUMNS}
         `;
         const notifyWithEmailVal = (data.notifyWithEmail === 1 || data.notifyWithEmail === true || (data as any).notify_with_email === 1 || (data as any).notify_with_email === true) ? 1 : 0;
+        const firstName = typeof data.firstName === "string" ? data.firstName.trim().toUpperCase() : data.firstName;
+        const lastName = typeof data.lastName === "string" ? data.lastName.trim().toUpperCase() : (data.lastName ?? null);
+        const consumerAccountNumber = data.consumerAccountNumber ? String(data.consumerAccountNumber).replace(/\D/g, "").trim() || null : null;
         const values = [
-            uid, tenantUid, data.leadNumber, data.firstName, data.lastName ?? null, data.mobileNumber ?? null, 
+            uid, tenantUid, data.leadNumber, firstName, lastName, data.mobileNumber ?? null, 
             data.alternateNumber ?? null, data.email ?? null, data.address ?? null, 
             data.landmark ?? null, data.locality ?? null, data.state ?? null, data.city ?? null, data.pinCode ?? null, data.monthlyBillAmount ?? null, 
-            data.consumerAccountNumber ?? null, data.systemSize ?? null, data.followUpDate || null, data.leadSourceUid ?? null, 
+            consumerAccountNumber, data.systemSize ?? null, data.followUpDate || null, data.leadSourceUid ?? null, 
             data.statusUid, data.assignedTo ?? null, data.category ?? 1, data.isQuickLead ? 1 : 0, data.isFollowUp ? 1 : 0, notifyWithEmailVal, createdBy
         ];
 
@@ -136,6 +139,22 @@ export class LeadRepository {
              LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
              LEFT JOIN users u ON l.assigned_to = u.uid
              WHERE l.uid = $1 AND l.tenant_uid = $2 AND l.is_deleted = 0
+        `;
+        const result = client
+            ? await client.query(query, [uid, tenantUid])
+            : await this.pool.query(query, [uid, tenantUid]);
+        return result.rows.length > 0 ? (result.rows[0] as ILead) : null;
+    }
+
+    async getByUidWithDeleted(tenantUid: string, uid: string, client?: PoolClient): Promise<ILead | null> {
+        const query = `
+             SELECT ${LEAD_JOIN_COLUMNS}, ${LEAD_RELATIONS_COLUMNS}
+             FROM leads l
+             LEFT JOIN (SELECT DISTINCT ON (module_uid) module_uid, note FROM notes WHERE module = 'lead' AND is_deleted = 0 ORDER BY module_uid, created_at DESC) n ON n.module_uid = l.uid
+             LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid 
+             LEFT JOIN lead_sources lsrc ON l.lead_source_uid = lsrc.uid
+             LEFT JOIN users u ON l.assigned_to = u.uid
+             WHERE l.uid = $1 AND l.tenant_uid = $2
         `;
         const result = client
             ? await client.query(query, [uid, tenantUid])
@@ -249,8 +268,16 @@ export class LeadRepository {
         const values: any[] = [];
         let index = 1;
 
-        if (data.firstName !== undefined) { updates.push(`first_name = $${index++}`); values.push(data.firstName); }
-        if (data.lastName !== undefined) { updates.push(`last_name = $${index++}`); values.push(data.lastName); }
+        if (data.firstName !== undefined) { 
+            const firstName = typeof data.firstName === "string" ? data.firstName.trim().toUpperCase() : data.firstName;
+            updates.push(`first_name = $${index++}`); 
+            values.push(firstName); 
+        }
+        if (data.lastName !== undefined) { 
+            const lastName = typeof data.lastName === "string" ? data.lastName.trim().toUpperCase() : (data.lastName ?? null);
+            updates.push(`last_name = $${index++}`); 
+            values.push(lastName); 
+        }
         if (data.mobileNumber !== undefined) { updates.push(`mobile_number = $${index++}`); values.push(data.mobileNumber); }
         if (data.alternateNumber !== undefined) { updates.push(`alternate_number = $${index++}`); values.push(data.alternateNumber); }
         if (data.email !== undefined) { updates.push(`email = $${index++}`); values.push(data.email); }
@@ -261,7 +288,11 @@ export class LeadRepository {
         if (data.city !== undefined) { updates.push(`city = $${index++}`); values.push(data.city); }
         if (data.pinCode !== undefined) { updates.push(`pin_code = $${index++}`); values.push(data.pinCode); }
         if (data.monthlyBillAmount !== undefined) { updates.push(`monthly_bill_amount = $${index++}`); values.push(data.monthlyBillAmount); }
-        if (data.consumerAccountNumber !== undefined) { updates.push(`consumer_account_number = $${index++}`); values.push(data.consumerAccountNumber || null); }
+        if (data.consumerAccountNumber !== undefined) { 
+            const consumerAccountNum = data.consumerAccountNumber ? String(data.consumerAccountNumber).replace(/\D/g, "").trim() || null : null;
+            updates.push(`consumer_account_number = $${index++}`); 
+            values.push(consumerAccountNum); 
+        }
         if (data.systemSize !== undefined) { updates.push(`system_size = $${index++}`); values.push(data.systemSize); }
         if (data.followUpDate !== undefined) { updates.push(`follow_up_date = $${index++}`); values.push(data.followUpDate || null); }
         if (data.leadSourceUid !== undefined) { updates.push(`lead_source_uid = $${index++}`); values.push(data.leadSourceUid); }
@@ -295,23 +326,289 @@ export class LeadRepository {
     }
 
     async softDelete(tenantUid: string, uid: string, deletedBy: string): Promise<boolean> {
-        const result = await this.pool.query(
-            `UPDATE leads 
-             SET is_deleted = 1, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 0`,
-            [deletedBy, uid, tenantUid]
-        );
-        return (result.rowCount ?? 0) > 0;
+        const client = await this.pool.connect();
+        try {
+            await client.query("BEGIN");
+
+            // 1. Mark lead as is_deleted = 1
+            const result = await client.query(
+                `UPDATE leads 
+                 SET is_deleted = 1, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
+                 WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 0`,
+                [deletedBy, uid, tenantUid]
+            );
+            if ((result.rowCount ?? 0) === 0) {
+                await client.query("ROLLBACK");
+                return false;
+            }
+
+            // 2. Soft-delete and deactivate follow-ups for this lead so they don't show or fire reminders
+            await client.query(
+                `UPDATE follow_ups 
+                 SET is_active = 0, is_deleted = 1, updated_at = CURRENT_TIMESTAMP
+                 WHERE lead_uid = $1 AND tenant_uid = $2 AND is_deleted = 0`,
+                [uid, tenantUid]
+            );
+
+            // 3. Soft-delete connected site surveys so they don't show in surveys
+            await client.query(
+                `UPDATE site_surveys 
+                 SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP, updated_by = $1
+                 WHERE lead_uid::varchar = $2 AND tenant_uid::varchar = $3 AND is_deleted = 0`,
+                [deletedBy, uid, tenantUid]
+            );
+
+            // 4. Soft-delete connected projects so they don't show in projects
+            await client.query(
+                `UPDATE projects 
+                 SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP, updated_by = $1
+                 WHERE lead_uid::varchar = $2 AND tenant_uid::varchar = $3 AND is_deleted = 0`,
+                [deletedBy, uid, tenantUid]
+            );
+
+            // 5. Soft-delete connected quotations
+            await client.query(
+                `UPDATE quotations 
+                 SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP, updated_by = $1
+                 WHERE lead_uid::varchar = $2 AND tenant_uid::varchar = $3 AND is_deleted = 0`,
+                [deletedBy, uid, tenantUid]
+            );
+
+            await client.query("COMMIT");
+            return true;
+        } catch (error) {
+            await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     async restore(tenantUid: string, uid: string, updatedBy: string): Promise<boolean> {
-        const result = await this.pool.query(
-            `UPDATE leads 
-             SET is_deleted = 0, deleted_by = NULL, updated_by = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 1`,
-            [updatedBy, uid, tenantUid]
-        );
-        return (result.rowCount ?? 0) > 0;
+        const client = await this.pool.connect();
+        try {
+            await client.query("BEGIN");
+
+            const result = await client.query(
+                `UPDATE leads 
+                 SET is_deleted = 0, deleted_by = NULL, updated_by = $1, updated_at = CURRENT_TIMESTAMP
+                 WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 1`,
+                [updatedBy, uid, tenantUid]
+            );
+            if ((result.rowCount ?? 0) === 0) {
+                await client.query("ROLLBACK");
+                return false;
+            }
+
+            // Restore connected surveys, projects, quotations
+            await client.query(
+                `UPDATE site_surveys 
+                 SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP, updated_by = $1
+                 WHERE lead_uid::varchar = $2 AND tenant_uid::varchar = $3 AND is_deleted = 1`,
+                [updatedBy, uid, tenantUid]
+            );
+            await client.query(
+                `UPDATE projects 
+                 SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP, updated_by = $1
+                 WHERE lead_uid::varchar = $2 AND tenant_uid::varchar = $3 AND is_deleted = 1`,
+                [updatedBy, uid, tenantUid]
+            );
+            await client.query(
+                `UPDATE quotations 
+                 SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP, updated_by = $1
+                 WHERE lead_uid::varchar = $2 AND tenant_uid::varchar = $3 AND is_deleted = 1`,
+                [updatedBy, uid, tenantUid]
+            );
+            await client.query(
+                `UPDATE follow_ups 
+                 SET is_deleted = 0, is_active = 1, updated_at = CURRENT_TIMESTAMP
+                 WHERE lead_uid = $1 AND tenant_uid = $2 AND is_deleted = 1 AND status = 'scheduled'`,
+                [uid, tenantUid]
+            );
+
+            await client.query("COMMIT");
+            return true;
+        } catch (error) {
+            await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    async hardDelete(tenantUid: string, uid: string): Promise<boolean> {
+        const client = await this.pool.connect();
+        try {
+            await client.query("BEGIN");
+
+            // Verify lead belongs to tenant
+            const leadCheck = await client.query(
+                `SELECT uid FROM leads WHERE uid = $1 AND tenant_uid = $2`,
+                [uid, tenantUid]
+            );
+            if (leadCheck.rows.length === 0) {
+                await client.query("ROLLBACK");
+                return false;
+            }
+
+            // 1. Quotations and quotation children
+            const qResult = await client.query(
+                `SELECT uid FROM quotations WHERE lead_uid::varchar = $1 AND tenant_uid::varchar = $2`,
+                [uid, tenantUid]
+            );
+            const quotationUids = qResult.rows.map((r: any) => String(r.uid));
+            if (quotationUids.length > 0) {
+                await client.query(
+                    `DELETE FROM quotation_items WHERE quotation_uid = ANY($1::varchar[])`,
+                    [quotationUids]
+                );
+                await client.query(
+                    `DELETE FROM quotation_scope_of_work_items WHERE quotation_uid = ANY($1::varchar[])`,
+                    [quotationUids]
+                );
+                await client.query(
+                    `DELETE FROM quotation_terms_conditions_items WHERE quotation_uid = ANY($1::varchar[])`,
+                    [quotationUids]
+                );
+                await client.query(
+                    `DELETE FROM quotations WHERE uid = ANY($1::varchar[])`,
+                    [quotationUids]
+                );
+            }
+
+            // 2. Projects and project children
+            const pResult = await client.query(
+                `SELECT uid::varchar AS uid FROM projects WHERE lead_uid::varchar = $1 AND tenant_uid::varchar = $2`,
+                [uid, tenantUid]
+            );
+            const projectUids = pResult.rows.map((r: any) => String(r.uid));
+            if (projectUids.length > 0) {
+                await client.query(
+                    `DELETE FROM project_installation_milestone_documents 
+                     WHERE project_milestone_uid IN (
+                         SELECT uid FROM project_installation_milestones WHERE project_uid = ANY($1::varchar[])
+                     )`,
+                    [projectUids]
+                );
+                await client.query(
+                    `DELETE FROM project_installation_milestones WHERE project_uid = ANY($1::varchar[])`,
+                    [projectUids]
+                );
+                await client.query(
+                    `DELETE FROM project_subsidy_documents WHERE project_uid = ANY($1::varchar[])`,
+                    [projectUids]
+                );
+                await client.query(
+                    `DELETE FROM projects WHERE uid::varchar = ANY($1::varchar[])`,
+                    [projectUids]
+                );
+            }
+
+            // 3. Subsidy Trackers
+            await client.query(
+                `DELETE FROM subsidy_trackers WHERE (lead_uid = $1 OR (project_uid IS NOT NULL AND project_uid = ANY($2::varchar[]))) AND tenant_uid = $3`,
+                [uid, projectUids.length > 0 ? projectUids : ['__none__'], tenantUid]
+            );
+
+            // 4. Payments
+            await client.query(
+                `DELETE FROM payments WHERE (lead_uid::varchar = $1 OR (project_uid IS NOT NULL AND project_uid::varchar = ANY($2::varchar[]))) AND tenant_uid::varchar = $3`,
+                [uid, projectUids.length > 0 ? projectUids : ['__none__'], tenantUid]
+            );
+
+            // 5. Site Surveys and survey children
+            const ssResult = await client.query(
+                `SELECT uid FROM site_surveys WHERE lead_uid::varchar = $1 AND tenant_uid::varchar = $2`,
+                [uid, tenantUid]
+            );
+            const surveyUids = ssResult.rows.map((r: any) => String(r.uid));
+            if (surveyUids.length > 0) {
+                await client.query(
+                    `DELETE FROM site_survey_documents WHERE site_survey_uid = ANY($1::varchar[])`,
+                    [surveyUids]
+                );
+                await client.query(
+                    `DELETE FROM site_survey_details WHERE site_survey_uid = ANY($1::varchar[])`,
+                    [surveyUids]
+                );
+                await client.query(
+                    `DELETE FROM site_surveys WHERE uid = ANY($1::varchar[])`,
+                    [surveyUids]
+                );
+            }
+
+            // 6. Follow-ups
+            await client.query(
+                `DELETE FROM follow_ups WHERE lead_uid = $1 AND tenant_uid = $2`,
+                [uid, tenantUid]
+            );
+
+            // 7. Lead notes & operational notes
+            const allEntityUids = [uid, ...projectUids, ...surveyUids, ...quotationUids];
+            await client.query(
+                `DELETE FROM lead_notes WHERE lead_uid = $1`,
+                [uid]
+            );
+            await client.query(
+                `DELETE FROM notes WHERE tenant_uid = $1 AND (
+                    (module = 'lead' AND module_uid = $2) OR
+                    (module IN ('project', 'site_survey', 'quotation', 'payment', 'subsidy_tracker') AND module_uid = ANY($3::varchar[]))
+                )`,
+                [tenantUid, uid, allEntityUids]
+            );
+
+            // 8. Document associations & master documents
+            await client.query(
+                `DELETE FROM document_associations WHERE tenant_uid = $1 AND (
+                    (module = 'lead' AND module_uid = $2) OR
+                    (module IN ('project', 'site_survey', 'quotation', 'payment', 'subsidy_tracker') AND module_uid = ANY($3::varchar[]))
+                )`,
+                [tenantUid, uid, allEntityUids]
+            );
+            await client.query(
+                `DELETE FROM master_documents WHERE tenant_uid = $1 AND (
+                    (entity_type = 'lead' AND entity_uid = $2) OR
+                    (entity_type IN ('project', 'site_survey', 'quotation', 'payment', 'subsidy_tracker') AND entity_uid = ANY($3::varchar[]))
+                )`,
+                [tenantUid, uid, allEntityUids]
+            );
+
+            // 9. WhatsApp messages & sessions
+            await client.query(
+                `DELETE FROM whatsapp_messages WHERE lead_uid = $1 AND tenant_uid = $2`,
+                [uid, tenantUid]
+            ).catch(() => {});
+            await client.query(
+                `DELETE FROM whatsapp_customer_sessions WHERE lead_uid = $1 AND tenant_uid = $2`,
+                [uid, tenantUid]
+            ).catch(() => {});
+
+            // 10. Customer histories
+            await client.query(
+                `DELETE FROM customer_histories WHERE lead_uid = $1 AND tenant_uid = $2`,
+                [uid, tenantUid]
+            ).catch(() => {});
+
+            // 11. Notifications
+            await client.query(
+                `DELETE FROM notifications WHERE reference_uid = ANY($1::varchar[]) AND tenant_uid = $2`,
+                [allEntityUids, tenantUid]
+            ).catch(() => {});
+
+            // 12. Delete the lead record
+            const deleteLeadRes = await client.query(
+                `DELETE FROM leads WHERE uid = $1 AND tenant_uid = $2`,
+                [uid, tenantUid]
+            );
+
+            await client.query("COMMIT");
+            return (deleteLeadRes.rowCount ?? 0) > 0;
+        } catch (error) {
+            await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     async findDuplicates(
@@ -434,8 +731,11 @@ export class LeadRepository {
         let baseWhereClause = "l.tenant_uid = $1";
 
         const status = filters.status || "active";
-        if (status === "active") baseWhereClause += " AND l.is_deleted = 0";
-        else if (status === "deleted") baseWhereClause += " AND l.is_deleted = 1";
+        if (status === "deleted") {
+            baseWhereClause += " AND l.is_deleted = 1";
+        } else if (status !== "all") {
+            baseWhereClause += " AND l.is_deleted = 0";
+        }
 
         if (filters.assignedTo) {
             baseParams.push(filters.assignedTo);

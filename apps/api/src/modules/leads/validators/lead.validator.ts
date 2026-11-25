@@ -83,7 +83,7 @@ const leadBodyBase = {
     city: z.string().optional().nullable().or(z.literal("")),
     pinCode: z.string().optional().nullable().or(z.literal("")),
     monthlyBillAmount: z.number().optional().nullable(),
-    consumerAccountNumber: z.string().optional().nullable().or(z.literal("")),
+    consumerAccountNumber: z.string().regex(/^\d+$/, "Consumer number must contain only numbers").optional().nullable().or(z.literal("")),
     systemSize: z.number().min(0, "System size must be a positive number").optional().nullable(),
     followUpDate: z.string().optional().nullable().or(z.literal("")),
     leadSourceUid: z.string().uuid("Invalid lead source UID format").optional().nullable().or(z.literal("")),

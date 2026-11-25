@@ -92,7 +92,7 @@ export class ProjectStatusRepository {
     async getByUid(tenantUid: string, uid: string): Promise<IProjectStatus | null> {
         const result = await this.pool.query(
             `SELECT ${PROJECT_STATUS_COLUMNS} FROM project_statuses 
-             WHERE uid = $1 AND tenant_uid = $2 AND is_deleted = 0`,
+             WHERE uid::varchar = $1 AND tenant_uid::varchar = $2 AND is_deleted = 0`,
             [uid, tenantUid]
         );
         return result.rows.length > 0 ? (result.rows[0] as IProjectStatus) : null;
@@ -101,14 +101,14 @@ export class ProjectStatusRepository {
     async getByUidWithDeleted(tenantUid: string, uid: string): Promise<IProjectStatus | null> {
         const result = await this.pool.query(
             `SELECT ${PROJECT_STATUS_COLUMNS} FROM project_statuses 
-             WHERE uid = $1 AND tenant_uid = $2`,
+             WHERE uid::varchar = $1 AND tenant_uid::varchar = $2`,
             [uid, tenantUid]
         );
         return result.rows.length > 0 ? (result.rows[0] as IProjectStatus) : null;
     }
 
     async getAll(tenantUid: string, status: "active" | "deleted" | "all" = "active"): Promise<IProjectStatus[]> {
-        let whereClause = "tenant_uid = $1";
+        let whereClause = "tenant_uid::varchar = $1";
         if (status === "active") whereClause += " AND is_deleted = 0";
         else if (status === "deleted") whereClause += " AND is_deleted = 1";
 
@@ -124,7 +124,7 @@ export class ProjectStatusRepository {
     async getDefault(tenantUid: string): Promise<IProjectStatus | null> {
         const result = await this.pool.query(
             `SELECT ${PROJECT_STATUS_COLUMNS} FROM project_statuses 
-             WHERE tenant_uid = $1 AND is_deleted = 0 AND is_default = 1
+             WHERE tenant_uid::varchar = $1 AND is_deleted = 0 AND is_default = 1
              ORDER BY created_at ASC LIMIT 1`,
             [tenantUid]
         );

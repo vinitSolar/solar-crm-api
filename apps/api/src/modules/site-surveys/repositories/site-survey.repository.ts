@@ -81,7 +81,7 @@ export class SiteSurveyRepository {
         const params: any[] = [tenantUid];
         let whereClause = "ss.tenant_uid = $1";
 
-        if (status === "active") whereClause += " AND ss.is_deleted = 0";
+        if (status === "active") whereClause += " AND ss.is_deleted = 0 AND (l.is_deleted = 0 OR l.uid IS NULL)";
         else if (status === "deleted") whereClause += " AND ss.is_deleted = 1";
 
         if (surveyStatus !== undefined) {
@@ -238,7 +238,7 @@ export class SiteSurveyRepository {
         let whereClause = "ss.tenant_uid = $1";
         const params: any[] = [tenantUid];
 
-        if (status === "active") whereClause += " AND ss.is_deleted = 0";
+        if (status === "active") whereClause += " AND ss.is_deleted = 0 AND (l.is_deleted = 0 OR l.uid IS NULL)";
         else if (status === "deleted") whereClause += " AND ss.is_deleted = 1";
 
         if (assignedTo) {

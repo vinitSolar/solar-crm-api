@@ -98,6 +98,25 @@ export class LeadService {
             data.firstName = (data as any).name;
         }
 
+        // Save first name and last name in capital
+        if (typeof data.firstName === "string") {
+            data.firstName = data.firstName.trim().toUpperCase();
+        }
+        if (typeof data.lastName === "string") {
+            data.lastName = data.lastName.trim().toUpperCase();
+        }
+
+        // Only allow numbers for consumer account number
+        if (data.consumerAccountNumber !== undefined && data.consumerAccountNumber !== null) {
+            const rawConsumer = String(data.consumerAccountNumber).trim();
+            if (rawConsumer && !/^\d+$/.test(rawConsumer)) {
+                throw new CustomError(LEAD_MESSAGES.INVALID_CONSUMER_NUMBER, 400, [
+                    { field: "consumerAccountNumber", message: LEAD_MESSAGES.INVALID_CONSUMER_NUMBER }
+                ]);
+            }
+            data.consumerAccountNumber = rawConsumer ? rawConsumer.replace(/\D/g, "") : null;
+        }
+
         // Check for duplicates in mobileNumber or email
         if (data.mobileNumber || data.email) {
             const duplicates = await this.repository.findDuplicates(tenantUid, {
@@ -405,6 +424,25 @@ export class LeadService {
             data.firstName = (data as any).name;
         }
 
+        // Save first name and last name in capital
+        if (typeof data.firstName === "string") {
+            data.firstName = data.firstName.trim().toUpperCase();
+        }
+        if (typeof data.lastName === "string") {
+            data.lastName = data.lastName.trim().toUpperCase();
+        }
+
+        // Only allow numbers for consumer account number
+        if (data.consumerAccountNumber !== undefined && data.consumerAccountNumber !== null) {
+            const rawConsumer = String(data.consumerAccountNumber).trim();
+            if (rawConsumer && !/^\d+$/.test(rawConsumer)) {
+                throw new CustomError(LEAD_MESSAGES.INVALID_CONSUMER_NUMBER, 400, [
+                    { field: "consumerAccountNumber", message: LEAD_MESSAGES.INVALID_CONSUMER_NUMBER }
+                ]);
+            }
+            data.consumerAccountNumber = rawConsumer ? rawConsumer.replace(/\D/g, "") : null;
+        }
+
         // Auto-assign draft status when isDraft flag is set
         const isDraft = Boolean(
             data.isDraft === true ||
@@ -708,6 +746,10 @@ export class LeadService {
         }
     }
 
+    async archiveLead(tenantUid: string, uid: string, deletedBy: string): Promise<void> {
+        return this.deleteLead(tenantUid, uid, deletedBy);
+    }
+
     async deleteLead(tenantUid: string, uid: string, deletedBy: string): Promise<void> {
         const existing = await this.repository.getByUid(tenantUid, uid);
         if (!existing) {
@@ -715,6 +757,18 @@ export class LeadService {
         }
 
         const success = await this.repository.softDelete(tenantUid, uid, deletedBy);
+        if (!success) {
+            throw new CustomError(LEAD_MESSAGES.DELETE_FAILED, 500);
+        }
+    }
+
+    async hardDeleteLead(tenantUid: string, uid: string): Promise<void> {
+        const existing = await this.repository.getByUidWithDeleted(tenantUid, uid);
+        if (!existing) {
+            throw new CustomError(LEAD_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const success = await this.repository.hardDelete(tenantUid, uid);
         if (!success) {
             throw new CustomError(LEAD_MESSAGES.DELETE_FAILED, 500);
         }

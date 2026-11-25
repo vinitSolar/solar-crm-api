@@ -155,6 +155,7 @@ export class FollowUpRepository {
                     FROM leads l 
                     WHERE (l.uid = $2 OR l.id::varchar = $2 OR l.lead_number = $2) 
                       AND l.tenant_uid = $1 
+                      AND l.is_deleted = 0
                     LIMIT 1
                 )
               ) 

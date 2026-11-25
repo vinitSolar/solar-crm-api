@@ -476,6 +476,20 @@ function createLeadRouter(): Router {
      *       401:
      *         description: Unauthorized
      */
+    router.post(
+        "/:uid/archive",
+        requirePermission("LEADS", "can_delete"),
+        validateLeadRequest(getByUidSchema),
+        controller.archiveLead,
+    );
+
+    router.delete(
+        "/:uid/permanent",
+        requirePermission("LEADS", "can_delete"),
+        validateLeadRequest(getByUidSchema),
+        controller.hardDeleteLead,
+    );
+
     router.delete(
         "/:uid",
         requirePermission("LEADS", "can_delete"),
@@ -508,6 +522,13 @@ function createLeadRouter(): Router {
      *         description: Unauthorized
      */
     router.put(
+        "/:uid/restore",
+        requirePermission("LEADS", "can_edit"),
+        validateLeadRequest(getByUidSchema),
+        controller.restoreLead,
+    );
+
+    router.post(
         "/:uid/restore",
         requirePermission("LEADS", "can_edit"),
         validateLeadRequest(getByUidSchema),

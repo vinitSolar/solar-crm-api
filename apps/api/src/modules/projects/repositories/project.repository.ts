@@ -150,7 +150,7 @@ export class ProjectRepository {
         const baseParams: any[] = [tenantUid];
         let baseWhereClause = "p.tenant_uid::varchar = $1";
 
-        if (status === "active") baseWhereClause += " AND p.is_deleted = 0";
+        if (status === "active") baseWhereClause += " AND p.is_deleted = 0 AND (l.is_deleted = 0 OR l.uid IS NULL)";
         else if (status === "deleted") baseWhereClause += " AND p.is_deleted = 1";
 
         if (filters?.projectManagerUid) {

@@ -185,7 +185,7 @@ export class WorkflowAutomationService {
             case "IN_PROGRESS":
                 query = `
                     SELECT uid, name, color FROM project_statuses 
-                    WHERE tenant_uid = $1::uuid AND is_deleted = 0 
+                    WHERE tenant_uid::varchar = $1 AND is_deleted = 0 
                       AND (name ILIKE '%in progress%' OR name ILIKE '%progress%')
                     ORDER BY sort_order ASC LIMIT 1
                 `;
@@ -193,7 +193,7 @@ export class WorkflowAutomationService {
             case "COMMISSIONED":
                 query = `
                     SELECT uid, name, color FROM project_statuses 
-                    WHERE tenant_uid = $1::uuid AND is_deleted = 0 
+                    WHERE tenant_uid::varchar = $1 AND is_deleted = 0 
                       AND (name ILIKE '%commissioned%' OR name ILIKE '%complete%' OR (is_closed = 1 AND name NOT ILIKE '%cancel%' AND name NOT ILIKE '%hold%'))
                     ORDER BY sort_order ASC LIMIT 1
                 `;
@@ -201,7 +201,7 @@ export class WorkflowAutomationService {
             case "NOT_STARTED":
                 query = `
                     SELECT uid, name, color FROM project_statuses 
-                    WHERE tenant_uid = $1::uuid AND is_deleted = 0 
+                    WHERE tenant_uid::varchar = $1 AND is_deleted = 0 
                       AND (is_default = 1 OR name ILIKE '%not started%')
                     ORDER BY sort_order ASC LIMIT 1
                 `;
@@ -486,9 +486,9 @@ export class WorkflowAutomationService {
             if (inProgressStatus && inProgressStatus.uid !== currentStatus.uid) {
                 await this.pool.query(
                     `UPDATE projects 
-                     SET project_status_uid = $1::uuid, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
-                     WHERE tenant_uid = $3::uuid AND uid = $4::uuid`,
-                    [inProgressStatus.uid, actorUid, tenantUid, projectUid]
+                     SET project_status_uid = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
+                     WHERE tenant_uid::varchar = $3 AND uid::varchar = $4`,
+                    [inProgressStatus.uid, actorUid || null, tenantUid, projectUid]
                 );
                 logger.info(`[WorkflowAutomation] Project ${projectUid} auto-advanced to '${inProgressStatus.name}' upon milestone status update.`);
                 await this.auditLogService.log({
@@ -523,9 +523,9 @@ export class WorkflowAutomationService {
                     if (commissionedStatus && project.projectStatusUid !== commissionedStatus.uid) {
                         await this.pool.query(
                             `UPDATE projects 
-                             SET project_status_uid = $1::uuid, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
-                             WHERE tenant_uid = $3::uuid AND uid = $4::uuid`,
-                            [commissionedStatus.uid, actorUid, tenantUid, projectUid]
+                             SET project_status_uid = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
+                             WHERE tenant_uid::varchar = $3 AND uid::varchar = $4`,
+                            [commissionedStatus.uid, actorUid || null, tenantUid, projectUid]
                         );
 
                         logger.info(`[WorkflowAutomation] Project ${projectUid} auto-advanced to '${commissionedStatus.name}' as all milestones are complete.`);
@@ -553,7 +553,7 @@ export class WorkflowAutomationService {
         let projectUid = entityUid;
         if (metadata?.leadUid) {
             const res = await this.pool.query(
-                `SELECT uid FROM projects WHERE tenant_uid = $1::uuid AND lead_uid = $2::uuid AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1`,
+                `SELECT uid FROM projects WHERE tenant_uid::varchar = $1 AND lead_uid::varchar = $2 AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1`,
                 [tenantUid, metadata.leadUid]
             );
             if (res.rows.length > 0 && res.rows[0]?.uid) {
@@ -572,7 +572,7 @@ export class WorkflowAutomationService {
         // 6a. Check if complete payment is done
         if (project.quotationUid) {
             const quoteRes = await this.pool.query(
-                `SELECT net_customer_cost, grand_total FROM quotations WHERE tenant_uid = $1::uuid AND uid = $2::uuid`,
+                `SELECT net_customer_cost, grand_total FROM quotations WHERE tenant_uid::varchar = $1 AND uid::varchar = $2`,
                 [tenantUid, project.quotationUid]
             );
             const quote = quoteRes.rows[0];
@@ -580,7 +580,7 @@ export class WorkflowAutomationService {
 
             if (quoteAmount > 0) {
                 const paymentsRes = await this.pool.query(
-                    `SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE tenant_uid = $1::uuid AND lead_uid = $2::uuid AND status = 1 AND is_deleted = 0`,
+                    `SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE tenant_uid::varchar = $1 AND lead_uid::varchar = $2 AND is_deleted = 0`,
                     [tenantUid, project.leadUid]
                 );
                 const totalPaid = Number(paymentsRes.rows[0]?.total_paid || 0);
@@ -590,9 +590,9 @@ export class WorkflowAutomationService {
                     if (commissionedStatus && project.projectStatusUid !== commissionedStatus.uid) {
                         await this.pool.query(
                             `UPDATE projects 
-                             SET project_status_uid = $1::uuid, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
-                             WHERE tenant_uid = $3::uuid AND uid = $4::uuid`,
-                            [commissionedStatus.uid, actorUid, tenantUid, projectUid]
+                             SET project_status_uid = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
+                             WHERE tenant_uid::varchar = $3 AND uid::varchar = $4`,
+                            [commissionedStatus.uid, actorUid || null, tenantUid, projectUid]
                         );
 
                         logger.info(`[WorkflowAutomation] Project ${projectUid} auto-advanced to '${commissionedStatus.name}' as complete payment was received (${totalPaid} of ${quoteAmount}).`);
@@ -622,9 +622,9 @@ export class WorkflowAutomationService {
 
         await this.pool.query(
             `UPDATE projects 
-             SET project_status_uid = $1::uuid, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
-             WHERE tenant_uid = $3::uuid AND uid = $4::uuid`,
-            [inProgressStatus.uid, actorUid, tenantUid, projectUid]
+             SET project_status_uid = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
+             WHERE tenant_uid::varchar = $3 AND uid::varchar = $4`,
+            [inProgressStatus.uid, actorUid || null, tenantUid, projectUid]
         );
 
         logger.info(`[WorkflowAutomation] Project ${projectUid} auto-advanced to '${inProgressStatus.name}' upon payment reception.`);

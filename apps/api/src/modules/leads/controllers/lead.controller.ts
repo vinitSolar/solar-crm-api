@@ -141,17 +141,62 @@ export class LeadController {
         }
     };
 
-    deleteLead = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    archiveLead = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const userUid = authReq.user.uid;
             const uid = req.params.uid as string;
 
-            await this.service.deleteLead(tenantUid, uid, userUid);
+            await this.service.archiveLead(tenantUid, uid, userUid);
             res.status(200).json({
                 success: true,
-                message: LEAD_MESSAGES.DELETED,
+                message: "Lead archived successfully",
+                data: {},
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    deleteLead = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const userUid = authReq.user.uid;
+            const uid = req.params.uid as string;
+            const isPermanent = req.query.permanent === "true" || req.query.permanent === "1" || req.query.hard === "true";
+
+            if (isPermanent) {
+                await this.service.hardDeleteLead(tenantUid, uid);
+                res.status(200).json({
+                    success: true,
+                    message: "Lead and all connected data deleted permanently",
+                    data: {},
+                });
+            } else {
+                await this.service.deleteLead(tenantUid, uid, userUid);
+                res.status(200).json({
+                    success: true,
+                    message: LEAD_MESSAGES.DELETED,
+                    data: {},
+                });
+            }
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    hardDeleteLead = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const authReq = req as IAuthenticatedRequest;
+            const tenantUid = authReq.tenantUid;
+            const uid = req.params.uid as string;
+
+            await this.service.hardDeleteLead(tenantUid, uid);
+            res.status(200).json({
+                success: true,
+                message: "Lead and all connected data deleted permanently",
                 data: {},
             });
         } catch (error) {

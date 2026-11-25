@@ -60,7 +60,7 @@ export class FollowUpReminderService {
                     l.lead_number AS "leadNumber",
                     l.mobile_number AS "mobileNumber"
                 FROM follow_ups fu
-                JOIN leads l ON fu.lead_uid = l.uid AND l.tenant_uid = fu.tenant_uid
+                JOIN leads l ON fu.lead_uid = l.uid AND l.tenant_uid = fu.tenant_uid AND l.is_deleted = 0
                 WHERE fu.is_active = 1
                   AND fu.is_deleted = 0
                   AND fu.status = 'scheduled'

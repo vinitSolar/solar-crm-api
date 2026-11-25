@@ -109,6 +109,32 @@ export class ProjectRepository {
         return result.rows.length > 0 ? (result.rows[0] as IProject) : null;
     }
 
+    async getProjectsByLeadUid(
+        tenantUid: string,
+        leadUid: string,
+        client?: PoolClient
+    ): Promise<Array<{ uid: string; projectStatusUid: string; statusName: string | null; isClosed: number }>> {
+        const query = `
+            SELECT p.uid::varchar AS "uid",
+                   p.project_status_uid::varchar AS "projectStatusUid",
+                   ps.name AS "statusName",
+                   COALESCE(ps.is_closed, 0) AS "isClosed"
+            FROM projects p
+            LEFT JOIN project_statuses ps ON p.project_status_uid = ps.uid
+            WHERE p.lead_uid::varchar = $1 AND p.tenant_uid::varchar = $2 AND p.is_deleted = 0
+            ORDER BY p.created_at DESC
+        `;
+        const result = client
+            ? await client.query(query, [leadUid, tenantUid])
+            : await this.pool.query(query, [leadUid, tenantUid]);
+        return result.rows.map((row: any) => ({
+            uid: String(row.uid),
+            projectStatusUid: String(row.projectStatusUid || ""),
+            statusName: row.statusName ?? null,
+            isClosed: Number(row.isClosed) || 0,
+        }));
+    }
+
     async getLastProjectNumber(tenantUid: string, client?: PoolClient): Promise<string | null> {
         const prefix = `PRJ`;
         const query = `

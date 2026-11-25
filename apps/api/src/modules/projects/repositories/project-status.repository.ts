@@ -98,6 +98,16 @@ export class ProjectStatusRepository {
         return result.rows.length > 0 ? (result.rows[0] as IProjectStatus) : null;
     }
 
+    async getByName(tenantUid: string, name: string): Promise<IProjectStatus | null> {
+        const result = await this.pool.query(
+            `SELECT ${PROJECT_STATUS_COLUMNS} FROM project_statuses
+             WHERE tenant_uid::varchar = $1 AND LOWER(TRIM(name)) = LOWER(TRIM($2)) AND is_deleted = 0
+             LIMIT 1`,
+            [tenantUid, name]
+        );
+        return result.rows.length > 0 ? (result.rows[0] as IProjectStatus) : null;
+    }
+
     async getByUidWithDeleted(tenantUid: string, uid: string): Promise<IProjectStatus | null> {
         const result = await this.pool.query(
             `SELECT ${PROJECT_STATUS_COLUMNS} FROM project_statuses 

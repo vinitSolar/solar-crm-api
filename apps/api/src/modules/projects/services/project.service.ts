@@ -80,6 +80,30 @@ export class ProjectService {
             throw new CustomError(PROJECT_MESSAGES.ALREADY_EXISTS, 400);
         }
 
+        // 2.5 Check existing projects for this lead:
+        // - If an existing project has a closed status (isClosed: 1), block creating another project.
+        // - If an existing project is still open (isClosed !== 1), move it to "Cancelled" status.
+        const existingLeadProjects = await this.repository.getProjectsByLeadUid(tenantUid, quotation.leadUid);
+        const closedProject = existingLeadProjects.find((p) => p.isClosed === 1);
+        if (closedProject) {
+            throw new CustomError("Cannot create a new project because an existing project for this lead is already closed.", 400);
+        }
+
+        const openLeadProjects = existingLeadProjects.filter((p) => p.isClosed !== 1);
+        if (openLeadProjects.length > 0) {
+            const cancelledStatus = await this.statusRepository.getByName(tenantUid, "Cancelled");
+            if (cancelledStatus) {
+                for (const openProj of openLeadProjects) {
+                    await this.repository.update(
+                        tenantUid,
+                        openProj.uid,
+                        { projectStatusUid: cancelledStatus.uid },
+                        createdBy
+                    );
+                }
+            }
+        }
+
         // 3. Get default project status
         let defaultStatus = await this.statusRepository.getDefault(tenantUid);
         if (!defaultStatus) {

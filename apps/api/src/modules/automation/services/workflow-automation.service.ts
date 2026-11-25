@@ -397,6 +397,24 @@ export class WorkflowAutomationService {
             return { projectUid: existingProject.uid };
         }
 
+        // 2.5 Check existing projects for this lead:
+        // - If the lead already has a closed project (isClosed: 1), do not auto-create another project.
+        // - If open projects exist (isClosed !== 1), move them to "Cancelled" status.
+        const existingLeadProjects = await this.projectRepository.getProjectsByLeadUid(tenantUid, lead.uid);
+        const latestLeadProject = existingLeadProjects[0];
+        const hasNonCancelledClosed = existingLeadProjects.some(
+            (p) => p.isClosed === 1 && (p.statusName || "").trim().toLowerCase() !== "cancelled"
+        );
+        if (hasNonCancelledClosed || (latestLeadProject && latestLeadProject.isClosed === 1)) {
+            logger.info(`[WorkflowAutomation] Skipping auto-project creation for quotation ${quotationUid}: lead ${lead.uid} already has a closed project.`);
+            return {};
+        }
+
+        const openLeadProjects = existingLeadProjects.filter((p) => p.isClosed !== 1);
+        const cancelledStatus = openLeadProjects.length > 0
+            ? await this.projectStatusRepository.getByName(tenantUid, "Cancelled")
+            : null;
+
         // 3. Resolve default project status
         let defaultStatus = await this.projectStatusRepository.getDefault(tenantUid);
         if (!defaultStatus) {
@@ -418,36 +436,48 @@ export class WorkflowAutomationService {
         const systemSize = lead.systemSize || "0";
         const projectName = `${fullName} - ${systemSize}kW - ${projectNumber}`;
 
-        const project = await this.projectRepository.create(
-            tenantUid,
-            {
-                quotationUid,
-                leadUid: lead.uid,
-                projectName,
-                statusUid: defaultStatus.uid,
-                projectNumber,
-                projectDate: new Date()
-            },
-            actorUid
-        );
+        const project = await this.projectRepository.runInTransaction(async (client) => {
+            if (openLeadProjects.length > 0 && cancelledStatus) {
+                for (const openProj of openLeadProjects) {
+                    await this.projectRepository.update(
+                        tenantUid,
+                        openProj.uid,
+                        { projectStatusUid: cancelledStatus.uid },
+                        actorUid,
+                        client
+                    );
+                }
+            }
 
-        // Seed 6 milestones from templates
-        await this.milestoneRepository.bulkInsertFromTemplates(tenantUid, project.uid, actorUid);
+            const created = await this.projectRepository.create(
+                tenantUid,
+                {
+                    quotationUid,
+                    leadUid: lead.uid,
+                    projectName,
+                    statusUid: defaultStatus.uid,
+                    projectNumber,
+                    projectDate: new Date()
+                },
+                actorUid,
+                client
+            );
 
-        // Auto-create Subsidy Tracker
-        await this.subsidyTrackerRepository.create(tenantUid, {
-            projectUid: project.uid,
-            leadUid: project.leadUid,
-            name: project.projectName,
-        }, actorUid);
+            // Seed 6 milestones from templates
+            await this.milestoneRepository.bulkInsertFromTemplates(tenantUid, created.uid, actorUid, client);
 
-        // Update quotation status to 4 (Converted)
-        const client = await this.quotationRepository.getPoolClient();
-        try {
+            // Auto-create Subsidy Tracker
+            await this.subsidyTrackerRepository.create(tenantUid, {
+                projectUid: created.uid,
+                leadUid: created.leadUid,
+                name: created.projectName,
+            }, actorUid, client);
+
+            // Update quotation status to 4 (Converted)
             await this.quotationRepository.update(client, tenantUid, quotationUid, { status: 4 }, actorUid);
-        } finally {
-            client.release();
-        }
+
+            return created;
+        });
 
         await this.auditLogService.log({
             tenantUid,

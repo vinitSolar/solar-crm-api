@@ -115,3 +115,89 @@ export function requirePermission(menuCode: string, action: 'can_view' | 'can_cr
         }
     };
 }
+
+/**
+ * Middleware to check if the authenticated user or their role has a specific feature permission.
+ * Evaluates User Feature Permission -> Role Feature Permission -> Default (0).
+ * Dynamic and database-driven: no hardcoded role names or admin strings.
+ *
+ * @param featureCode - The code of the feature (e.g. 'lead_delete')
+ */
+export function requireFeaturePermission(featureCode: string) {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        const authReq = req as IAuthenticatedRequest;
+
+        if (!authReq.user || !authReq.roleUid || !authReq.tenantUid) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized: Missing user context",
+            });
+            return;
+        }
+
+        const cacheKey = `cache:perm:feature:${authReq.tenantUid}:${authReq.roleUid}:${authReq.user.uid}:${featureCode.toLowerCase()}`;
+        const cached = await safeCacheGet<number>(cacheKey);
+        if (cached !== null) {
+            if (cached === 1) {
+                next();
+                return;
+            }
+            logger.warn("Feature permission check failed (cached): User/Role lacks feature permission", {
+                userUid: authReq.user.uid,
+                roleUid: authReq.roleUid,
+                featureCode,
+            });
+            res.status(403).json({
+                success: false,
+                message: `Forbidden: You do not have permission for feature '${featureCode}'`,
+            });
+            return;
+        }
+
+        try {
+            const query = `
+                SELECT 
+                    COALESCE(ufp.is_enabled, rfp.is_enabled, 0) AS is_enabled
+                FROM features f
+                LEFT JOIN role_feature_permissions rfp 
+                    ON f.uid = rfp.feature_uid AND rfp.role_uid = $1 AND rfp.tenant_uid = $3
+                LEFT JOIN user_feature_permissions ufp 
+                    ON f.uid = ufp.feature_uid AND ufp.user_uid = $2 AND ufp.tenant_uid = $3
+                WHERE LOWER(f.code) = LOWER($4) AND f.is_active = 1
+            `;
+
+            const result = await pool.query(query, [
+                authReq.roleUid,
+                authReq.user.uid,
+                authReq.tenantUid,
+                featureCode,
+            ]);
+
+            const isEnabled = result.rows.length > 0 && result.rows[0].is_enabled === 1;
+
+            // Cache result for 5 minutes (300 seconds) in background
+            safeCacheSet(cacheKey, isEnabled ? 1 : 0, 300).catch(() => {});
+
+            if (!isEnabled) {
+                logger.warn("Feature permission check failed: User/Role lacks feature permission", {
+                    userUid: authReq.user.uid,
+                    roleUid: authReq.roleUid,
+                    featureCode,
+                });
+                res.status(403).json({
+                    success: false,
+                    message: `Forbidden: You do not have permission for feature '${featureCode}'`,
+                });
+                return;
+            }
+
+            next();
+        } catch (error) {
+            logger.error("Feature permission middleware error", { error });
+            res.status(500).json({
+                success: false,
+                message: "Internal server error during permission check",
+            });
+        }
+    };
+}

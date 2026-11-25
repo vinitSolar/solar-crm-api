@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import pool from "@packages/connection.js";
 import type { LeadService } from "../services/lead.service.js";
 import { LEAD_MESSAGES } from "../constants/lead.constants.js";
 import type { IAuthenticatedRequest } from "../../auth/interfaces/auth.interface.js";
@@ -168,6 +169,23 @@ export class LeadController {
             const isPermanent = req.query.permanent === "true" || req.query.permanent === "1" || req.query.hard === "true";
 
             if (isPermanent) {
+                // Feature permission check for permanent delete
+                const featureRes = await pool.query(
+                    `SELECT COALESCE(ufp.is_enabled, rfp.is_enabled, 0) AS is_enabled
+                     FROM features f
+                     LEFT JOIN role_feature_permissions rfp ON f.uid = rfp.feature_uid AND rfp.role_uid = $1 AND rfp.tenant_uid = $3
+                     LEFT JOIN user_feature_permissions ufp ON f.uid = ufp.feature_uid AND ufp.user_uid = $2 AND ufp.tenant_uid = $3
+                     WHERE LOWER(f.code) = 'lead_delete' AND f.is_active = 1`,
+                    [authReq.roleUid, userUid, tenantUid]
+                );
+                if (featureRes.rows.length === 0 || featureRes.rows[0].is_enabled !== 1) {
+                    res.status(403).json({
+                        success: false,
+                        message: "Forbidden: You do not have permission for feature 'lead_delete'",
+                    });
+                    return;
+                }
+
                 await this.service.hardDeleteLead(tenantUid, uid);
                 res.status(200).json({
                     success: true,

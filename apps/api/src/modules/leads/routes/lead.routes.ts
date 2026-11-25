@@ -21,7 +21,7 @@ import pool from "@packages/connection.js";
 import { createNoteRouter } from "../../notes/routes/note.routes.js";
 import { NoteService } from "../../notes/services/note.service.js";
 import { NoteRepository } from "../../notes/repositories/note.repository.js";
-import { requirePermission } from "../../../middlewares/permission.middleware.js";
+import { requirePermission, requireFeaturePermission } from "../../../middlewares/permission.middleware.js";
 
 function createLeadRouter(): Router {
     const router = Router();
@@ -485,7 +485,7 @@ function createLeadRouter(): Router {
 
     router.delete(
         "/:uid/permanent",
-        requirePermission("LEADS", "can_delete"),
+        requireFeaturePermission("lead_delete"),
         validateLeadRequest(getByUidSchema),
         controller.hardDeleteLead,
     );

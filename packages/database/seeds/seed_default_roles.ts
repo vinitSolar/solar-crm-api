@@ -91,6 +91,19 @@ export async function seedDefaultRoles(
                 [tenantUid, roleUid, menu.uid, perm.canView, perm.canCreate, perm.canEdit, perm.canDelete, perm.canSetting]
             );
         }
+
+        // 4. Assign default feature permissions for this new role
+        const activeFeaturesRes = await client.query(
+            "SELECT uid, code FROM features WHERE is_active = 1"
+        );
+        for (const feat of activeFeaturesRes.rows) {
+            const isEnabled = (feat.code === "lead_delete" && getDefaultPermissionForFranchiseRole(roleDef.name, "LEADS").canDelete === 1) ? 1 : 0;
+            await client.query(
+                `INSERT INTO role_feature_permissions (tenant_uid, role_uid, feature_uid, is_enabled)
+                 VALUES ($1, $2, $3, $4)`,
+                [tenantUid, roleUid, feat.uid, isEnabled]
+            );
+        }
     }
 
     logger.info(`🎉 Completed role & permission seeding for tenant ${tenantUid} (Created: ${createdCount}, Skipped: ${skippedCount})`);

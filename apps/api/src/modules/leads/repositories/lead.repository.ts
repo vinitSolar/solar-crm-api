@@ -441,6 +441,18 @@ export class LeadRepository {
         try {
             await client.query("BEGIN");
 
+            // Safe helper for child tables using savepoints so missing tables or columns don't abort the transaction
+            const safeDelete = async (sql: string, params: any[] = []) => {
+                const sp = `sp_${Math.random().toString(36).slice(2, 9)}`;
+                await client.query(`SAVEPOINT ${sp}`);
+                try {
+                    await client.query(sql, params);
+                    await client.query(`RELEASE SAVEPOINT ${sp}`);
+                } catch {
+                    await client.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+                }
+            };
+
             // Verify lead belongs to tenant
             const leadCheck = await client.query(
                 `SELECT uid FROM leads WHERE uid = $1 AND tenant_uid = $2`,
@@ -458,19 +470,19 @@ export class LeadRepository {
             );
             const quotationUids = qResult.rows.map((r: any) => String(r.uid));
             if (quotationUids.length > 0) {
-                await client.query(
+                await safeDelete(
                     `DELETE FROM quotation_items WHERE quotation_uid = ANY($1::varchar[])`,
                     [quotationUids]
                 );
-                await client.query(
+                await safeDelete(
                     `DELETE FROM quotation_scope_of_work_items WHERE quotation_uid = ANY($1::varchar[])`,
                     [quotationUids]
                 );
-                await client.query(
+                await safeDelete(
                     `DELETE FROM quotation_terms_conditions_items WHERE quotation_uid = ANY($1::varchar[])`,
                     [quotationUids]
                 );
-                await client.query(
+                await safeDelete(
                     `DELETE FROM quotations WHERE uid = ANY($1::varchar[])`,
                     [quotationUids]
                 );
@@ -483,37 +495,37 @@ export class LeadRepository {
             );
             const projectUids = pResult.rows.map((r: any) => String(r.uid));
             if (projectUids.length > 0) {
-                await client.query(
+                await safeDelete(
                     `DELETE FROM project_installation_milestone_documents 
                      WHERE project_milestone_uid IN (
                          SELECT uid FROM project_installation_milestones WHERE project_uid = ANY($1::varchar[])
                      )`,
                     [projectUids]
                 );
-                await client.query(
+                await safeDelete(
                     `DELETE FROM project_installation_milestones WHERE project_uid = ANY($1::varchar[])`,
                     [projectUids]
                 );
-                await client.query(
+                await safeDelete(
                     `DELETE FROM project_subsidy_documents WHERE project_uid = ANY($1::varchar[])`,
                     [projectUids]
                 );
-                await client.query(
+                await safeDelete(
                     `DELETE FROM projects WHERE uid::varchar = ANY($1::varchar[])`,
                     [projectUids]
                 );
             }
 
             // 3. Subsidy Trackers
-            await client.query(
-                `DELETE FROM subsidy_trackers WHERE (lead_uid = $1 OR (project_uid IS NOT NULL AND project_uid = ANY($2::varchar[]))) AND tenant_uid = $3`,
+            await safeDelete(
+                `DELETE FROM subsidy_trackers WHERE (lead_uid::varchar = $1 OR (project_uid IS NOT NULL AND project_uid::varchar = ANY($2::varchar[]))) AND tenant_uid::varchar = $3`,
                 [uid, projectUids.length > 0 ? projectUids : ['__none__'], tenantUid]
             );
 
-            // 4. Payments
-            await client.query(
-                `DELETE FROM payments WHERE (lead_uid::varchar = $1 OR (project_uid IS NOT NULL AND project_uid::varchar = ANY($2::varchar[]))) AND tenant_uid::varchar = $3`,
-                [uid, projectUids.length > 0 ? projectUids : ['__none__'], tenantUid]
+            // 4. Payments (payments table has lead_uid and tenant_uid, no project_uid)
+            await safeDelete(
+                `DELETE FROM payments WHERE lead_uid::varchar = $1 AND tenant_uid::varchar = $2`,
+                [uid, tenantUid]
             );
 
             // 5. Site Surveys and survey children
@@ -523,77 +535,69 @@ export class LeadRepository {
             );
             const surveyUids = ssResult.rows.map((r: any) => String(r.uid));
             if (surveyUids.length > 0) {
-                await client.query(
+                await safeDelete(
                     `DELETE FROM site_survey_documents WHERE site_survey_uid = ANY($1::varchar[])`,
                     [surveyUids]
                 );
-                await client.query(
+                await safeDelete(
                     `DELETE FROM site_survey_details WHERE site_survey_uid = ANY($1::varchar[])`,
                     [surveyUids]
                 );
-                await client.query(
+                await safeDelete(
                     `DELETE FROM site_surveys WHERE uid = ANY($1::varchar[])`,
                     [surveyUids]
                 );
             }
 
             // 6. Follow-ups
-            await client.query(
+            await safeDelete(
                 `DELETE FROM follow_ups WHERE lead_uid = $1 AND tenant_uid = $2`,
                 [uid, tenantUid]
             );
 
-            // 7. Lead notes & operational notes
+            // 7. Notes
             const allEntityUids = [uid, ...projectUids, ...surveyUids, ...quotationUids];
-            await client.query(
-                `DELETE FROM lead_notes WHERE lead_uid = $1`,
-                [uid]
-            );
-            await client.query(
-                `DELETE FROM notes WHERE tenant_uid = $1 AND (
-                    (module = 'lead' AND module_uid = $2) OR
-                    (module IN ('project', 'site_survey', 'quotation', 'payment', 'subsidy_tracker') AND module_uid = ANY($3::varchar[]))
+            await safeDelete(
+                `DELETE FROM notes WHERE tenant_uid::varchar = $1 AND (
+                    (module = 'lead' AND module_uid::varchar = $2) OR
+                    (module IN ('project', 'site_survey', 'quotation', 'payment', 'subsidy_tracker') AND module_uid::varchar = ANY($3::varchar[]))
                 )`,
                 [tenantUid, uid, allEntityUids]
             );
 
             // 8. Document associations & master documents
-            await client.query(
-                `DELETE FROM document_associations WHERE tenant_uid = $1 AND (
-                    (module = 'lead' AND module_uid = $2) OR
-                    (module IN ('project', 'site_survey', 'quotation', 'payment', 'subsidy_tracker') AND module_uid = ANY($3::varchar[]))
+            await safeDelete(
+                `DELETE FROM document_associations WHERE tenant_uid::varchar = $1 AND (
+                    (module = 'lead' AND context_uid::varchar = $2) OR
+                    (module IN ('project', 'site_survey', 'quotation', 'payment', 'subsidy_tracker') AND context_uid::varchar = ANY($3::varchar[]))
                 )`,
                 [tenantUid, uid, allEntityUids]
             );
-            await client.query(
-                `DELETE FROM master_documents WHERE tenant_uid = $1 AND (
-                    (entity_type = 'lead' AND entity_uid = $2) OR
-                    (entity_type IN ('project', 'site_survey', 'quotation', 'payment', 'subsidy_tracker') AND entity_uid = ANY($3::varchar[]))
+            await safeDelete(
+                `DELETE FROM master_documents WHERE tenant_uid::varchar = $1 AND (
+                    (entity_type = 'lead' AND entity_uid::varchar = $2) OR
+                    (entity_type IN ('project', 'site_survey', 'quotation', 'payment', 'subsidy_tracker') AND entity_uid::varchar = ANY($3::varchar[]))
                 )`,
                 [tenantUid, uid, allEntityUids]
             );
 
-            // 9. WhatsApp messages & sessions
-            await client.query(
-                `DELETE FROM whatsapp_messages WHERE lead_uid = $1 AND tenant_uid = $2`,
+            // 9. WhatsApp sessions
+            await safeDelete(
+                `DELETE FROM whatsapp_customer_sessions WHERE lead_uid::varchar = $1 AND tenant_uid::varchar = $2`,
                 [uid, tenantUid]
-            ).catch(() => {});
-            await client.query(
-                `DELETE FROM whatsapp_customer_sessions WHERE lead_uid = $1 AND tenant_uid = $2`,
-                [uid, tenantUid]
-            ).catch(() => {});
+            );
 
             // 10. Customer histories
-            await client.query(
-                `DELETE FROM customer_histories WHERE lead_uid = $1 AND tenant_uid = $2`,
+            await safeDelete(
+                `DELETE FROM customer_histories WHERE lead_uid::varchar = $1 AND tenant_uid::varchar = $2`,
                 [uid, tenantUid]
-            ).catch(() => {});
+            );
 
             // 11. Notifications
-            await client.query(
-                `DELETE FROM notifications WHERE reference_uid = ANY($1::varchar[]) AND tenant_uid = $2`,
+            await safeDelete(
+                `DELETE FROM notifications WHERE reference_uid::varchar = ANY($1::varchar[]) AND tenant_uid::varchar = $2`,
                 [allEntityUids, tenantUid]
-            ).catch(() => {});
+            );
 
             // 12. Delete the lead record
             const deleteLeadRes = await client.query(

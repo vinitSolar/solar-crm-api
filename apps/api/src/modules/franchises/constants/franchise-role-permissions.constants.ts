@@ -122,8 +122,13 @@ export function getDefaultPermissionForFranchiseRole(
         return NO_PERMISSION;
     }
 
-    // 2. Master lookup & configuration data: All franchise roles get read-only view access
-    // so mobile and web applications can populate dropdowns, status pills, and filters.
+    // 2. Master lookup & configuration data: Franchise Owner(Admin) can manage Installation Milestones,
+    // while all other franchise roles get read-only view access so mobile and web applications can
+    // populate dropdowns, status pills, and filters.
+    if (roleName === "Franchise Owner(Admin)" && code === "INSTALLATION_MILESTONES") {
+        return { canView: 1, canCreate: 1, canEdit: 1, canDelete: 1, canSetting: 1 };
+    }
+
     if (FRANCHISE_LOOKUP_MENUS.includes(code)) {
         return READ_ONLY_PERMISSION;
     }
@@ -143,7 +148,7 @@ export function getDefaultPermissionForFranchiseRole(
         }
 
         case "Sales Executive": {
-            if (code === "DASHBOARD" || code === "PROJECTS" || code === "PRODUCTS" || code === "PACKAGES" || code === "USERS") {
+            if (code === "DASHBOARD" || code === "PROJECTS" || code === "SUBSIDY_TRACKER" || code === "PRODUCTS" || code === "PACKAGES" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
             if (code === "LEADS" || code === "QUOTATIONS" || code === "FOLLOW_UPS") {
@@ -156,7 +161,7 @@ export function getDefaultPermissionForFranchiseRole(
         }
 
         case "Survey Engineer": {
-            if (code === "DASHBOARD" || code === "LEADS" || code === "PROJECTS" || code === "USERS") {
+            if (code === "DASHBOARD" || code === "LEADS" || code === "PROJECTS" || code === "SUBSIDY_TRACKER" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
             if (code === "SURVEYS") {
@@ -169,7 +174,7 @@ export function getDefaultPermissionForFranchiseRole(
             if (code === "DASHBOARD" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
-            if (code === "PROJECTS") {
+            if (code === "PROJECTS" || code === "SUBSIDY_TRACKER") {
                 return { canView: 1, canCreate: 0, canEdit: 1, canDelete: 0, canSetting: 0 };
             }
             return NO_PERMISSION;
@@ -189,7 +194,7 @@ export function getDefaultPermissionForFranchiseRole(
         }
 
         case "Warehouse / Procurement": {
-            if (code === "DASHBOARD" || code === "PROJECTS" || code === "PRODUCTS" || code === "PACKAGES" || code === "USERS") {
+            if (code === "DASHBOARD" || code === "PROJECTS" || code === "SUBSIDY_TRACKER" || code === "PRODUCTS" || code === "PACKAGES" || code === "USERS") {
                 return { canView: 1, canCreate: 0, canEdit: 0, canDelete: 0, canSetting: 0 };
             }
             return NO_PERMISSION;

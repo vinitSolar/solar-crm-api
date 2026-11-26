@@ -4,6 +4,8 @@ import { toInstallationMilestoneSafe } from "../dto/installation-milestone.dto.j
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { INSTALLATION_MILESTONE_MESSAGES } from "../constants/installation-milestone.constants.js";
 import { logger } from "@packages/logger/index.js";
+import pool from "@packages/connection.js";
+import { seedInstallationMilestones } from "@packages/database/seeds/seed_installation_milestones.js";
 
 export class InstallationMilestoneService {
     private readonly repository: InstallationMilestoneRepository;
@@ -32,7 +34,14 @@ export class InstallationMilestoneService {
     }
 
     async getAllInstallationMilestones(tenantUid: string, status: "active" | "deleted" | "all" = "active"): Promise<IInstallationMilestoneSafe[]> {
-        const milestones = await this.repository.getAll(tenantUid, status);
+        let milestones = await this.repository.getAll(tenantUid, status);
+        if (status !== "deleted" && milestones.length === 0) {
+            const hasAny = await this.repository.hasAnyForTenant(tenantUid);
+            if (!hasAny) {
+                await seedInstallationMilestones(pool, tenantUid, "SYSTEM");
+                milestones = await this.repository.getAll(tenantUid, status);
+            }
+        }
         return milestones.map(toInstallationMilestoneSafe);
     }
 

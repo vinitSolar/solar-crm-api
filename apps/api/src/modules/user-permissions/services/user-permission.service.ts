@@ -61,7 +61,38 @@ export class UserPermissionService {
             throw new CustomError("One or more provided menu UIDs are invalid.", 400);
         }
 
+        // Ensure any user with Projects permission also receives at least matching Subsidy Tracker permission
+        const allMenus = await this.menuRepository.findAll("active");
+        const projectsMenu = allMenus.find((m) => m.code.toLowerCase() === "projects");
+        const subsidyTrackerMenu = allMenus.find((m) => m.code.toLowerCase() === "subsidy_tracker");
+        const syncedPermissions: IUpsertUserMenuPermission[] = permissions.map((p) => ({ ...p }));
+
+        if (projectsMenu && subsidyTrackerMenu) {
+            const projectsPerm = syncedPermissions.find((p) => p.menuUid === projectsMenu.uid);
+            if (
+                projectsPerm &&
+                (projectsPerm.canView === 1 || projectsPerm.canCreate === 1 || projectsPerm.canEdit === 1 || projectsPerm.canDelete === 1)
+            ) {
+                const existingSubsidyPerm = syncedPermissions.find((p) => p.menuUid === subsidyTrackerMenu.uid);
+                if (existingSubsidyPerm) {
+                    existingSubsidyPerm.canView = Math.max(existingSubsidyPerm.canView, projectsPerm.canView);
+                    existingSubsidyPerm.canCreate = Math.max(existingSubsidyPerm.canCreate, projectsPerm.canCreate);
+                    existingSubsidyPerm.canEdit = Math.max(existingSubsidyPerm.canEdit, projectsPerm.canEdit);
+                    existingSubsidyPerm.canDelete = Math.max(existingSubsidyPerm.canDelete, projectsPerm.canDelete);
+                } else {
+                    syncedPermissions.push({
+                        menuUid: subsidyTrackerMenu.uid,
+                        canView: projectsPerm.canView,
+                        canCreate: projectsPerm.canCreate,
+                        canEdit: projectsPerm.canEdit,
+                        canDelete: projectsPerm.canDelete,
+                        canSetting: 0,
+                    });
+                }
+            }
+        }
+
         // Perform the bulk upsert
-        await this.userPermissionRepository.upsertMenuPermissions(tenantUid, userUid, permissions);
+        await this.userPermissionRepository.upsertMenuPermissions(tenantUid, userUid, syncedPermissions);
     }
 }

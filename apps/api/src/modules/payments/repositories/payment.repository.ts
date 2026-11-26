@@ -125,12 +125,12 @@ export class PaymentRepository {
         const query = `
             SELECT
                 ${PAYMENT_COLUMNS_PREFIXED},
-                COALESCE(q.net_customer_cost, 0) - COALESCE(
+                COALESCE(q.quotation_total, 0) - COALESCE(
                     SUM(p2.amount)
                 , 0) AS "totalAmountDue"
             FROM payments p
             LEFT JOIN LATERAL (
-                SELECT COALESCE(NULLIF(net_customer_cost, 0), grand_total, 0) AS net_customer_cost
+                SELECT COALESCE(NULLIF(grand_total, 0), net_customer_cost, 0) AS quotation_total
                 FROM quotations
                 WHERE lead_uid = p.lead_uid::TEXT AND tenant_uid = p.tenant_uid::TEXT AND is_deleted = 0
                 ORDER BY 
@@ -147,7 +147,7 @@ export class PaymentRepository {
             GROUP BY p.id, p.uid, p.tenant_uid, p.lead_uid, p.amount, p.payment_method,
                      p.transaction_reference, p.payment_date, p.notes,
                      p.is_active, p.is_deleted, p.created_at, p.updated_at,
-                     p.created_by, p.updated_by, p.deleted_by, q.net_customer_cost
+                     p.created_by, p.updated_by, p.deleted_by, q.quotation_total
         `;
         const { rows } = await dbClient.query(query, [uid, tenantUid]);
         return (rows[0] as IPayment) || null;
@@ -212,12 +212,12 @@ export class PaymentRepository {
         const dataQuery = `
             SELECT
                 ${PAYMENT_COLUMNS_PREFIXED},
-                COALESCE(q.net_customer_cost, 0) - COALESCE(
+                COALESCE(q.quotation_total, 0) - COALESCE(
                     SUM(p2.amount)
                 , 0) AS "totalAmountDue"
             FROM payments p
             LEFT JOIN LATERAL (
-                SELECT COALESCE(NULLIF(net_customer_cost, 0), grand_total, 0) AS net_customer_cost
+                SELECT COALESCE(NULLIF(grand_total, 0), net_customer_cost, 0) AS quotation_total
                 FROM quotations
                 WHERE lead_uid = p.lead_uid::TEXT AND tenant_uid = p.tenant_uid::TEXT AND is_deleted = 0
                 ORDER BY 
@@ -234,7 +234,7 @@ export class PaymentRepository {
             GROUP BY p.id, p.uid, p.tenant_uid, p.lead_uid, p.amount, p.payment_method,
                      p.transaction_reference, p.payment_date, p.notes,
                      p.is_active, p.is_deleted, p.created_at, p.updated_at,
-                     p.created_by, p.updated_by, p.deleted_by, q.net_customer_cost
+                     p.created_by, p.updated_by, p.deleted_by, q.quotation_total
             ORDER BY p.payment_date DESC, p.created_at DESC
             LIMIT $${valueIndex} OFFSET $${valueIndex + 1}
         `;

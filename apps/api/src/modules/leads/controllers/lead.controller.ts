@@ -33,8 +33,9 @@ export class LeadController {
             const authReq = req as IAuthenticatedRequest;
             const tenantUid = authReq.tenantUid;
             const uid = req.params.uid as string;
+            const includeDeleted = req.query.includeDeleted === "true" || req.query.includeDeleted === "1";
 
-            const lead = await this.service.getLeadByUid(tenantUid, uid);
+            const lead = await this.service.getLeadByUid(tenantUid, uid, includeDeleted);
             res.status(200).json({
                 success: true,
                 message: LEAD_MESSAGES.FETCHED_SUCCESSFULLY,

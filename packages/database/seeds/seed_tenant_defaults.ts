@@ -39,7 +39,8 @@ export async function seedTenantDefaults(client: PoolClient, tenantUid: string, 
         { name: "Quotation Sent", color: "#06B6D4", sortOrder: 4, isDefault: 0, isClosed: 0, isDraft: 0 },
         { name: "Negotiation", color: "#F97316", sortOrder: 5, isDefault: 0, isClosed: 0, isDraft: 0 },
         { name: "Won", color: "#10B981", sortOrder: 6, isDefault: 0, isClosed: 1, isDraft: 0 },
-        { name: "Lost", color: "#EF4444", sortOrder: 7, isDefault: 0, isClosed: 1, isDraft: 0 }
+        { name: "Lost", color: "#EF4444", sortOrder: 7, isDefault: 0, isClosed: 1, isDraft: 0 },
+        { name: "Archive", color: "#64748B", sortOrder: 8, isDefault: 0, isClosed: 1, isDraft: 0 }
     ];
     for (const status of leadStatuses) {
         const existing = await client.query(
@@ -59,10 +60,26 @@ export async function seedTenantDefaults(client: PoolClient, tenantUid: string, 
     const projectStatuses = [
         { name: "Not Started", color: "#9CA3AF", sortOrder: 1, isDefault: 1, isClosed: 0 },
         { name: "In Progress", color: "#3B82F6", sortOrder: 2, isDefault: 0, isClosed: 0 },
-        { name: "Commissioned", color: "#10B981", sortOrder: 3, isDefault: 0, isClosed: 1 },
+        { name: "Completed", color: "#10B981", sortOrder: 3, isDefault: 0, isClosed: 1 },
         { name: "On Hold", color: "#F59E0B", sortOrder: 4, isDefault: 0, isClosed: 0 },
         { name: "Cancelled", color: "#EF4444", sortOrder: 5, isDefault: 0, isClosed: 1 }
     ];
+
+    await client.query(
+        `UPDATE project_statuses ps
+         SET name = 'Completed', updated_at = CURRENT_TIMESTAMP
+         WHERE ps.tenant_uid = $1::uuid
+           AND LOWER(TRIM(ps.name)) = 'commissioned'
+           AND ps.is_deleted = 0
+           AND NOT EXISTS (
+               SELECT 1 FROM project_statuses existing
+               WHERE existing.tenant_uid = ps.tenant_uid
+                 AND LOWER(TRIM(existing.name)) = 'completed'
+                 AND existing.is_deleted = 0
+           )`,
+        [tenantUid]
+    );
+
     for (const status of projectStatuses) {
         const existing = await client.query(
             "SELECT 1 FROM project_statuses WHERE tenant_uid = $1::uuid AND name = $2 AND is_deleted = 0",
@@ -141,7 +158,7 @@ export async function seedTenantDefaults(client: PoolClient, tenantUid: string, 
         { key: 'APPROVAL_TO_WON', name: 'Auto-advance to Won on Approval', desc: 'Automatically move lead to "Won" when a quotation is approved by the customer or manager.', sort: 4 },
         { key: 'APPROVAL_TO_PROJECT', name: 'Auto-create Project on Approval', desc: 'Automatically create a new Project with milestones and subsidy tracker when a quotation is approved.', sort: 5 },
         { key: 'PAYMENT_TO_IN_PROGRESS', name: 'Auto-start Project on Payment', desc: 'Automatically move project from "Not Started" to "In Progress" when an advance payment is recorded.', sort: 6 },
-        { key: 'MILESTONES_TO_COMMISSIONED', name: 'Auto-commission on Completion', desc: 'Automatically move project to "Commissioned" when all 6 installation milestones are completed.', sort: 7 },
+        { key: 'MILESTONES_TO_COMMISSIONED', name: 'Auto-complete on Completion', desc: 'Automatically move project to "Completed" when all 6 installation milestones are completed.', sort: 7 },
     ];
     for (const r of defaultRules) {
         const existing = await client.query(
@@ -153,6 +170,13 @@ export async function seedTenantDefaults(client: PoolClient, tenantUid: string, 
                 `INSERT INTO workflow_automation_rules (uid, tenant_uid, rule_key, rule_name, description, is_enabled, sort_order, created_by)
                  VALUES ($1, $2, $3, $4, $5, 1, $6, $7)`,
                 [uuidv4(), tenantUid, r.key, r.name, r.desc, r.sort, createdBy]
+            );
+        } else if (r.key === 'MILESTONES_TO_COMMISSIONED') {
+            await client.query(
+                `UPDATE workflow_automation_rules
+                 SET rule_name = $3, description = $4, updated_at = CURRENT_TIMESTAMP
+                 WHERE tenant_uid = $1 AND rule_key = $2`,
+                [tenantUid, r.key, r.name, r.desc]
             );
         }
     }

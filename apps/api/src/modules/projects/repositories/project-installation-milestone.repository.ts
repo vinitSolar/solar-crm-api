@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 import type { IProjectInstallationMilestone } from "../interfaces/project.interface.js";
 import { v4 as uuidv4 } from "uuid";
+import { seedInstallationMilestones } from "@packages/database/seeds/seed_installation_milestones.js";
 
 const PROJECT_MILESTONE_COLUMNS = `
     pim.id, pim.uid, pim.tenant_uid AS "tenantUid", pim.project_uid AS "projectUid", 
@@ -27,7 +28,7 @@ export class ProjectInstallationMilestoneRepository {
     ): Promise<void> {
         const executor = client || this.pool;
         // Read templates
-        const templatesRes = await executor.query(
+        let templatesRes = await executor.query(
             `SELECT uid, name, description, requires_document, allow_multiple_images 
              FROM installation_milestones 
              WHERE tenant_uid::varchar = $1 AND is_deleted = 0 AND is_active = 1
@@ -35,7 +36,24 @@ export class ProjectInstallationMilestoneRepository {
             [tenantUid]
         );
 
-        const templates = templatesRes.rows;
+        let templates = templatesRes.rows;
+        if (templates.length === 0) {
+            const anyCheck = await executor.query(
+                `SELECT 1 FROM installation_milestones WHERE tenant_uid::varchar = $1 LIMIT 1`,
+                [tenantUid]
+            );
+            if (anyCheck.rows.length === 0) {
+                await seedInstallationMilestones(executor, tenantUid, createdBy || "SYSTEM");
+                templatesRes = await executor.query(
+                    `SELECT uid, name, description, requires_document, allow_multiple_images 
+                     FROM installation_milestones 
+                     WHERE tenant_uid::varchar = $1 AND is_deleted = 0 AND is_active = 1
+                     ORDER BY sort_order ASC`,
+                    [tenantUid]
+                );
+                templates = templatesRes.rows;
+            }
+        }
         if (templates.length === 0) return;
 
         for (let i = 0; i < templates.length; i++) {
@@ -65,6 +83,14 @@ export class ProjectInstallationMilestoneRepository {
         projectUid: string,
         createdBy: string
     ): Promise<void> {
+        const anyCheck = await this.pool.query(
+            `SELECT 1 FROM installation_milestones WHERE tenant_uid::varchar = $1 LIMIT 1`,
+            [tenantUid]
+        );
+        if (anyCheck.rows.length === 0) {
+            await seedInstallationMilestones(this.pool, tenantUid, createdBy || "SYSTEM");
+        }
+
         // Find active templates not in this project yet
         const missingTemplatesRes = await this.pool.query(
             `SELECT t.uid, t.name, t.description, t.sort_order 

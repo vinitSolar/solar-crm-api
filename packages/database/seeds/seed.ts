@@ -266,6 +266,139 @@ export async function seed(pool: Pool) {
         // Seed default installation milestones for Head Office
         await seedInstallationMilestones(client, tenantUid, "SYSTEM");
 
+        // Sync existing franchises: seed installation milestones & ensure Franchise Owner(Admin) can manage them
+        const franchiseTenantsRes = await client.query(
+            "SELECT uid FROM tenants WHERE type != 0 AND is_deleted = 0"
+        );
+        for (const franchise of franchiseTenantsRes.rows) {
+            await seedInstallationMilestones(client, franchise.uid, "SYSTEM");
+            await client.query(
+                `UPDATE project_statuses ps
+                 SET name = 'Completed', updated_at = CURRENT_TIMESTAMP
+                 WHERE ps.tenant_uid = $1::uuid
+                   AND LOWER(TRIM(ps.name)) = 'commissioned'
+                   AND ps.is_deleted = 0
+                   AND NOT EXISTS (
+                       SELECT 1 FROM project_statuses existing
+                       WHERE existing.tenant_uid = ps.tenant_uid
+                         AND LOWER(TRIM(existing.name)) = 'completed'
+                         AND existing.is_deleted = 0
+                   )`,
+                [franchise.uid]
+            );
+            await client.query(
+                `UPDATE workflow_automation_rules
+                 SET rule_name = 'Auto-complete on Completion',
+                     description = 'Automatically move project to "Completed" when all 6 installation milestones are completed.',
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE tenant_uid = $1 AND rule_key = 'MILESTONES_TO_COMMISSIONED'`,
+                [franchise.uid]
+            );
+        }
+
+        // Ensure all roles & users with Projects permission also have matching Subsidy Tracker permission
+        await client.query(`
+            UPDATE role_menu_permissions rmp_sub
+            SET can_view = GREATEST(rmp_sub.can_view, rmp_proj.can_view),
+                can_create = GREATEST(rmp_sub.can_create, rmp_proj.can_create),
+                can_edit = GREATEST(rmp_sub.can_edit, rmp_proj.can_edit),
+                can_delete = GREATEST(rmp_sub.can_delete, rmp_proj.can_delete)
+            FROM role_menu_permissions rmp_proj,
+                 menus m_proj,
+                 menus m_sub
+            WHERE LOWER(m_proj.code) = 'projects'
+              AND LOWER(m_sub.code) = 'subsidy_tracker'
+              AND rmp_proj.menu_uid = m_proj.uid
+              AND rmp_sub.menu_uid = m_sub.uid
+              AND rmp_sub.tenant_uid = rmp_proj.tenant_uid
+              AND rmp_sub.role_uid = rmp_proj.role_uid
+              AND (rmp_proj.can_view = 1 OR rmp_proj.can_create = 1 OR rmp_proj.can_edit = 1 OR rmp_proj.can_delete = 1);
+
+            INSERT INTO role_menu_permissions (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete, can_setting)
+            SELECT rmp_proj.tenant_uid, rmp_proj.role_uid, m_sub.uid,
+                   rmp_proj.can_view, rmp_proj.can_create, rmp_proj.can_edit, rmp_proj.can_delete, 0
+            FROM role_menu_permissions rmp_proj
+            JOIN menus m_proj ON m_proj.uid = rmp_proj.menu_uid AND LOWER(m_proj.code) = 'projects'
+            CROSS JOIN menus m_sub
+            WHERE LOWER(m_sub.code) = 'subsidy_tracker'
+              AND (rmp_proj.can_view = 1 OR rmp_proj.can_create = 1 OR rmp_proj.can_edit = 1 OR rmp_proj.can_delete = 1)
+              AND NOT EXISTS (
+                  SELECT 1 FROM role_menu_permissions existing
+                  WHERE existing.tenant_uid = rmp_proj.tenant_uid
+                    AND existing.role_uid = rmp_proj.role_uid
+                    AND existing.menu_uid = m_sub.uid
+              );
+
+            UPDATE user_menu_permissions ump_sub
+            SET can_view = GREATEST(ump_sub.can_view, ump_proj.can_view),
+                can_create = GREATEST(ump_sub.can_create, ump_proj.can_create),
+                can_edit = GREATEST(ump_sub.can_edit, ump_proj.can_edit),
+                can_delete = GREATEST(ump_sub.can_delete, ump_proj.can_delete)
+            FROM user_menu_permissions ump_proj,
+                 menus m_proj,
+                 menus m_sub
+            WHERE LOWER(m_proj.code) = 'projects'
+              AND LOWER(m_sub.code) = 'subsidy_tracker'
+              AND ump_proj.menu_uid = m_proj.uid
+              AND ump_sub.menu_uid = m_sub.uid
+              AND ump_sub.tenant_uid = ump_proj.tenant_uid
+              AND ump_sub.user_uid = ump_proj.user_uid
+              AND (ump_proj.can_view = 1 OR ump_proj.can_create = 1 OR ump_proj.can_edit = 1 OR ump_proj.can_delete = 1);
+
+            INSERT INTO user_menu_permissions (tenant_uid, user_uid, menu_uid, can_view, can_create, can_edit, can_delete, can_setting)
+            SELECT ump_proj.tenant_uid, ump_proj.user_uid, m_sub.uid,
+                   ump_proj.can_view, ump_proj.can_create, ump_proj.can_edit, ump_proj.can_delete, 0
+            FROM user_menu_permissions ump_proj
+            JOIN menus m_proj ON m_proj.uid = ump_proj.menu_uid AND LOWER(m_proj.code) = 'projects'
+            CROSS JOIN menus m_sub
+            WHERE LOWER(m_sub.code) = 'subsidy_tracker'
+              AND (ump_proj.can_view = 1 OR ump_proj.can_create = 1 OR ump_proj.can_edit = 1 OR ump_proj.can_delete = 1)
+              AND NOT EXISTS (
+                  SELECT 1 FROM user_menu_permissions existing
+                  WHERE existing.tenant_uid = ump_proj.tenant_uid
+                    AND existing.user_uid = ump_proj.user_uid
+                    AND existing.menu_uid = m_sub.uid
+              );
+        `);
+
+        // Ensure Franchise Owner(Admin) roles can view & manage installation_milestones
+        await client.query(`
+            UPDATE role_menu_permissions rmp
+            SET can_view = 1, can_create = 1, can_edit = 1, can_delete = 1, can_setting = 1
+            FROM roles r, tenants t, menus m
+            WHERE rmp.role_uid = r.uid
+              AND rmp.tenant_uid = r.tenant_uid
+              AND r.tenant_uid = t.uid
+              AND rmp.menu_uid = m.uid
+              AND t.type != 0
+              AND t.is_deleted = 0
+              AND r.is_deleted = 0
+              AND LOWER(TRIM(r.name)) = 'franchise owner(admin)'
+              AND LOWER(m.code) = 'installation_milestones';
+
+            INSERT INTO role_menu_permissions (tenant_uid, role_uid, menu_uid, can_view, can_create, can_edit, can_delete, can_setting)
+            SELECT r.tenant_uid, r.uid, m.uid, 1, 1, 1, 1, 1
+            FROM roles r
+            JOIN tenants t ON t.uid = r.tenant_uid AND t.type != 0 AND t.is_deleted = 0
+            CROSS JOIN menus m
+            WHERE r.is_deleted = 0
+              AND LOWER(TRIM(r.name)) = 'franchise owner(admin)'
+              AND LOWER(m.code) = 'installation_milestones'
+              AND NOT EXISTS (
+                  SELECT 1 FROM role_menu_permissions existing
+                  WHERE existing.tenant_uid = r.tenant_uid
+                    AND existing.role_uid = r.uid
+                    AND existing.menu_uid = m.uid
+              );
+        `);
+
+        // Normalize legacy net_meter_status values (> 1) to Pending (0) / Completed (1)
+        await client.query(`
+            UPDATE subsidy_trackers
+            SET net_meter_status = CASE WHEN net_meter_status = 6 THEN 1 ELSE 0 END
+            WHERE net_meter_status > 1;
+        `);
+
         await client.query("COMMIT");
 
         // 9. Seed products and their specifications

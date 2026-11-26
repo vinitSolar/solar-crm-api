@@ -77,7 +77,7 @@ function createAutomationRouter(): Router {
                         trigger = "All 6 milestones approved";
                         fromStatuses = ["In Progress"];
                         const cStatus = await workflowAutomationService.resolveProjectStatus(tenantUid, "COMMISSIONED");
-                        targetStatus = { name: cStatus?.name || "Commissioned", color: cStatus?.color || "#10B981" };
+                        targetStatus = { name: cStatus?.name || "Completed", color: cStatus?.color || "#10B981" };
                         break;
                 }
 
@@ -277,7 +277,7 @@ function createAutomationRouter(): Router {
                 },
                 {
                     key: "commissioned",
-                    label: "Commissioned",
+                    label: "Completed",
                     completed: project?.statusIsClosed === 1,
                     active: false,
                 },

@@ -325,17 +325,21 @@ export class LeadRepository {
         return result.rows.length > 0 ? this.getByUid(tenantUid, uid) : null;
     }
 
-    async softDelete(tenantUid: string, uid: string, deletedBy: string): Promise<boolean> {
+    async softDelete(tenantUid: string, uid: string, deletedBy: string, statusUid?: string): Promise<boolean> {
         const client = await this.pool.connect();
         try {
             await client.query("BEGIN");
 
-            // 1. Mark lead as is_deleted = 1
+            // 1. Mark lead as is_deleted = 1 (and update status_uid to Archive if provided)
             const result = await client.query(
                 `UPDATE leads 
-                 SET is_deleted = 1, deleted_by = $1, updated_at = CURRENT_TIMESTAMP
+                 SET is_deleted = 1,
+                     deleted_by = $1,
+                     status_uid = COALESCE($4, status_uid),
+                     updated_by = $1,
+                     updated_at = CURRENT_TIMESTAMP
                  WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 0`,
-                [deletedBy, uid, tenantUid]
+                [deletedBy, uid, tenantUid, statusUid ?? null]
             );
             if ((result.rowCount ?? 0) === 0) {
                 await client.query("ROLLBACK");
@@ -384,16 +388,20 @@ export class LeadRepository {
         }
     }
 
-    async restore(tenantUid: string, uid: string, updatedBy: string): Promise<boolean> {
+    async restore(tenantUid: string, uid: string, updatedBy: string, statusUid?: string): Promise<boolean> {
         const client = await this.pool.connect();
         try {
             await client.query("BEGIN");
 
             const result = await client.query(
                 `UPDATE leads 
-                 SET is_deleted = 0, deleted_by = NULL, updated_by = $1, updated_at = CURRENT_TIMESTAMP
+                 SET is_deleted = 0,
+                     deleted_by = NULL,
+                     status_uid = COALESCE($4, status_uid),
+                     updated_by = $1,
+                     updated_at = CURRENT_TIMESTAMP
                  WHERE uid = $2 AND tenant_uid = $3 AND is_deleted = 1`,
-                [updatedBy, uid, tenantUid]
+                [updatedBy, uid, tenantUid, statusUid ?? null]
             );
             if ((result.rowCount ?? 0) === 0) {
                 await client.query("ROLLBACK");
@@ -633,6 +641,7 @@ export class LeadRepository {
             mobileNumber: string;
             alternateNumber?: string;
             email?: string;
+            isDeleted?: number;
         } | null;
     }> {
         const cleanMobile = params.mobileNumber ? params.mobileNumber.replace(/\D/g, "").slice(-10) : null;
@@ -672,14 +681,17 @@ export class LeadRepository {
             return { mobileExists: false, emailExists: false };
         }
 
-        const whereSql = `l.tenant_uid::text = $1::text AND l.is_deleted = 0 ${conditions.length ? "AND " + conditions.join(" AND ") : ""} AND (${matchConditions.join(" OR ")})`;
+        // Check active and soft-deleted leads (is_deleted = 1) so numbers/emails cannot be reused.
+        const whereSql = `l.tenant_uid::text = $1::text ${conditions.length ? "AND " + conditions.join(" AND ") : ""} AND (${matchConditions.join(" OR ")})`;
 
         const query = `
             SELECT l.uid, l.lead_number AS "leadNumber", l.first_name AS "firstName", l.last_name AS "lastName",
-                   l.mobile_number AS "mobileNumber", l.alternate_number AS "alternateNumber", l.email
+                   l.mobile_number AS "mobileNumber", l.alternate_number AS "alternateNumber", l.email,
+                   l.is_deleted AS "isDeleted"
             FROM leads l
             WHERE ${whereSql}
-            LIMIT 5
+            ORDER BY l.is_deleted ASC, l.created_at DESC
+            LIMIT 10
         `;
 
         const result = await this.pool.query(query, values);
@@ -732,69 +744,75 @@ export class LeadRepository {
         }
     ): Promise<{ rows: ILead[]; hasMore: boolean; total: number; allCount: number; statusCounts: Record<string, number> }> {
         const baseParams: any[] = [tenantUid];
-        let baseWhereClause = "l.tenant_uid = $1";
+        let sharedWhereClause = "l.tenant_uid = $1";
 
         const status = filters.status || "active";
-        if (status === "deleted") {
-            baseWhereClause += " AND l.is_deleted = 1";
-        } else if (status !== "all") {
-            baseWhereClause += " AND l.is_deleted = 0";
+        let isArchiveStatusFilter = false;
+        if (filters.statusUid && status === "active") {
+            const archiveCheck = await this.pool.query(
+                `SELECT 1 FROM lead_statuses
+                 WHERE uid::varchar = $1 AND tenant_uid::varchar = $2 AND is_deleted = 0
+                   AND LOWER(TRIM(name)) IN ('archive', 'archived')
+                 LIMIT 1`,
+                [filters.statusUid, tenantUid]
+            );
+            isArchiveStatusFilter = archiveCheck.rows.length > 0;
         }
 
         if (filters.assignedTo) {
             baseParams.push(filters.assignedTo);
-            baseWhereClause += ` AND l.assigned_to = $${baseParams.length}`;
+            sharedWhereClause += ` AND l.assigned_to = $${baseParams.length}`;
         }
 
         if (filters.leadSourceUid) {
             baseParams.push(filters.leadSourceUid);
-            baseWhereClause += ` AND l.lead_source_uid = $${baseParams.length}`;
+            sharedWhereClause += ` AND l.lead_source_uid = $${baseParams.length}`;
         }
 
         if (filters.startDate) {
             baseParams.push(new Date(filters.startDate));
-            baseWhereClause += ` AND l.created_at >= $${baseParams.length}`;
+            sharedWhereClause += ` AND l.created_at >= $${baseParams.length}`;
         }
 
         if (filters.endDate) {
             baseParams.push(new Date(filters.endDate));
-            baseWhereClause += ` AND l.created_at <= $${baseParams.length}`;
+            sharedWhereClause += ` AND l.created_at <= $${baseParams.length}`;
         }
 
         if (filters.followUpDate) {
             baseParams.push(filters.followUpDate);
-            baseWhereClause += ` AND l.follow_up_date = $${baseParams.length}`;
+            sharedWhereClause += ` AND l.follow_up_date = $${baseParams.length}`;
         }
 
         if (filters.isFollowUp !== undefined && !isNaN(Number(filters.isFollowUp))) {
             baseParams.push(Number(filters.isFollowUp));
-            baseWhereClause += ` AND l.is_follow_up = $${baseParams.length}`;
+            sharedWhereClause += ` AND l.is_follow_up = $${baseParams.length}`;
         }
 
         if (filters.city) {
             baseParams.push(`%${filters.city}%`);
-            baseWhereClause += ` AND l.city ILIKE $${baseParams.length}`;
+            sharedWhereClause += ` AND l.city ILIKE $${baseParams.length}`;
         }
 
         if (filters.state) {
             baseParams.push(`%${filters.state}%`);
-            baseWhereClause += ` AND l.state ILIKE $${baseParams.length}`;
+            sharedWhereClause += ` AND l.state ILIKE $${baseParams.length}`;
         }
 
         if (filters.minCapacity !== undefined && !isNaN(Number(filters.minCapacity))) {
             baseParams.push(Number(filters.minCapacity));
-            baseWhereClause += ` AND l.system_size >= $${baseParams.length}`;
+            sharedWhereClause += ` AND l.system_size >= $${baseParams.length}`;
         }
 
         if (filters.maxCapacity !== undefined && !isNaN(Number(filters.maxCapacity))) {
             baseParams.push(Number(filters.maxCapacity));
-            baseWhereClause += ` AND l.system_size <= $${baseParams.length}`;
+            sharedWhereClause += ` AND l.system_size <= $${baseParams.length}`;
         }
 
         if (filters.search) {
             baseParams.push(`%${filters.search}%`);
             const sIdx = baseParams.length;
-            baseWhereClause += ` AND (
+            sharedWhereClause += ` AND (
                 l.lead_number ILIKE $${sIdx} OR
                 l.first_name ILIKE $${sIdx} OR 
                 l.last_name ILIKE $${sIdx} OR 
@@ -804,7 +822,12 @@ export class LeadRepository {
         }
 
         const params: any[] = [...baseParams];
-        let whereClause = baseWhereClause;
+        let whereClause = sharedWhereClause;
+        if (status === "deleted" || isArchiveStatusFilter) {
+            whereClause += " AND l.is_deleted = 1";
+        } else if (status !== "all") {
+            whereClause += " AND l.is_deleted = 0";
+        }
 
         if (filters.statusUid) {
             params.push(filters.statusUid);
@@ -857,11 +880,19 @@ export class LeadRepository {
             LIMIT $${params.length}
         `;
 
+        let countsWhereClause = sharedWhereClause;
+        if (status === "deleted") {
+            countsWhereClause += " AND l.is_deleted = 1";
+        } else if (status !== "all") {
+            countsWhereClause += ` AND (l.is_deleted = 0 OR (l.is_deleted = 1 AND LOWER(TRIM(COALESCE(ls.name, ''))) IN ('archive', 'archived')))`;
+        }
+
         const countsQuery = `
-            SELECT l.status_uid AS "statusUid", COUNT(*)::int AS cnt
+            SELECT l.status_uid AS "statusUid", l.is_deleted AS "isDeleted", COUNT(*)::int AS cnt
             FROM leads l
-            WHERE ${baseWhereClause}
-            GROUP BY l.status_uid
+            LEFT JOIN lead_statuses ls ON l.status_uid = ls.uid
+            WHERE ${countsWhereClause}
+            GROUP BY l.status_uid, l.is_deleted
         `;
 
         const [result, countsResult] = await Promise.all([
@@ -880,10 +911,14 @@ export class LeadRepository {
         if (countsResult) {
             for (const row of countsResult.rows) {
                 const count = Number(row.cnt) || 0;
+                const rowIsDeleted = Number(row.isDeleted) === 1;
                 if (row.statusUid) {
-                    statusCounts[String(row.statusUid)] = count;
+                    const key = String(row.statusUid);
+                    statusCounts[key] = (statusCounts[key] ?? 0) + count;
                 }
-                allCount += count;
+                if (status === "deleted" || status === "all" || !rowIsDeleted) {
+                    allCount += count;
+                }
             }
         }
         const total = filters.statusUid ? (statusCounts[filters.statusUid] ?? 0) : allCount;

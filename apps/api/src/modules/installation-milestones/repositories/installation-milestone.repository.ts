@@ -58,6 +58,14 @@ export class InstallationMilestoneRepository {
         return result.rows.length > 0 ? (result.rows[0] as IInstallationMilestone) : null;
     }
 
+    async hasAnyForTenant(tenantUid: string): Promise<boolean> {
+        const result = await this.pool.query(
+            `SELECT 1 FROM installation_milestones WHERE tenant_uid::varchar = $1 LIMIT 1`,
+            [tenantUid]
+        );
+        return result.rows.length > 0;
+    }
+
     async getAll(tenantUid: string, status: "active" | "deleted" | "all" = "active"): Promise<IInstallationMilestone[]> {
         let whereClause = "tenant_uid::varchar = $1";
         if (status === "active") whereClause += " AND is_deleted = 0";

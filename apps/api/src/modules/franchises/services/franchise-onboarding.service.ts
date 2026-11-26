@@ -18,6 +18,7 @@ import { FranchiseDocumentTypeRepository } from "../repositories/franchise-docum
 import { notificationService } from "../../notification/services/notification.service.js";
 import { NOTIFICATION_CHANNEL, NOTIFICATION_TEMPLATE } from "../../notification/constants/notification.constants.js";
 import { env } from "@packages/config/env.js";
+import { seedInstallationMilestones } from "@packages/database/seeds/seed_installation_milestones.js";
 import { 
     DEFAULT_FRANCHISE_ROLES, 
     getDefaultPermissionForFranchiseRole 
@@ -58,6 +59,17 @@ export class FranchiseOnboardingService {
         this.masterDocumentTypeService = new MasterDocumentTypeService(masterDocumentTypeRepository);
         this.projectStatusRepository = new ProjectStatusRepository(pool);
         this.franchiseDocumentTypeRepository = new FranchiseDocumentTypeRepository();
+    }
+
+    private async runOnboardingStep(stepName: string, tenantUid: string, task: () => Promise<void>): Promise<void> {
+        try {
+            await task();
+        } catch (stepError) {
+            logger.error(`FranchiseOnboardingService step '${stepName}' failed`, {
+                error: stepError,
+                tenantUid,
+            });
+        }
     }
 
     /**
@@ -172,165 +184,188 @@ export class FranchiseOnboardingService {
             }
 
             // 4.5 Assign default menu permissions for all franchise roles
-            const allMenus = await this.menuRepository.findAll("active");
-            if (allMenus.length > 0) {
-                for (const [roleName, roleUid] of createdRolesMap.entries()) {
-                    const rolePermissions = allMenus.map((menu: any) => {
-                        const perm = getDefaultPermissionForFranchiseRole(roleName, menu.code);
-                        return {
-                            menuUid: menu.uid,
-                            canView: perm.canView,
-                            canCreate: perm.canCreate,
-                            canEdit: perm.canEdit,
-                            canDelete: perm.canDelete,
-                            canSetting: perm.canSetting,
-                        };
-                    });
+            await this.runOnboardingStep("roleMenuPermissions", tenantUid, async () => {
+                const allMenus = await this.menuRepository.findAll("active");
+                if (allMenus.length > 0) {
+                    for (const [roleName, roleUid] of createdRolesMap.entries()) {
+                        const rolePermissions = allMenus.map((menu: any) => {
+                            const perm = getDefaultPermissionForFranchiseRole(roleName, menu.code);
+                            return {
+                                menuUid: menu.uid,
+                                canView: perm.canView,
+                                canCreate: perm.canCreate,
+                                canEdit: perm.canEdit,
+                                canDelete: perm.canDelete,
+                                canSetting: perm.canSetting,
+                            };
+                        });
 
-                    await this.rolePermissionRepository.upsertMenuPermissions(
-                        roleUid,
-                        tenantUid,
-                        rolePermissions
-                    );
-                    logger.info(`Assigned ${rolePermissions.length} menu permissions to role '${roleName}'`, { 
-                        roleUid, 
-                        roleName,
-                        tenantUid 
-                    });
+                        await this.rolePermissionRepository.upsertMenuPermissions(
+                            roleUid,
+                            tenantUid,
+                            rolePermissions
+                        );
+                        logger.info(`Assigned ${rolePermissions.length} menu permissions to role '${roleName}'`, { 
+                            roleUid, 
+                            roleName,
+                            tenantUid 
+                        });
+                    }
                 }
-            }
+            });
 
             // 5. Create default Lead Sources
-            const defaultLeadSources = [
-                { name: "Website", color: "#14B8A6", sortOrder: 1, isDefault: 0 },
-                { name: "Social Media", color: "#C026D3", sortOrder: 2, isDefault: 0 },
-                { name: "Referral", color: "#84CC16", sortOrder: 3, isDefault: 0 },
-                { name: "Walk-in", color: "#EAB308", sortOrder: 4, isDefault: 0 },
-                { name: "Cold Call", color: "#7C3AED", sortOrder: 5, isDefault: 0 },
-                { name: "Event/Exhibition", color: "#0EA5E9", sortOrder: 6, isDefault: 0 },
-                { name: "Other", color: "#64748B", sortOrder: 7, isDefault: 1 },
-            ];
+            await this.runOnboardingStep("leadSources", tenantUid, async () => {
+                const defaultLeadSources = [
+                    { name: "Website", color: "#14B8A6", sortOrder: 1, isDefault: 0 },
+                    { name: "Social Media", color: "#C026D3", sortOrder: 2, isDefault: 0 },
+                    { name: "Referral", color: "#84CC16", sortOrder: 3, isDefault: 0 },
+                    { name: "Walk-in", color: "#EAB308", sortOrder: 4, isDefault: 0 },
+                    { name: "Cold Call", color: "#7C3AED", sortOrder: 5, isDefault: 0 },
+                    { name: "Event/Exhibition", color: "#0EA5E9", sortOrder: 6, isDefault: 0 },
+                    { name: "Other", color: "#64748B", sortOrder: 7, isDefault: 1 },
+                ];
 
-            for (const source of defaultLeadSources) {
-                await this.leadSourceRepository.create(tenantUid, source, createdBy);
-            }
+                for (const source of defaultLeadSources) {
+                    await this.leadSourceRepository.create(tenantUid, source, createdBy);
+                }
+            });
 
             // 6. Create default Lead Statuses
-            const defaultLeadStatuses = [
-                { name: "Draft", color: "#94A3B8", sortOrder: 0, isDefault: 0, isClosed: 0, isDraft: 1 },
-                { name: "New", color: "#3B82F6", sortOrder: 1, isDefault: 1, isClosed: 0, isDraft: 0 },
-                { name: "Contacted", color: "#F59E0B", sortOrder: 2, isDefault: 0, isClosed: 0, isDraft: 0 },
-                { name: "Follow Up", color: "#8B5CF6", sortOrder: 3, isDefault: 0, isClosed: 0, isDraft: 0 },
-                { name: "Quotation Sent", color: "#06B6D4", sortOrder: 4, isDefault: 0, isClosed: 0, isDraft: 0 },
-                { name: "Negotiation", color: "#F97316", sortOrder: 5, isDefault: 0, isClosed: 0, isDraft: 0 },
-                { name: "Won", color: "#10B981", sortOrder: 6, isDefault: 0, isClosed: 1, isDraft: 0 },
-                { name: "Lost", color: "#EF4444", sortOrder: 7, isDefault: 0, isClosed: 1, isDraft: 0 },
-            ];
+            await this.runOnboardingStep("leadStatuses", tenantUid, async () => {
+                const defaultLeadStatuses = [
+                    { name: "Draft", color: "#94A3B8", sortOrder: 0, isDefault: 0, isClosed: 0, isDraft: 1 },
+                    { name: "New", color: "#3B82F6", sortOrder: 1, isDefault: 1, isClosed: 0, isDraft: 0 },
+                    { name: "Contacted", color: "#F59E0B", sortOrder: 2, isDefault: 0, isClosed: 0, isDraft: 0 },
+                    { name: "Follow Up", color: "#8B5CF6", sortOrder: 3, isDefault: 0, isClosed: 0, isDraft: 0 },
+                    { name: "Quotation Sent", color: "#06B6D4", sortOrder: 4, isDefault: 0, isClosed: 0, isDraft: 0 },
+                    { name: "Negotiation", color: "#F97316", sortOrder: 5, isDefault: 0, isClosed: 0, isDraft: 0 },
+                    { name: "Won", color: "#10B981", sortOrder: 6, isDefault: 0, isClosed: 1, isDraft: 0 },
+                    { name: "Lost", color: "#EF4444", sortOrder: 7, isDefault: 0, isClosed: 1, isDraft: 0 },
+                    { name: "Archive", color: "#64748B", sortOrder: 8, isDefault: 0, isClosed: 1, isDraft: 0 },
+                ];
 
-            for (const status of defaultLeadStatuses) {
-                await this.leadStatusRepository.create(tenantUid, status, createdBy);
-            }
+                for (const status of defaultLeadStatuses) {
+                    await this.leadStatusRepository.create(tenantUid, status, createdBy);
+                }
+            });
 
             logger.info("Successfully created default lead sources and statuses for franchise", { tenantUid });
 
             // 6.5 Create default Project Statuses
-            const defaultProjectStatuses = [
-                { name: "Not Started", color: "#9CA3AF", sortOrder: 1, isDefault: 1, isClosed: 0 },
-                { name: "In Progress", color: "#3B82F6", sortOrder: 2, isDefault: 0, isClosed: 0 },
-                { name: "Commissioned", color: "#10B981", sortOrder: 3, isDefault: 0, isClosed: 1 },
-                { name: "On Hold", color: "#F59E0B", sortOrder: 4, isDefault: 0, isClosed: 0 },
-                { name: "Cancelled", color: "#EF4444", sortOrder: 5, isDefault: 0, isClosed: 1 },
-            ];
+            await this.runOnboardingStep("projectStatuses", tenantUid, async () => {
+                const defaultProjectStatuses = [
+                    { name: "Not Started", color: "#9CA3AF", sortOrder: 1, isDefault: 1, isClosed: 0 },
+                    { name: "In Progress", color: "#3B82F6", sortOrder: 2, isDefault: 0, isClosed: 0 },
+                    { name: "Completed", color: "#10B981", sortOrder: 3, isDefault: 0, isClosed: 1 },
+                    { name: "On Hold", color: "#F59E0B", sortOrder: 4, isDefault: 0, isClosed: 0 },
+                    { name: "Cancelled", color: "#EF4444", sortOrder: 5, isDefault: 0, isClosed: 1 },
+                ];
 
-            for (const status of defaultProjectStatuses) {
-                await this.projectStatusRepository.create(tenantUid, status, createdBy);
-            }
-            logger.info("Successfully created default project statuses for franchise", { tenantUid });
+                for (const status of defaultProjectStatuses) {
+                    await this.projectStatusRepository.create(tenantUid, status, createdBy);
+                }
+                logger.info("Successfully created default project statuses for franchise", { tenantUid });
+            });
+
+            // 6.6 Create default Installation Milestones (isolated so unrelated step failures cannot skip it)
+            await this.runOnboardingStep("installationMilestones", tenantUid, async () => {
+                await seedInstallationMilestones(pool, tenantUid, createdBy);
+                logger.info("Successfully created default installation milestones for franchise", { tenantUid });
+            });
 
             // 7. Create Default Master Document Types (covers survey, product, franchise, etc.)
-            await this.masterDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
-            logger.info("Successfully created default master document types for franchise", { tenantUid });
+            await this.runOnboardingStep("masterDocumentTypes", tenantUid, async () => {
+                await this.masterDocumentTypeService.createDefaultDocumentTypes(tenantUid, createdBy);
+                logger.info("Successfully created default master document types for franchise", { tenantUid });
+            });
 
             // 7.5 Create Default Franchise Document Types
-            const defaultFranchiseDocs = [
-                { name: "GST Certificate", description: "Business GST Registration", isRequired: 1 },
-                { name: "PAN Card", description: "Business PAN Card", isRequired: 1 },
-                { name: "Aadhaar Card", description: "Owner Aadhaar Card", isRequired: 1 },
-                { name: "Bank Cancelled Cheque", description: "Cancelled cheque for account verification", isRequired: 1 },
-                { name: "Partnership Deed / COI", description: "Certificate of Incorporation or Partnership Deed", isRequired: 0 },
-            ];
+            await this.runOnboardingStep("franchiseDocumentTypes", tenantUid, async () => {
+                const defaultFranchiseDocs = [
+                    { name: "GST Certificate", description: "Business GST Registration", isRequired: 1 },
+                    { name: "PAN Card", description: "Business PAN Card", isRequired: 1 },
+                    { name: "Aadhaar Card", description: "Owner Aadhaar Card", isRequired: 1 },
+                    { name: "Bank Cancelled Cheque", description: "Cancelled cheque for account verification", isRequired: 1 },
+                    { name: "Partnership Deed / COI", description: "Certificate of Incorporation or Partnership Deed", isRequired: 0 },
+                ];
 
-            for (let i = 0; i < defaultFranchiseDocs.length; i++) {
-                const doc = defaultFranchiseDocs[i];
-                if (!doc) continue;
-                await this.franchiseDocumentTypeRepository.upsert(
-                    {
-                        name: doc.name,
-                        description: doc.description,
-                        isRequired: doc.isRequired,
-                        sortOrder: i + 1,
-                        allowMultiple: 0,
-                    },
-                    createdBy
-                );
-            }
-            logger.info("Successfully created default franchise document types", { tenantUid });
+                for (let i = 0; i < defaultFranchiseDocs.length; i++) {
+                    const doc = defaultFranchiseDocs[i];
+                    if (!doc) continue;
+                    await this.franchiseDocumentTypeRepository.upsert(
+                        {
+                            name: doc.name,
+                            description: doc.description,
+                            isRequired: doc.isRequired,
+                            sortOrder: i + 1,
+                            allowMultiple: 0,
+                        },
+                        createdBy
+                    );
+                }
+                logger.info("Successfully created default franchise document types", { tenantUid });
+            });
 
             // 8. Create Default Quotation Terms & Conditions
-            const defaultTerms = [
-                { title: "Taxes & Duties", description: ["All taxes and duties as applicable at the time of delivery will be extra."] },
-                { title: "Transportation Charges", description: ["Transportation charges will be actuals and paid by the client."] },
-                { title: "Payment Terms", description: ["100% advance along with purchase order."] },
-                { title: "Project Completion Period", description: ["The project will be completed within 30 days from the date of advance receipt."] },
-                { title: "Additional Material / Work", description: ["Any additional material or work beyond the scope will be charged extra."] },
-                { title: "System Handover", description: ["System will be handed over to the client only after full payment."] },
-            ];
+            await this.runOnboardingStep("quotationTermsConditions", tenantUid, async () => {
+                const defaultTerms = [
+                    { title: "Taxes & Duties", description: ["All taxes and duties as applicable at the time of delivery will be extra."] },
+                    { title: "Transportation Charges", description: ["Transportation charges will be actuals and paid by the client."] },
+                    { title: "Payment Terms", description: ["100% advance along with purchase order."] },
+                    { title: "Project Completion Period", description: ["The project will be completed within 30 days from the date of advance receipt."] },
+                    { title: "Additional Material / Work", description: ["Any additional material or work beyond the scope will be charged extra."] },
+                    { title: "System Handover", description: ["System will be handed over to the client only after full payment."] },
+                ];
 
-            for (let i = 0; i < defaultTerms.length; i++) {
-                const term = defaultTerms[i];
-                if (!term) continue;
-                
-                await this.quotationTermsConditionRepository.create(
-                    tenantUid,
-                    {
-                        title: term.title,
-                        description: term.description,
-                        sortOrder: i + 1,
-                        isDefault: 1
-                    },
-                    createdBy
-                );
-            }
-            logger.info("Successfully created default quotation terms & conditions for franchise", { tenantUid });
+                for (let i = 0; i < defaultTerms.length; i++) {
+                    const term = defaultTerms[i];
+                    if (!term) continue;
+                    
+                    await this.quotationTermsConditionRepository.create(
+                        tenantUid,
+                        {
+                            title: term.title,
+                            description: term.description,
+                            sortOrder: i + 1,
+                            isDefault: 1
+                        },
+                        createdBy
+                    );
+                }
+                logger.info("Successfully created default quotation terms & conditions for franchise", { tenantUid });
+            });
 
             // 9. Create Default Quotation Scope of Work
-            const defaultScopeOfWork = [
-                { title: "Roof Top Area @ 10 Sq.Mtr./KWp", value: "Customer Scope" },
-                { title: "Civil Works", value: "Included" },
-                { title: "Module Mounting Structure", value: "Included" },
-                { title: "Mounting, Erection & Commissioning", value: "Included" },
-                { title: "Power Evacuation (Solar Plant to Mains)", value: "Included @ 20 Mtr" },
-                { title: "Earthing System", value: "Included" },
-                { title: "DISCOM & Net Meter Charges", value: "Included" },
-                { title: "Free Operation & Maintenance", value: "Included for 5 Years" },
-            ];
+            await this.runOnboardingStep("quotationScopeOfWork", tenantUid, async () => {
+                const defaultScopeOfWork = [
+                    { title: "Roof Top Area @ 10 Sq.Mtr./KWp", value: "Customer Scope" },
+                    { title: "Civil Works", value: "Included" },
+                    { title: "Module Mounting Structure", value: "Included" },
+                    { title: "Mounting, Erection & Commissioning", value: "Included" },
+                    { title: "Power Evacuation (Solar Plant to Mains)", value: "Included @ 20 Mtr" },
+                    { title: "Earthing System", value: "Included" },
+                    { title: "DISCOM & Net Meter Charges", value: "Included" },
+                    { title: "Free Operation & Maintenance", value: "Included for 5 Years" },
+                ];
 
-            for (let i = 0; i < defaultScopeOfWork.length; i++) {
-                const scope = defaultScopeOfWork[i];
-                if (!scope) continue;
+                for (let i = 0; i < defaultScopeOfWork.length; i++) {
+                    const scope = defaultScopeOfWork[i];
+                    if (!scope) continue;
 
-                await this.quotationScopeOfWorkRepository.create(
-                    tenantUid,
-                    {
-                        title: scope.title,
-                        value: scope.value,
-                        sortOrder: i + 1,
-                        isDefault: 1
-                    },
-                    createdBy
-                );
-            }
-            logger.info("Successfully created default quotation scope of work for franchise", { tenantUid });
+                    await this.quotationScopeOfWorkRepository.create(
+                        tenantUid,
+                        {
+                            title: scope.title,
+                            value: scope.value,
+                            sortOrder: i + 1,
+                            isDefault: 1
+                        },
+                        createdBy
+                    );
+                }
+                logger.info("Successfully created default quotation scope of work for franchise", { tenantUid });
+            });
 
 
 

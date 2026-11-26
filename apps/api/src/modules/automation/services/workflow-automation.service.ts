@@ -194,8 +194,8 @@ export class WorkflowAutomationService {
                 query = `
                     SELECT uid, name, color FROM project_statuses 
                     WHERE tenant_uid::varchar = $1 AND is_deleted = 0 
-                      AND (name ILIKE '%commissioned%' OR name ILIKE '%complete%' OR (is_closed = 1 AND name NOT ILIKE '%cancel%' AND name NOT ILIKE '%hold%'))
-                    ORDER BY sort_order ASC LIMIT 1
+                      AND (name ILIKE '%complete%' OR name ILIKE '%commissioned%' OR (is_closed = 1 AND name NOT ILIKE '%cancel%' AND name NOT ILIKE '%hold%'))
+                    ORDER BY CASE WHEN name ILIKE '%complete%' THEN 0 WHEN name ILIKE '%commissioned%' THEN 1 ELSE 2 END, sort_order ASC LIMIT 1
                 `;
                 break;
             case "NOT_STARTED":
@@ -617,7 +617,7 @@ export class WorkflowAutomationService {
                 [tenantUid, project.quotationUid]
             );
             const quote = quoteRes.rows[0];
-            const quoteAmount = Number(quote?.net_customer_cost || quote?.grand_total || 0);
+            const quoteAmount = Number(quote?.grand_total || quote?.net_customer_cost || 0);
 
             if (quoteAmount > 0) {
                 const paymentsRes = await this.pool.query(

@@ -14,7 +14,6 @@ export const MENU_MESSAGES = {
 
 export const HEAD_OFFICE_ONLY_MENUS = [
     'DOCUMENT_TYPES',
-    'installation_milestones',
     'LEAD_SOURCES',
     'LEAD_STATUSES',
     'PRODUCT_BRANDS',

@@ -6,7 +6,7 @@ import type { NoteService } from "../../notes/services/note.service.js";
 import type { RoleRepository } from "../../roles/repositories/role.repository.js";
 import type { FollowUpRepository } from "../repositories/follow-up.repository.js";
 import type { IFollowUp } from "../interfaces/follow-up.interface.js";
-import type { ICreateLead, IUpdateLead, ILeadSafe, IPaginationQuery, IPaginatedResponse, ICursorPaginationQuery, ICursorPaginatedResponse } from "../interfaces/lead.interface.js";
+import type { ICreateLead, IUpdateLead, ILead, ILeadSafe, IPaginationQuery, IPaginatedResponse, ICursorPaginationQuery, ICursorPaginatedResponse } from "../interfaces/lead.interface.js";
 import { toLeadSafe } from "../dto/lead.dto.js";
 import { CustomError } from "../../../middlewares/error.middleware.js";
 import { LEAD_MESSAGES, LEAD_SOURCE_MESSAGES, LEAD_STATUS_MESSAGES } from "../constants/lead.constants.js";
@@ -117,23 +117,12 @@ export class LeadService {
             data.consumerAccountNumber = rawConsumer ? rawConsumer.replace(/\D/g, "") : null;
         }
 
-        // Check for duplicates in mobileNumber or email
+        // Check for duplicates in mobileNumber or email (including isDeleted: 1 leads)
         if (data.mobileNumber || data.email) {
-            const duplicates = await this.repository.findDuplicates(tenantUid, {
+            await this.ensureNoDuplicateLead(tenantUid, {
                 mobileNumber: data.mobileNumber,
                 email: data.email,
             });
-
-            if (duplicates.mobileExists) {
-                throw new CustomError(LEAD_MESSAGES.MOBILE_ALREADY_EXISTS, 400, [
-                    { field: "mobileNumber", message: LEAD_MESSAGES.MOBILE_ALREADY_EXISTS }
-                ]);
-            }
-            if (duplicates.emailExists) {
-                throw new CustomError(LEAD_MESSAGES.EMAIL_ALREADY_EXISTS, 400, [
-                    { field: "email", message: LEAD_MESSAGES.EMAIL_ALREADY_EXISTS }
-                ]);
-            }
         }
 
         const isDraft = Boolean(
@@ -278,8 +267,10 @@ export class LeadService {
         }
     }
 
-    async getLeadByUid(tenantUid: string, uid: string): Promise<ILeadSafe> {
-        const lead = await this.repository.getByUid(tenantUid, uid);
+    async getLeadByUid(tenantUid: string, uid: string, includeDeleted = false): Promise<ILeadSafe> {
+        const lead = includeDeleted
+            ? await this.repository.getByUidWithDeleted(tenantUid, uid)
+            : await this.repository.getByUid(tenantUid, uid);
         if (!lead) {
             throw new CustomError(LEAD_MESSAGES.NOT_FOUND, 404);
         }
@@ -527,22 +518,11 @@ export class LeadService {
         const isEmailChanged = Boolean(data.email !== undefined && cleanNewEmail !== cleanExistingEmail);
 
         if (isMobileChanged || isEmailChanged) {
-            const duplicates = await this.repository.findDuplicates(tenantUid, {
+            await this.ensureNoDuplicateLead(tenantUid, {
                 mobileNumber: isMobileChanged ? data.mobileNumber : undefined,
                 email: isEmailChanged ? data.email : undefined,
                 excludeUid: uid,
             });
-
-            if (isMobileChanged && duplicates.mobileExists) {
-                throw new CustomError(LEAD_MESSAGES.MOBILE_ALREADY_EXISTS, 400, [
-                    { field: "mobileNumber", message: LEAD_MESSAGES.MOBILE_ALREADY_EXISTS }
-                ]);
-            }
-            if (isEmailChanged && duplicates.emailExists) {
-                throw new CustomError(LEAD_MESSAGES.EMAIL_ALREADY_EXISTS, 400, [
-                    { field: "email", message: LEAD_MESSAGES.EMAIL_ALREADY_EXISTS }
-                ]);
-            }
         }
 
         try {
@@ -654,7 +634,7 @@ export class LeadService {
     }
 
     async changeLeadStatus(tenantUid: string, uid: string, statusUid: string, updatedBy: string): Promise<ILeadSafe> {
-        const existing = await this.repository.getByUid(tenantUid, uid);
+        const existing = await this.repository.getByUidWithDeleted(tenantUid, uid);
         if (!existing) {
             throw new CustomError(LEAD_MESSAGES.NOT_FOUND, 404);
         }
@@ -662,9 +642,12 @@ export class LeadService {
         const leadStatus = await this.statusRepository.getByUid(tenantUid, statusUid);
         if (!leadStatus) throw new CustomError(LEAD_STATUS_MESSAGES.NOT_FOUND, 400);
 
-        // Restriction: Without completing all 4 required creation steps, status cannot be changed to non-draft
-        const isTargetDraft = leadStatus.isDraft === 1 || String(leadStatus.name).trim().toLowerCase() === "draft";
-        if (!isTargetDraft) {
+        const normalizedTargetName = String(leadStatus.name).trim().toLowerCase();
+        const isTargetDraft = leadStatus.isDraft === 1 || normalizedTargetName === "draft";
+        const isTargetArchive = normalizedTargetName === "archive" || normalizedTargetName === "archived";
+
+        // Restriction: Without completing all 4 required creation steps, status cannot be changed to active non-draft stages
+        if (!isTargetDraft && !isTargetArchive) {
             const missing: string[] = [];
             if (!existing.firstName || existing.firstName.trim().length < 2) missing.push("First Name");
             const cleanPhone = (existing.mobileNumber || "").replace(/\D/g, "").slice(-10);
@@ -691,12 +674,37 @@ export class LeadService {
         }
 
         try {
-            const updatePayload: any = { statusUid };
-            if (existing.isQuickLead === 1 && !isTargetDraft) {
-                updatePayload.isQuickLead = 0;
+            if (isTargetArchive) {
+                if (existing.isDeleted === 0) {
+                    const archived = await this.repository.softDelete(tenantUid, uid, updatedBy, statusUid);
+                    if (!archived) {
+                        throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
+                    }
+                } else if (existing.statusUid !== statusUid) {
+                    await this.repository.update(tenantUid, uid, { statusUid }, updatedBy);
+                }
+
+                const archivedLead = await this.repository.getByUidWithDeleted(tenantUid, uid);
+                if (!archivedLead) {
+                    throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
+                }
+                return toLeadSafe(archivedLead);
             }
 
-            const updated = await this.repository.update(tenantUid, uid, updatePayload, updatedBy);
+            let updated: ILead | null = null;
+            if (existing.isDeleted === 1) {
+                const restored = await this.repository.restore(tenantUid, uid, updatedBy, statusUid);
+                if (!restored) {
+                    throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
+                }
+                updated = await this.repository.getByUid(tenantUid, uid);
+            } else {
+                const updatePayload: any = { statusUid };
+                if (existing.isQuickLead === 1 && !isTargetDraft) {
+                    updatePayload.isQuickLead = 0;
+                }
+                updated = await this.repository.update(tenantUid, uid, updatePayload, updatedBy);
+            }
             if (!updated) {
                 throw new CustomError(LEAD_MESSAGES.UPDATE_FAILED, 500);
             }
@@ -747,7 +755,16 @@ export class LeadService {
     }
 
     async archiveLead(tenantUid: string, uid: string, deletedBy: string): Promise<void> {
-        return this.deleteLead(tenantUid, uid, deletedBy);
+        const existing = await this.repository.getByUid(tenantUid, uid);
+        if (!existing) {
+            throw new CustomError(LEAD_MESSAGES.NOT_FOUND, 404);
+        }
+
+        const archiveStatus = await this.statusRepository.getArchive(tenantUid);
+        const success = await this.repository.softDelete(tenantUid, uid, deletedBy, archiveStatus.uid);
+        if (!success) {
+            throw new CustomError(LEAD_MESSAGES.DELETE_FAILED, 500);
+        }
     }
 
     async deleteLead(tenantUid: string, uid: string, deletedBy: string): Promise<void> {
@@ -775,7 +792,19 @@ export class LeadService {
     }
 
     async restoreLead(tenantUid: string, uid: string, updatedBy: string): Promise<void> {
-        const success = await this.repository.restore(tenantUid, uid, updatedBy);
+        const existing = await this.repository.getByUidWithDeleted(tenantUid, uid);
+        let restoredStatusUid: string | undefined;
+        if (existing) {
+            const currentStatusName = String(existing.statusName || "").trim().toLowerCase();
+            if (currentStatusName === "archive" || currentStatusName === "archived") {
+                const defaultStatus = await this.statusRepository.getDefault(tenantUid);
+                if (defaultStatus) {
+                    restoredStatusUid = defaultStatus.uid;
+                }
+            }
+        }
+
+        const success = await this.repository.restore(tenantUid, uid, updatedBy, restoredStatusUid);
         if (!success) {
             throw new CustomError(LEAD_MESSAGES.RESTORE_FAILED, 404);
         }
@@ -984,6 +1013,36 @@ export class LeadService {
             });
         } catch (err) {
             logger.error("Error dispatching lead updated WhatsApp notification:", err);
+        }
+    }
+
+    /** Reject lead creation/update when mobile number or email matches any existing (or deleted) lead. */
+    private async ensureNoDuplicateLead(
+        tenantUid: string,
+        params: {
+            mobileNumber?: string | null | undefined;
+            email?: string | null | undefined;
+            excludeUid?: string | null | undefined;
+        }
+    ): Promise<void> {
+        const duplicates = await this.repository.findDuplicates(tenantUid, params);
+        const duplicateErrors: Array<{ field: string; message: string }> = [];
+
+        if (params.mobileNumber && duplicates.mobileExists) {
+            duplicateErrors.push({
+                field: "mobileNumber",
+                message: LEAD_MESSAGES.MOBILE_ALREADY_EXISTS,
+            });
+        }
+        if (params.email && duplicates.emailExists) {
+            duplicateErrors.push({
+                field: "email",
+                message: LEAD_MESSAGES.EMAIL_ALREADY_EXISTS,
+            });
+        }
+
+        if (duplicateErrors.length > 0) {
+            throw new CustomError(duplicateErrors[0]!.message, 400, duplicateErrors);
         }
     }
 

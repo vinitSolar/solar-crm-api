@@ -34,8 +34,11 @@ export class LeadStatusRepository {
 
         let sortOrder = data.sortOrder;
         if (sortOrder === undefined || sortOrder === null) {
+            const isArchive = ["archive", "archived"].includes(String(data.name || "").trim().toLowerCase());
             const maxRes = await executor.query(
-                `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM lead_statuses WHERE tenant_uid = $1 AND is_deleted = 0`,
+                isArchive
+                    ? `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM lead_statuses WHERE tenant_uid = $1 AND is_deleted = 0`
+                    : `SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM lead_statuses WHERE tenant_uid = $1 AND is_deleted = 0 AND LOWER(TRIM(name)) NOT IN ('archive', 'archived')`,
                 [tenantUid]
             );
             sortOrder = Number(maxRes.rows[0]?.max_sort || 0) + 1;
@@ -115,7 +118,7 @@ export class LeadStatusRepository {
         const result = await this.pool.query(
             `SELECT ${LEAD_STATUS_COLUMNS} FROM lead_statuses 
              WHERE ${whereClause} 
-             ORDER BY sort_order ASC, created_at DESC`,
+             ORDER BY CASE WHEN LOWER(TRIM(name)) IN ('archive', 'archived') THEN 1 ELSE 0 END ASC, sort_order ASC, created_at DESC`,
             [tenantUid]
         );
         return result.rows as ILeadStatus[];
@@ -158,6 +161,27 @@ export class LeadStatusRepository {
             isDefault: 0,
             isClosed: 0,
             isDraft: 1,
+        }, "SYSTEM");
+    }
+
+    async getArchive(tenantUid: string): Promise<ILeadStatus> {
+        const result = await this.pool.query(
+            `SELECT ${LEAD_STATUS_COLUMNS} FROM lead_statuses
+             WHERE tenant_uid = $1 AND is_deleted = 0 AND LOWER(TRIM(name)) IN ('archive', 'archived')
+             ORDER BY created_at ASC LIMIT 1`,
+            [tenantUid]
+        );
+        if (result.rows.length > 0) {
+            return result.rows[0] as ILeadStatus;
+        }
+
+        // Auto-create Archive status at the end if missing for this tenant
+        return this.create(tenantUid, {
+            name: "Archive",
+            color: "#64748B",
+            isDefault: 0,
+            isClosed: 1,
+            isDraft: 0,
         }, "SYSTEM");
     }
 

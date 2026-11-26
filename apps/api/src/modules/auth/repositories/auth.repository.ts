@@ -257,6 +257,27 @@ export class AuthRepository {
             canSetting: row.can_setting,
         }));
 
+        const projectsMenu = menus.find((menu) => String(menu.code).toLowerCase() === "projects");
+        const subsidyTrackerMenu = menus.find((menu) => String(menu.code).toLowerCase() === "subsidy_tracker");
+        if (projectsMenu && subsidyTrackerMenu) {
+            subsidyTrackerMenu.canView = Math.max(subsidyTrackerMenu.canView, projectsMenu.canView);
+            subsidyTrackerMenu.canCreate = Math.max(subsidyTrackerMenu.canCreate, projectsMenu.canCreate);
+            subsidyTrackerMenu.canEdit = Math.max(subsidyTrackerMenu.canEdit, projectsMenu.canEdit);
+            subsidyTrackerMenu.canDelete = Math.max(subsidyTrackerMenu.canDelete, projectsMenu.canDelete);
+        }
+
+        const roleNameNormalized = String(roleResult.rows[0]?.name || "").trim().toLowerCase();
+        if (roleNameNormalized === "franchise owner(admin)") {
+            const milestoneMenu = menus.find((menu) => String(menu.code).toLowerCase() === "installation_milestones");
+            if (milestoneMenu) {
+                milestoneMenu.canView = 1;
+                milestoneMenu.canCreate = 1;
+                milestoneMenu.canEdit = 1;
+                milestoneMenu.canDelete = 1;
+                milestoneMenu.canSetting = 1;
+            }
+        }
+
         const allMenuAccess = menus.length > 0 && menus.every(
             (menu) => menu.canView === 1 && menu.canCreate === 1 && menu.canEdit === 1 && menu.canDelete === 1
         );

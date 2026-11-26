@@ -7,7 +7,7 @@ export const updateSubsidyTrackerSchema = z.object({
     }),
     body: z.object({
         portalStatus: z.number().int().min(0).max(8).optional(),
-        netMeterStatus: z.number().int().min(0).max(6).optional(),
+        netMeterStatus: z.number().int().min(0).max(1).optional(),
         portalReferenceNumber: z.string().optional().nullable(),
         discomReferenceNumber: z.string().optional().nullable(),
         approvedSubsidyAmount: z.number().optional().nullable(),

@@ -57,20 +57,25 @@ export function requirePermission(menuCode: string, action: 'can_view' | 'can_cr
         }
 
         try {
+            const targetCodes =
+                menuCode.toLowerCase() === "subsidy_tracker" && action !== "can_setting"
+                    ? ["subsidy_tracker", "projects"]
+                    : [menuCode.toLowerCase()];
+
             const query = `
                 SELECT 
-                    COALESCE(ump.${action}, rmp.${action}, 0) AS has_permission
+                    MAX(COALESCE(ump.${action}, rmp.${action}, 0)) AS has_permission
                 FROM menus m
                 LEFT JOIN role_menu_permissions rmp 
                     ON m.uid = rmp.menu_uid AND rmp.role_uid = $1 AND rmp.tenant_uid = $3
                 LEFT JOIN user_menu_permissions ump 
                     ON m.uid = ump.menu_uid AND ump.user_uid = $2 AND ump.tenant_uid = $3
-                WHERE LOWER(m.code) = LOWER($4) AND m.is_active = 1
+                WHERE LOWER(m.code) = ANY($4) AND m.is_active = 1
             `;
 
-            const result = await pool.query(query, [authReq.roleUid, authReq.user.uid, authReq.tenantUid, menuCode]);
+            const result = await pool.query(query, [authReq.roleUid, authReq.user.uid, authReq.tenantUid, targetCodes]);
 
-            if (result.rows.length === 0) {
+            if (result.rows.length === 0 || result.rows[0].has_permission === null) {
                 logger.warn("Permission check failed: Menu not found or inactive", { menuCode });
                 res.status(403).json({
                     success: false,
@@ -79,7 +84,7 @@ export function requirePermission(menuCode: string, action: 'can_view' | 'can_cr
                 return;
             }
 
-            const hasPermission = result.rows[0].has_permission === 1;
+            const hasPermission = Number(result.rows[0].has_permission) === 1;
 
             // Cache result for 5 minutes (300 seconds) in background
             safeCacheSet(cacheKey, hasPermission ? 1 : 0, 300).catch(() => {});

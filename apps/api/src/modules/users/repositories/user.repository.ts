@@ -115,7 +115,8 @@ export class UserRepository {
         canInstallation?: number,
         canSale?: number,
         excludeSpecialRoles: boolean = false,
-        includeAssignmentCounts: boolean = false
+        includeAssignmentCounts: boolean = false,
+        onlyActiveAccounts: boolean = false
     ): Promise<IUser[]> {
         const params: any[] = [tenantUid];
         const conditions: string[] = [`u.tenant_uid = $1`];
@@ -132,6 +133,12 @@ export class UserRepository {
             conditions.push("u.is_deleted = 0");
         } else if (status === "deleted") {
             conditions.push("u.is_deleted = 1");
+        }
+
+        if (onlyActiveAccounts) {
+            conditions.push("u.is_active = 1");
+            conditions.push("COALESCE(r.is_deleted, 0) = 0");
+            conditions.push("COALESCE(r.is_active, 1) = 1");
         }
 
         if (canSiteSurvey === 1) {

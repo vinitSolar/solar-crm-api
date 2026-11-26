@@ -35,7 +35,13 @@ export class UserService {
 
     async getUsersForDropdown(tenantUid: string, currentUserUid: string, status?: "active" | "deleted" | "all", canSiteSurvey?: number, canInstallation?: number, canSale?: number): Promise<UserDTO[]> {
         const users = await this.userRepository.getAllUsers(tenantUid, status, canSiteSurvey, canInstallation, canSale, false, false);
-        const dtos = users.map(toUserDTO);
+        const eligibleUsers = users.filter((u) => {
+            if (u.isDeleted === 1) return false;
+            if ((status === "active" || !status) && u.isActive !== 1) return false;
+            if (String(u.roleName || "").trim() === "Master" && u.uid !== currentUserUid) return false;
+            return true;
+        });
+        const dtos = eligibleUsers.map(toUserDTO);
 
         const hasCapabilityFilter = canSiteSurvey === 1 || canInstallation === 1 || canSale === 1;
 
@@ -49,7 +55,7 @@ export class UserService {
             dtos.unshift(currentUser);
         } else if (!hasCapabilityFilter) {
             const currentUser = await this.userRepository.getUserByUid(currentUserUid, tenantUid);
-            if (currentUser) {
+            if (currentUser && currentUser.isDeleted !== 1 && currentUser.isActive === 1) {
                 const currentUserDto = toUserDTO(currentUser);
                 currentUserDto.firstName = "My Self";
                 currentUserDto.lastName = "";
